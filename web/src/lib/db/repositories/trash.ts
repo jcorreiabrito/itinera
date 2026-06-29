@@ -7,7 +7,7 @@
  * tombstones and replicates so every device converges).
  */
 
-import { listDeleted, purgeDoc, restoreDoc } from './base';
+import { listDeleted, purgeDoc, restoreDoc } from '../base';
 import type { AnyDoc } from '../schemas';
 
 /** A soft-deleted document summarised for the Trash list. */

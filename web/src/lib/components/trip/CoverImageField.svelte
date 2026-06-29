@@ -2,7 +2,7 @@
 </script>
 
 <script lang="ts">
-    import { attachments, fullTripId, trips } from '$lib/db';
+    import { attachments, fullTripid, trips } from '$lib/db';
     import { ImagePlus, Loader2, Trash2 } from 'lucide-svelte';
     import { Button, toast } from '$lib/components/ui';
     import TripCover from './TripCover.svelte';
@@ -40,7 +40,7 @@
             const att = await attachments.create({
                 tripId,
                 ownerType: 'trip',
-                ownerId: fullTripId(tripId),
+                ownerId: fullTripid(tripId),
                 file,
                 resizeImages: true
             });

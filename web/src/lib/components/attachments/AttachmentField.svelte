@@ -89,8 +89,7 @@
             variant="secondary"
             size="sm"
             onclick={() => fileInput?.click()}
-            {disabled}
-            {disabled || uploading}
+            disabled={disabled || uploading}
         >
             <Plus class="size-4" />
             {uploading ? 'Adding...' : 'Add file'}

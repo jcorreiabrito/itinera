@@ -56,11 +56,11 @@
 
     const chipClass = (active: boolean) =>
         cn(
-            'inline-flex min-h-touch items-center rounded-full border px-3 py-1.5 text-sm font-medium transition-colors ${
+            `inline-flex min-h-touch items-center rounded-full border px-3 py-1.5 text-sm font-medium transition-colors ${
                 active
                     ? 'border-primary-600 bg-primary-600 text-white'
                     : 'border-border bg-surface text-ink-muted hover:text-ink'
-            }'
+            }`
         );
 </script>
 

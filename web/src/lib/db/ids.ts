@@ -31,6 +31,7 @@ export function newUid(): string {
 export function bareTripUid(tripid: string): string {
   return tripid.startsWith('trip:') ? tripid.slice('trip:'.length) : tripid;
 }
+export const bareTripUlid = bareTripUid;
 
 /** Return the full `trip:{uid}` form, accepting either a bare ULID or full id. */
 export function fullTripid(tripid: string): string {

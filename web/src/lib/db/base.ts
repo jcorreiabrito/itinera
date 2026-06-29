@@ -13,12 +13,12 @@
 
 import { DateTime } from 'luxon';
 
-import { SCHEMA_VERSION } from '../constants';
+import { SCHEMA_VERSION } from './constants';
 import { migrateDoc } from './migrations';
 import { getDb, type Database } from './pouch';
 import { prefixRange, tripTypeRange, type KeyRange } from './ids';
-import { validateDoc, type AnyDoc } from '../schemas';
-import type { DocType } from '../constants';
+import { validateDoc, type AnyDoc } from './schemas';
+import type { DocType } from './constants';
 
 /** Current timestamp as a UTC ISO string (chronologically sortable). */
 export function nowIso(): string {

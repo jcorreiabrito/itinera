@@ -19,8 +19,8 @@ import {
   prefixScan,
   restoreDoc,
   softDeleteDoc
-} from './base';
-import { checklistItemId, fullTripid, templateId } from './ids';
+} from '../base';
+import { checklistItemId, fullTripid, templateId } from '../ids';
 import * as settings from './settings';
 import type { ChecklistItem, ChecklistTemplate, ChecklistTemplateItem } from '../schemas';
 

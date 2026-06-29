@@ -29,8 +29,8 @@ import {
   rangeScan,
   restoreDoc,
   softDeleteDoc
-} from './base';
-import { allTripsRange, bareTripid, dayId, fullTripid, parseId, tripid as buildTripId } from './ids';
+} from '../base';
+import { allTripsRange, bareTripUid, dayId, fullTripid, parseId, tripid as buildTripId } from '../ids';
 import type {
   AnyDoc,
   Budget,
@@ -328,7 +328,7 @@ export async function duplicate(sourceId: string, opts: DuplicateOptions = {}): 
 }
 
 function remapChildId(type: TripChildType, doc: AnyDoc, newTripid: string, delta: number): string {
-  const bare = bareTripid(newTripid);
+  const bare = bareTripUid(newTripid);
   if (type === 'tripDay') {
     const date = shiftIsoDate((doc as { date?: string }).date, delta) ?? '';
     return dayId(newTripid, date);

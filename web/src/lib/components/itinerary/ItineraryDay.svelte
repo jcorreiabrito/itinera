@@ -329,7 +329,7 @@
         <ol
             class="relative space-y-2 before:absolute before:bottom-3 before:left-[4.75rem] before:top-3 before:w-px before:bg-border before:content-['']"
         >
-            {#each day.timed as entry, i ({entry.item}_id ?? `${entry.kind}-${i}`)}
+            {#each day.timed as entry, i (entry.item._id ?? `${entry.kind}-${i}`)}
                 <TimelineEntryRow
                     {entry}
                     {links}

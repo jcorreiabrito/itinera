@@ -12,8 +12,8 @@
  */
 
 import { dayDelta, eachDateInRange, todayIso, tripDayCount } from '../datetime';
-import { createDoc, getDoc, listTripDocs, patchDoc, restoreDoc, softDeleteDoc } from './base';
-import { expenseId, fullTripid } from './ids';
+import { createDoc, getDoc, listTripDocs, patchDoc, restoreDoc, softDeleteDoc } from '../base';
+import { expenseId, fullTripid } from '../ids';
 import {
   budgetRemaining,
   budgetUsedFraction,
@@ -21,9 +21,9 @@ import {
   rollupByDay,
   sumExpenses,
   type MoneyTotals
-} from './money';
+} from '../money';
 import { EXPENSE_CATEGORIES } from '../schemas';
-import type { Expense, ExpenseCategory, LinkedType, Trip } from './schemas';
+import type { Expense, ExpenseCategory, LinkedType, Trip } from '../schemas';
 
 /** Fields accepted when creating an expense. */
 export interface NewExpenseInput {

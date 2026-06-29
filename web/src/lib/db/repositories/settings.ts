@@ -6,7 +6,7 @@
  * (`docs/04-data-model.md`). Read-through creates the document on first access.
  */
 
-import { createDoc, getDoc, patchDoc } from './base';
+import { createDoc, getDoc, patchDoc } from '../base';
 import { SETTINGS_ID } from '../constants';
 import type { Settings, ThemePref } from '../schemas';
 

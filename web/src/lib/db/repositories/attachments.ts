@@ -15,11 +15,10 @@
  * the Phase 3 viewer MUST follow.
  */
 
-import { createDoc, getDoc, listTripDocs, patchDoc, purgeDoc, softDeleteDoc } from './base';
-import { attachmentId, fullTripid } from './ids';
-import { getDb, type Database } from './pouch';
-import type { Attachment } from './schemas';
-import { safeViewMime } from './attachment-mime';
+import { createDoc, getDoc, listTripDocs, patchDoc, purgeDoc, softDeleteDoc } from '../base';
+import { attachmentId, fullTripid } from '../ids';
+import { getDb, type Database } from '../pouch';
+import type { Attachment } from '../schemas';
 
 import {
   INLINE_RENDERABLE_MIMES,

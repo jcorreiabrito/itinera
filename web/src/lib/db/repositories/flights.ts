@@ -17,8 +17,8 @@ import {
   legDurationMinutes,
   minutesOfDay
 } from '../datetime';
-import { createDoc, getDoc, listTripDocs, patchDoc, restoreDoc, softDeleteDoc } from './base';
-import { flightId, fullTripid, parseId } from './ids';
+import { createDoc, getDoc, listTripDocs, patchDoc, restoreDoc, softDeleteDoc } from '../base';
+import { flightId, fullTripid, parseId } from '../ids';
 import type { Attachment, ExpenseCategory, Flight, FlightSegment } from '../schemas';
 import * as attachments from './attachments';
 import { removeLinkedExpense, upsertLinkedExpense } from './expenses';

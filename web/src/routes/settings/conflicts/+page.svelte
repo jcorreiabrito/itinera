@@ -1,7 +1,7 @@
 <script lang="ts">
   import { onMount } from 'svelte';
   import { listConflicts, markConflictReviewed, trips } from '$lib/db';
-  import { ArrowLeft, GitMerge, SolidCheck } from 'lucide-svelte';
+  import { ArrowLeft, GitMerge, Check } from 'lucide-svelte';
   import { Badge, Button, EmptyState, Skeleton, SyncStatusPill, toast } from '$lib/components/ui';
   import { relativeTime } from '$lib/format';
   import { startLive } from '$lib/live';
@@ -134,7 +134,7 @@
 
 <main class="mx-auto w-full max-w-3xl flex-1 px-4 pb-28 pt-6 sm:px-6 lg:pb-12">
   <p class="flex items-start gap-2 rounded-lg border border-border bg-surface px-4 py-3 text-sm text-ink-muted [&_svg]:mt-0.5 [&_svg]:size-4 [&_svg]:shrink-0 [&_svg]:text-primary-700">
-    <SolidCheck />
+    <Check />
     <span>
       When the same thing is edited on two devices offline, Itinera automatically keeps the most
       recent version. The replaced versions are saved here so nothing is ever lost.

@@ -39,7 +39,7 @@ let loading: Promise<AirportRecord[]> | null = null;
 export async function loadAirports(): Promise<AirportRecord[]> {
   if (cache) return cache;
   if (!loading) {
-    loading = import('./airports.data').then((m) => {
+    loading = import('./airport.data').then((m) => {
       cache = m.AIRPORTS;
       return cache;
     });

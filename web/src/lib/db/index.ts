@@ -36,7 +36,7 @@ export * from './ids';
 // --- Pure helpers (date/time, money, airports, conflict policy) -----------
 export * from './datetime';
 export * from './money';
-export * from './airports';
+export * from './airport';
 export * from './conflicts';
 
 // --- Constants ------------------------------------------------------------
@@ -67,8 +67,8 @@ export {
 } from './pouch';
 export type { Database, DbOptions, PouchStatic } from './pouch';
 
-export { ensureIndexes, INDEX_SPECS } from './indexes';
-export type { IndexSpec } from './indexes';
+export { ensureIndexes, INDEX_SPECS } from './indexers';
+export type { IndexSpec } from './indexers';
 
 export { migrateDoc, MIGRATIONS } from './migrations';
 export type { Migration, MigratableDoc, MigrationResult } from './migrations';
@@ -114,7 +114,7 @@ import {
   type Database,
   type DbOptions
 } from './pouch';
-import { ensureIndexes } from './indexes';
+import { ensureIndexes } from './indexers';
 import { runMigrations } from './base';
 import { startSync } from './sync';
 
