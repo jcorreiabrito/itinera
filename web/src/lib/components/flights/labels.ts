@@ -8,13 +8,13 @@ import type { AirportSnapshot, Flight, FlightSegment } from '$lib/db';
 import { formatTime } from '$lib/format';
 
 /** Best short label for an airport endpoint: code, else city, else dash. */
-export function endpointCode(airport: AirportSnapshot): string {
-    return airport.code ?? airport.city ?? '–';
+export function endpointCode(airport?: AirportSnapshot): string {
+    return airport ? (airport.code ?? airport.city ?? '–') : '–';
 }
 
 /** Best human name for an airport endpoint: city, else name, else code. */
-export function endpointName(airport: AirportSnapshot): string {
-    return airport.city ?? airport.name ?? airport.code ?? '–';
+export function endpointName(airport?: AirportSnapshot): string {
+    return airport ? (airport.city ?? airport.name ?? airport.code ?? '–') : '–';
 }
 
 export function firstFrom(flight: Flight): AirportSnapshot | undefined {

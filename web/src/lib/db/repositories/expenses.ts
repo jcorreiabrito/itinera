@@ -149,7 +149,7 @@ export async function upsertLinkedExpense(input: LinkedExpenseInput): Promise<Ex
     });
   }
   return create(input.tripid, {
-    description: input.description,
+    description: input.description ?? '',
     category: input.category,
     amountEstimate: input.amount,
     currency: input.currency,
@@ -233,10 +233,10 @@ export async function byDayRollup(tripid: string): Promise<ByDayBudget> {
   const rollup = rollupByDay(expenses, home);
   const target = trip?.budget?.perDay ?? null;
   const byDate = new Map(rollup.days.map((d) => [d.date, d.totals]));
-  const dates =
+  const dates: string[] =
     trip?.startDate && trip?.endDate
       ? eachDateInRange(trip.startDate, trip.endDate)
-      : rollup.days.map((d) => d.date).filter(Boolean);
+      : (rollup.days.map((d) => d.date).filter(Boolean) as string[]);
   // Include any dated expenses that fall outside the trip span.
   for (const d of rollup.days) if (d.date && !dates.includes(d.date)) dates.push(d.date);
   dates.sort();

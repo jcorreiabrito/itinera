@@ -10,6 +10,6 @@
 <section aria-labelledby="costs-heading">
   <h1 id="costs-heading" class="sr-only">Costs &amp; budget</h1>
   {#key id}
-    <CostsPane tripid={id} />
+    <CostsPane tripId={id} />
   {/key}
 </section>

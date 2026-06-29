@@ -40,9 +40,11 @@ export const INDEX_SPECS: readonly IndexSpec[] = [
 export async function ensureIndexes(db: Database = getDb()): Promise<void> {
   for (const spec of INDEX_SPECS) {
     await db.createIndex({
-      index: { fields: spec.fields },
-      name: spec.name,
-      ddoc: spec.ddoc
+      index: {
+        fields: spec.fields,
+        name: spec.name,
+        ddoc: spec.ddoc
+      }
     });
   }
 }

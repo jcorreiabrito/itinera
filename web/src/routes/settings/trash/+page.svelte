@@ -180,13 +180,13 @@
     </div>
   {:else if entries.length === 0}
     <EmptyState
-      icon={Trash}
+      icon={Trash2}
       title="Trash is empty."
       description="When you delete a trip or items, it lands here so you can undo. Nothing's waiting right now."
     />
   {:else}
     <div class="space-y-6">
-      {#each groups as {type, items} (type)}
+      {#each groups as [type, items] (type)}
         <section aria-label={groupLabel(type)}>
           <h2 class="mb-2 flex items-center gap-2 text-sm font-semibold text-ink-muted">
             {groupLabel(type)}

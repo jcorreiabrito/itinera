@@ -69,7 +69,7 @@
 
     const homeCurrency = $derived(trip?.homeCurrency ?? 'EUR');
     const timeline = $derived(buildTimeline(resList, filter));
-    const kindCounts = $derived(() => {
+    const kindCounts = $derived.by(() => {
         const m = new Map<ReservationKind, number>();
         for (const r of resList) if (r.kind) m.set(r.kind, (m.get(r.kind) ?? 0) + 1);
         return m;
@@ -154,9 +154,10 @@
         >
             All
         </button>
-        {#each KIND_ORDER as kind (kind)}
+         {#each KIND_ORDER as kind (kind)}
             {@const count = kindCounts.get(kind) ?? 0}
             {@const isOn = kind === filter}
+            {@const Icon = KIND_META[kind].icon}
             <button
                 type="button"
                 onclick={() => toggleFilter(kind)}

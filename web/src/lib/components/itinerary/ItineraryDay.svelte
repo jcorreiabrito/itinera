@@ -20,7 +20,7 @@
         homeCurrency?: string;
         flightsById?: Map<string, Flight>;
         reservationsById?: Map<string, Reservation>;
-        links: { flights: string[]; reservations: string[] };
+        links: { flights: string; reservations: string };
         /** Open the full edit sheet for an existing item. */
         onedit: (item: ItineraryItem) => void;
         /** Re-query after a mutation. */
@@ -40,7 +40,7 @@
     }: Props = $props();
 
     const isIdeas = $derived(day.date === null);
-    const heading = $derived(() => {
+    const heading = $derived.by(() => {
         if (!day.date) return 'Unscheduled · Ideas';
         const dt = DateTime.fromISO(day.date);
         return dt.isValid ? dt.toFormat('ccc d LLL') : day.date;
@@ -102,7 +102,7 @@
     function dayItemIds(): string[] {
         const ids: string[] = [];
         for (const id of allDayItems) ids.push(id._id);
-        for (const id of day.timed) if (id.timed !== 'item' && e.item) ids.push(e.item._id);
+        for (const entry of day.timed) if (entry.kind === 'item' && entry.item) ids.push(entry.item._id);
         return ids;
     }
 
@@ -329,7 +329,7 @@
         <ol
             class="relative space-y-2 before:absolute before:bottom-3 before:left-[4.75rem] before:top-3 before:w-px before:bg-border before:content-['']"
         >
-            {#each day.timed as entry, i (entry.item._id ?? `${entry.kind}-${i}`)}
+            {#each day.timed as entry, i (entry.item?._id ?? `${entry.kind}-${i}`)}
                 <TimelineEntryRow
                     {entry}
                     {links}

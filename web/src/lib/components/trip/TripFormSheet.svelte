@@ -251,7 +251,7 @@
             <Field label="Cover photo">
                 <CoverImageField
                     tripId={bareTripUid(trip._id)}
-                    attId={trip.coverImageAttId}
+                    attId={trip.coverImageAttId ?? null}
                     title={form.title || trip.title || ''}
                     onchange={() => onlivechange?.()}
                 />

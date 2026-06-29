@@ -29,7 +29,7 @@ _TRIP_CHILD_PREFIXES: tuple[str, ...] = ("day", "itm", "chk", "flt", "res", "exp
 #: table in 04-data-model.md. The data-sync layer should rely on these names.
 INDEX_SPECS: tuple[dict[str, Any], ...] = (
     # All trips for Home; any "by type" listing.
-    {"index": {"fields": ["type"], "name": "idx-type", "ddoc": "idx-type", "type": "json"},
+    {"index": {"fields": ["type"]}, "name": "idx-type", "ddoc": "idx-type", "type": "json"},
     # Everything for one trip / trip-scoped Mango queries.
     {
         "index": {"fields": ["type", "tripId"]},

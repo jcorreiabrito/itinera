@@ -71,7 +71,7 @@
     if (!tripId) return;
     try {
       const [t, gv, dv, bi, prg] = await Promise.all([
-        trips.getTrip(tripId),
+        trips.get(tripId),
         checklist.groups(tripId, { hideCompleted }),
         checklist.byDay(tripId),
         checklist.toBuy(tripId),

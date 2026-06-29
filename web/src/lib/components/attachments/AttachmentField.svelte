@@ -22,7 +22,7 @@
         link: (attId: string) => Promise<unknown>;
         /** Unlink an attachment from the owner before it is removed. */
         unlink: (attId: string) => Promise<unknown>;
-        onChange?: () => void;
+        onchange?: () => void;
         disabled?: boolean;
         accept?: string;
         label?: string;
@@ -35,7 +35,7 @@
         items = [],
         link,
         unlink,
-        onChange,
+        onchange,
         disabled = false,
         accept = 'image/*,application/pdf',
         label = 'Attachments'
@@ -55,10 +55,10 @@
         try {
             for (const file of files) {
                 // Images are client-resized by the data layer; bytes live offline.
-                const att = await attachments.create({ tripId, ownerType, ownerId, file });
+                const att = await attachments.create({ tripid: tripId, ownerType, ownerId, file });
                 await link(att._id);
             }
-            onChange?.();
+            onchange?.();
         } catch {
             toast.error('Could not add that file. Please try again.');
         } finally {
@@ -75,7 +75,7 @@
         try {
             await unlink(att._id);
             await attachments.remove(att._id);
-            onChange?.();
+            onchange?.();
         } catch {
             toast.error('Could not remove that file. Please try again.');
         }
@@ -130,4 +130,4 @@
     {/if}
 </div>
 
-<AttachmentViewer bind:open={viewerOpen} attachment={selected} />
+<AttachmentViewer bind:open={viewerOpen} attachment={selected} onclose={() => (viewerOpen = false)} />

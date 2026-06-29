@@ -18,8 +18,8 @@ export interface Toast {
 
 /** Options for {@link toast.show}. */
 export interface ToastOptions {
-	variant: ToastVariant;
-	duration: number;
+	variant?: ToastVariant;
+	duration?: number;
 	action?: ToastAction;
 }
 

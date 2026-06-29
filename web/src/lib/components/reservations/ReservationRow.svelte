@@ -33,7 +33,7 @@
 
     let menuOpen = $state(false);
 
-    const meta = $derived(kindMeta(reservation.kind));
+    const meta = $derived(kindMeta(reservation.kind ?? ''));
     const Icon = $derived(meta.icon);
     const name = $derived(reservation.name?.trim() || meta.label);
     const nights = $derived(reservations.lodgingNights(reservation));
@@ -46,7 +46,7 @@
     );
     const contact = $derived(reservation.contact);
 
-    const ariaLabel = $derived(() => {
+    const ariaLabel = $derived.by(() => {
         const parts: string[] = [meta.label];
         if (placement) parts.push(placement.toLowerCase());
         if (reservation.kind === 'lodging' && rowKind === 'checkin' && nights > 0)

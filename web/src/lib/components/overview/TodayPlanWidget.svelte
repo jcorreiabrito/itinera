@@ -18,7 +18,7 @@
         reservation: BedDouble
     };
 
-    const isEmpty = $derived(day || (day.allDay.length === 0 && day.timed.length === 0));
+    const isEmpty = $derived(!day || (day.allDay.length === 0 && day.timed.length === 0));
 </script>
 
 <WidgetCard title="Today's plan" icon={Sun} {href} linkLabel="Itinerary">

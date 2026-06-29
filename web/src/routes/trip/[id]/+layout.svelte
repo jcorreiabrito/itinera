@@ -36,7 +36,7 @@
 
   async function loadTrip(tripid: string) {
     try {
-      trip = await trips.getTrip(tripid);
+      trip = await trips.get(tripid);
     } catch {
       trip = null;
     } finally {

@@ -21,7 +21,7 @@
  * airport lookup) rather than bloating the initial bundle.
  */
 
-import type { AirportRecord } from './airports';
+import type { AirportRecord } from './airport';
 
 /** Compact `[code, name, city, country, tz]` tuples, expanded below. */
 type Row = [code: string, name: string, city: string, country: string, tz: string];

@@ -1,5 +1,6 @@
 <script lang="ts">
     import { Search } from 'lucide-svelte';
+    import { cn } from '$lib/utils';
     import { expenseAmounts } from '$lib/db';
     import type { Expense } from '$lib/db';
     import { Input, Select } from '$lib/components/ui';

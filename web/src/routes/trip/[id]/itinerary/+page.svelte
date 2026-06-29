@@ -163,11 +163,11 @@
         {#key selectedKey}
           <ItineraryDay
             day={currentDay}
-            tripid={id}
+            tripId={id}
             {dates}
             {homeCurrency}
-            flightList={flightList}
-            reservationList={resList}
+            flightsById={flightsById}
+            reservationsById={reservationsById}
             {links}
             onedit={openEdit}
             onchanged={reload}
@@ -194,7 +194,7 @@
 <ItineraryItemSheet
   bind:open={sheetOpen}
   mode={sheetMode}
-  tripid={id}
+  tripId={id}
   item={sheetItem}
   defaultDate={selectedDate}
   {dates}

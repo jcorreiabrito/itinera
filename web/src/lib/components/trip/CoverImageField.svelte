@@ -38,7 +38,7 @@
         uploading = true;
         try {
             const att = await attachments.create({
-                tripId,
+                tripid: tripId,
                 ownerType: 'trip',
                 ownerId: fullTripid(tripId),
                 file,

@@ -40,7 +40,7 @@
         <span class="min-w-0 flex-1">
             <span class="flex flex-wrap items-center gap-x-2 gap-y-1">
                 <span class="truncate font-medium">
-                    {expense.description.trim() || categoryLabel(expense.category ?? 'other')}
+                    {expense.description?.trim() || categoryLabel(expense.category ?? 'other')}
                 </span>
                 {#if source}
                     {@const SrcIcon = source.icon}

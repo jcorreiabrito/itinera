@@ -194,7 +194,7 @@
                     <MoreVertical class="size-4" />
                 </button>
             {/snippet}
-            <MenuItem icon={SquareArrowOutUpRight} {href} onopen={onedit}>Edit</MenuItem>
+            <MenuItem icon={SquareArrowOutUpRight} {href}>Open</MenuItem>
             <MenuItem icon={Pencil} onclick={() => { menuOpen = false; onedit?.(); }}>Edit</MenuItem>
             <MenuItem icon={Copy} onclick={() => { menuOpen = false; onduplicate?.(); }}>Duplicate</MenuItem>
             {#if trip.archived}

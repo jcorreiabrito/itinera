@@ -18,7 +18,7 @@
 
     // `navigator.online` is not reactive, so mirror it via the online/offline
     // events; combine with the sync store (doc 85) for the gentle gate.
-    let navOnline = $state(typeof navigator === 'undefined' ? true : navigator.online);
+    let navOnline = $state(typeof navigator === 'undefined' ? true : navigator.onLine);
     $effect(() => {
         const up = () => (navOnline = true);
         const down = () => (navOnline = false);

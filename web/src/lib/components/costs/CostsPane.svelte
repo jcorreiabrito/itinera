@@ -207,7 +207,7 @@
             </div>
 
             <div id="cost-panel" role="tabpanel" aria-labelledby={`costtab-${view}`} tabindex="-1">
-                {#if view === 'day'}
+                {#if view === 'day' && byDay}
                     <ByDayView {byDay} {summary} {unpaidOnly} />
                 {:else if view === 'category'}
                     <ByCategoryView {categories} homeCurrency={home} {summary} {unpaidOnly} />

@@ -6,7 +6,7 @@
     import { nightsBetween, reservations } from '$lib/db';
     import type {
         Attachment,
-        Geolocation,
+        GeoLocation,
         Reservation,
         ReservationContact,
         ReservationDetails,
@@ -122,11 +122,11 @@
         };
     }
 
-    function dateOfStr(value: string | null): string {
+    function dateOfStr(value: string | null | undefined): string {
         return value ? value.slice(0, 10) : '';
     }
 
-    function timeOfStr(value: string | null): string {
+    function timeOfStr(value: string | null | undefined): string {
         if (!value) return '';
         const m = /^(\d{2}):(\d{2})/.exec(value);
         return m ? `${m[1]}:${m[2]}` : '';
@@ -262,7 +262,7 @@
         const lat = form.lat.trim() ? Number(form.lat) : undefined;
         const lng = form.lng.trim() ? Number(form.lng) : undefined;
         const hasLocation = !!(form.locName.trim() || form.locAddress.trim() || lat != null || lng != null);
-        const location: Geolocation | undefined = hasLocation
+        const location: GeoLocation | undefined = hasLocation
             ? {
                   name: form.locName.trim() || undefined,
                   address: form.locAddress.trim() || undefined,
@@ -284,7 +284,7 @@
         const validCost = amount != null && Number.isFinite(amount) && amount >= 0 ? amount : null;
         return {
             kind: form.kind,
-            name: form.name.trim() || null,
+            name: form.name.trim(),
             start: start || null,
             end: end || null,
             location,

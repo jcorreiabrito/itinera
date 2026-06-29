@@ -78,7 +78,7 @@
                 <CloudOff class="size-3.5" />
             {/if}
             <span aria-label={current.label}>{current.label}</span>
-            {#if $syncStatus.state === 'pending' && $syncStatus.pendingChanges !== 0}
+            {#if $syncStatus.state === 'pending' && $syncStatus.pendingChanges}
                 <span class="absolute -right-0.5 -top-0.5 size-1.5 rounded-full bg-warning ring-1 ring-bg" aria-hidden="true"></span>
             {/if}
         </button>
@@ -88,13 +88,13 @@
         <div class="flex items-center justify-between gap-2 px-1">
             <span class="text-sm font-semibold text-ink">{current.label}</span>
             {#if $syncStatus.pendingChanges}
-                <span class="text-xs text-warning">{syncStatus.pendingChanges} unsynced changes</span>
+                <span class="text-xs text-warning">Unsynced changes</span>
             {/if}
         </div>
 
         <p class="mt-0.5 px-1 text-xs text-ink-muted">
-            {#if $syncStatus.lastSynced}
-                Last synced {relativeTime($syncStatus.lastSynced)}
+            {#if $syncStatus.lastSyncedAt}
+                Last synced {relativeTime($syncStatus.lastSyncedAt)}
             {:else}
                 Not yet synced
             {/if}

@@ -20,7 +20,7 @@
 </script>
 
 <section aria-label="trip summary" class="relative overflow-hidden rounded-xl">
-    <TripCover title={trip.coverImageAttId ? null : title} class="aspect-[16/9] w-full sm:aspect-[5/2]" />
+    <TripCover attId={trip.coverImageAttId} {title} blob="full" class="aspect-[16/9] w-full sm:aspect-[5/2]" />
     <div
         class="absolute inset-0 bg-gradient-to-t from-ink/85 via-ink/35 to-transparent"
         aria-hidden="true"

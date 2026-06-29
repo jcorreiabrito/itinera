@@ -22,10 +22,9 @@ import type { Attachment } from '../schemas';
 
 import {
   INLINE_RENDERABLE_MIMES,
-  DOWNLOAD_ONLY_MIMES,
-  isInlineRenderable,
   safeViewMime
 } from './attachment-mime';
+export { isInlineRenderable } from './attachment-mime';
 
 /** Default longest-edge sizes (px) for resized images. */
 export const COVER_FULL_EDGE = 1600;

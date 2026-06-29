@@ -14,7 +14,7 @@
 
     const home = $derived(summary.homeCurrency);
     const hasBudget = $derived(summary.budgetTotal != null);
-    const money = (n: number) => formatMoney(n, home);
+    const money = (n: number | null | undefined) => formatMoney(n ?? 0, home);
 </script>
 
 <Card class="p-4 sm:p-5">

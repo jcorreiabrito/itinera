@@ -77,7 +77,7 @@
     };
   });
 
-  const online = $derived(navOnline && syncStatus.state !== 'offline');
+  const online = $derived(navOnline && $syncStatus.state !== 'offline');
 
   async function loadTemplates() {
     try {
@@ -378,7 +378,7 @@
                   {b.createdAt ? relativeTime(b.createdAt) : b.name}
                 </p>
                 <p class="truncate text-xs text-ink-muted">
-                  {b.docCount ?? 0} records · {formatBytes(b.sizeBytes)}
+                  {b.docCount ?? 0} records · {formatBytes(b.sizeBytes ?? null)}
                 </p>
               </div>
               <span class="shrink-0 font-mono text-[0.7rem] text-ink-muted">{b.name}</span>
@@ -470,7 +470,7 @@
               <div class="flex flex-wrap items-center gap-2">
                 <span class="truncate font-medium text-ink">{t.name ?? '(untitled)'}</span>
                 {#if t.isDefault}
-                  <Badge variant="primary" class="size-3" /> Default
+                  <Badge variant="primary">Default</Badge>
                 {/if}
               </div>
               <p class="text-xs text-ink-muted">

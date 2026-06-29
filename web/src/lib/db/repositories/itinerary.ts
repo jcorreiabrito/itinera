@@ -18,7 +18,7 @@ import type {
   ExpenseCategory,
   Flight,
   FlightSegment,
-  GetLocation,
+  GeoLocation,
   ItineraryCategory,
   ItineraryItem,
   Reservation,
@@ -37,7 +37,7 @@ export interface NewItineraryItemInput {
   startTime?: string;
   endTime?: string;
   category?: ItineraryCategory;
-  location?: GetLocation;
+  location?: GeoLocation;
   notes?: string;
   linkedFlightId?: string | null;
   linkedReservationId?: string | null;

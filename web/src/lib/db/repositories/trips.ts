@@ -139,8 +139,9 @@ export async function list(opts: TripListOptions = {}): Promise<TripWithDerived[
             : 'Archived';
     trips = trips.filter((t) => t.derived.status === wanted);
   }
-  if (opts.search?.trim()) {
-    trips = trips.filter((t) => matchesSearch(t, opts.search.trim()));
+  const search = opts.search?.trim();
+  if (search) {
+    trips = trips.filter((t) => matchesSearch(t, search));
   }
   return trips.sort((a, b) => (a.startDate ?? '').localeCompare(b.startDate ?? ''));
 }

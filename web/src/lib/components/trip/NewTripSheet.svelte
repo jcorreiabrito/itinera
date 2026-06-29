@@ -192,7 +192,7 @@
                 <button
                     type="button"
                     disabled={choice.disabled}
-                    onclick={() => (step = choice.id)}
+                    onclick={() => (step = choice.id as Step)}
                     class="flex items-start gap-3 rounded-lg border border-border bg-surface p-4 text-left transition-colors hover:border-primary-600 hover:bg-primary-100/40 disabled:opacity-50 disabled:grayscale-[50%]"
                 >
                     <span class="grid size-9 shrink-0 place-items-center rounded-md bg-primary-100 text-primary-700">

@@ -12,7 +12,7 @@
         onchange?: (event: Event & { currentTarget: HTMLInputElement }) => void;
     }
 
-    let { checked = false, label, description, disabled = false, class: className, ...rest }: Props = $props();
+    let { checked = $bindable(false), label, description, disabled = false, class: className, ...rest }: Props = $props();
 </script>
 
 <label

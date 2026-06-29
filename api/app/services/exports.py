@@ -40,7 +40,7 @@ def build_attachment_manifest(docs: list[dict[str, Any]]) -> list[dict[str, Any]
                     "name": name,
                     "filename": doc.get("filename") or name,
                     "mime": doc.get("mime") or meta.get("content_type"),
-                    "size": doc.get("size") if doc.get("size") is not None else meta.get("le",
+                    "size": doc.get("size") if doc.get("size") is not None else meta.get("length"),
                     "digest": meta.get("digest"),
                     "ownerType": doc.get("ownerType"),
                     "ownerId": doc.get("ownerId"),

@@ -343,7 +343,7 @@
   bind:open={createOpen}
   sources={allTrips}
   defaultCurrency={defaultCurrency}
-  oncreated={onCreated}
+  onsaved={onCreated}
   onduplicate={openDuplicate}
 />
 

@@ -31,7 +31,7 @@
     interface Props {
         entry: itinerary.TimelineEntry;
         /** Section links for read-only bookings. */
-        links: { flights: string[]; reservations: string[] };
+        links: { flights: string; reservations: string };
         /** Live bookings, to detect an item's linked-but-deleted booking. */
         flightsById?: Map<string, Flight>;
         reservationsById?: Map<string, Reservation>;
@@ -78,7 +78,7 @@
     };
 
     // --- Item link status (linked booking present / removed) --------------------
-    const linkStatus = $derived(() => {
+    const linkStatus = $derived.by(() => {
         const item = entry.item;
         if (!item) return null;
         if (item.linkedFlightId) {
@@ -256,9 +256,10 @@
     {@const ResIcon = resIcons[res?.kind ?? 'other'] ?? MapPin}
     {@const staying = placement.placement === 'staying'}
     {@const verb = {
-        'check-in': 'Checking in',
-        'check-out': 'Checking out',
-        staying: 'Staying at'
+        checkIn: 'Checking in',
+        checkOut: 'Checking out',
+        staying: 'Staying at',
+        point: 'Reservation'
     }[placement.placement ?? 'staying']}
     <li class="relative flex items-start gap-3">
         <span class="w-12 shrink-0 pt-2 text-right text-xs font-medium tabular-nums text-ink-muted">

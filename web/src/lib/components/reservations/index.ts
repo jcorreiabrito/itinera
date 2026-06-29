@@ -13,6 +13,7 @@ export {
 export type {
     KindMeta,
     ReservationDateGroup,
-    ReservationEntry,
-    ReservationKind
+    ReservationEntry
 } from './kinds';
+
+export type { ReservationKind } from '$lib/db';

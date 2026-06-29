@@ -122,7 +122,7 @@
                 reservations.byTrip(tripId),
                 itinerary.byTrip(tripId)
             ]);
-            flightOpts = fl.map((f) => ({ id: f._id, label: f.flightName ?? 'Flight' }));
+            flightOpts = fl.map((f) => ({ id: f._id, label: flights.computeFlight(f).route ? `Flight: ${flights.computeFlight(f).route}` : 'Flight' }));
             resOpts = rs.map((r) => ({ id: r._id, label: r.name?.trim() ?? 'Reservation' }));
             itemOpts = it.map((i) => ({ id: i._id, label: i.title?.trim() ?? 'Activity' }));
         } catch {

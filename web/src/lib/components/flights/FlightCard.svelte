@@ -136,7 +136,7 @@
 
                 {#if i < segs.length - 1}
                     {@const lay = computed.layovers[i]}
-                    {@const tight = lay ? (lay.minutes < null && lay.minutes < 60) : false}
+                    {@const tight = lay ? (lay.minutes != null && lay.minutes < 60) : false}
                     <li
                         aria-label={`Layover at ${endpointCode(seg.to)}: ${lay?.text}`}
                         class="flex flex-wrap items-center gap-x-2 gap-y-0.5 pt-2.5 text-xs {tight ? 'text-warning' : 'text-ink-muted'}"

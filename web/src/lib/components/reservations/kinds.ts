@@ -92,7 +92,7 @@ export function buildTimeline(
 ): ReservationDateGroup[] {
     const entries: ReservationEntry[] = [];
 
-    for (const res of list) {
+    for (const res of reservations) {
         if (filter && res.kind !== filter) continue;
         const startDate = dateOf(res.start);
         const endDate = dateOf(res.end);

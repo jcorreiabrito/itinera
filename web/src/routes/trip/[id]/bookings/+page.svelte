@@ -7,7 +7,7 @@
   const id = $derived(page.params.id ?? '');
 
   const tab = $derived(
-    page.url.searchParams.get('tab') ?? 'reservations' ?? 'flights'
+    page.url.searchParams.get('tab') === 'flights' ? 'flights' : 'reservations'
   );
 
   const segClass = (active: boolean) =>
@@ -46,11 +46,11 @@
 
   {#if tab === 'flights'}
     {#key id}
-      <FlightsPane tripid={id} />
+      <FlightsPane tripId={id} />
     {/key}
   {:else}
     {#key id}
-      <ReservationsPane tripid={id} />
+      <ReservationsPane tripId={id} />
     {/key}
   {/if}
 </section>
