@@ -1,0 +1,127 @@
+/* Self-hosted, precached fonts (render offline). Body / UI = Inter. */
+@import '@fontsource/inter/400.css';
+@import '@fontsource/inter/500.css';
+@import '@fontsource/inter/600.css';
+@import '@fontsource/inter/700.css';
+
+/*
+ * Headings use Fraunces (warm serif) per docs/13-ui-ux.md. The woff2 are bundled
+ * by Vite into the app shell (`_app/immutable/`) and therefore precached by the
+ * service worker alongside Inter, so headings render offline.
+ *
+ * NOTE: @fontsource/fraunces 404s on this machine's private npm mirror, so a
+ * local `pnpm build` can't fetch it; it resolves in the Docker build via public
+ * npm. The import + @font-face are correct as-is for that build.
+ */
+@import '@fontsource/fraunces/400.css';
+@import '@fontsource/fraunces/500.css';
+@import '@fontsource/fraunces/600.css';
+@import '@fontsource/fraunces/700.css';
+
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  /* Design tokens (docs/13-ui-ux.md) exposed as CSS variables for ad-hoc use. */
+  :root {
+    --color-primary-100: #e6f0ea;
+    --color-primary-600: #2f6b4f;
+    --color-primary-700: #245539;
+    --color-accent-terracotta: #c96b4a;
+    --color-accent-amber: #e0a458;
+    --color-bg: #fbf7f1;
+    --color-surface: #fffdf9;
+    --color-surface-sunken: #f4eee4;
+    --color-border: #eae1d4;
+    --color-ink: #2a2620;
+    --color-ink-muted: #6f6557;
+    --color-success: #3e8e5a;
+    --color-warning: #c98a2b;
+    --color-danger: #b4452f;
+    --color-info: #3e6e8e;
+
+    --radius-sm: 8px;
+    --radius-md: 12px;
+    --radius-lg: 16px;
+    --radius-xl: 24px;
+
+    --font-serif: Fraunces, ui-serif, Georgia, Cambria, 'Times New Roman', serif;
+    --font-sans: Inter, ui-sans-serif, system-ui, sans-serif;
+
+    color-scheme: light;
+  }
+
+  html {
+    -webkit-text-size-adjust: 100%;
+    text-size-adjust: 100%;
+  }
+
+  body {
+    background-color: var(--color-bg);
+    color: var(--color-ink);
+    font-family: var(--font-sans);
+    line-height: 1.6;
+    -webkit-font-smoothing: antialiased;
+    text-rendering: optimizeLegibility;
+  }
+
+  h1,
+  h2,
+  h3,
+  h4,
+  h5,
+  h6 {
+    font-family: var(--font-serif);
+    font-weight: 600;
+    line-height: 1.2;
+    color: var(--color-ink);
+    letter-spacing: -0.01em;
+  }
+
+  /* Aligned budget figures / numerals. */
+  .tabular-nums,
+  .font-numeric {
+    font-variant-numeric: tabular-nums;
+    font-feature-settings: 'tnum';
+  }
+
+  /* Visible 2px focus rings (primary-600) – WCAG AA. */
+  :where(a, button, input, select, textarea, summary, [tabindex]):focus-visible {
+    outline: 2px solid var(--color-primary-600);
+    outline-offset: 2px;
+    border-radius: 6px;
+  }
+
+  ::selection {
+    background: var(--color-primary-100);
+    color: var(--color-primary-700);
+  }
+
+  @layer utilities {
+    .text-balance {
+      text-wrap: balance;
+    }
+
+    .text-pretty {
+      text-wrap: pretty;
+    }
+
+    /* Honor the iOS/Android safe areas for the bottom tab bar. */
+    .pb-safe {
+      padding-bottom: env(safe-area-inset-bottom);
+    }
+  }
+
+  /* Motion is subtle and honors reduced-motion. */
+  @media (prefers-reduced-motion: reduce) {
+    *,
+    *::before,
+    *::after {
+      animation-duration: 0.01ms !important;
+      animation-iteration-count: 1 !important;
+      transition-duration: 0.01ms !important;
+      scroll-behavior: auto !important;
+    }
+  }
+}

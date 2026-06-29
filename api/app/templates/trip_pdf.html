@@ -1,0 +1,318 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="utf-8" />
+    <title>{{ trip.title or "Trip" }} – Itinera</title>
+    <style>
+        /* Itinera printable theme – cozy / warm / forest-green (see 13-ui-ux.md). */
+        @page {
+            size: A4;
+            margin: 18mm 16mm 16mm 16mm;
+            @bottom-center {
+                content: "Itinera";
+                font-family: "Fraunces", Georgia, serif;
+                color: #6f6557;
+                font-size: 9pt;
+            }
+            @bottom-right {
+                content: "Page " counter(page) " of " counter(pages);
+                font-family: "Inter", "Helvetica Neue", Arial, sans-serif;
+                color: #6f6557;
+                font-size: 8pt;
+            }
+        }
+
+        :root {
+            --primary-600: #2f6b4f;
+            --primary-700: #245539;
+            --primary-100: #e6f0ea;
+            --terracotta: #c96b4a;
+            --amber: #e0a458;
+            --bg: #fbf7f1;
+            --surface: #fffdf9;
+            --sunken: #f4eee4;
+            --border: #eae1d4;
+            --ink: #2a2620;
+            --muted: #6f6557;
+            --success: #3e8e5a;
+            --danger: #b4452f;
+        }
+
+        * { box-sizing: border-box; }
+
+        body {
+            font-family: "Inter", "Helvetica Neue", Arial, sans-serif;
+            color: var(--ink);
+            background: var(--bg);
+            font-size: 10.5pt;
+            line-height: 1.5;
+            margin: 0;
+        }
+
+        h1, h2, h3 {
+            font-family: "Fraunces", Georgia, "Times New Roman", serif;
+            color: var(--primary-700);
+            margin: 0 0 6px 0;
+            font-weight: 600;
+        }
+
+        .cover {
+            background: var(--primary-600);
+            color: #fffdf9;
+            border-radius: 16px;
+            padding: 22px 24px;
+            margin-bottom: 18px;
+        }
+        .cover h1 { color: #fffdf9; font-size: 24pt; margin-bottom: 4px; }
+        .cover .meta { font-size: 11pt; opacity: 0.95; }
+        .cover .meta span { white-space: nowrap; }
+        .cover .dot { opacity: 0.6; padding: 0 6px; }
+
+        section { margin-bottom: 16px; page-break-inside: auto; }
+
+        .section-title {
+            font-size: 14pt;
+            border-bottom: 2px solid var(--primary-100);
+            padding-bottom: 4px;
+            margin-bottom: 10px;
+        }
+
+        .day {
+            background: var(--surface);
+            border: 1px solid var(--border);
+            border-radius: 12px;
+            padding: 10px 12px;
+            margin-bottom: 8px;
+            page-break-inside: avoid;
+        }
+        .day-date { font-weight: 600; color: var(--primary-700); margin-bottom: 4px; }
+        .day-empty { color: var(--muted); font-style: italic; }
+
+        .item { display: flex; gap: 10px; padding: 3px 0; }
+        .item .time {
+            font-variant-numeric: tabular-nums;
+            color: var(--muted);
+            min-width: 96px;
+            font-size: 9.5pt;
+        }
+        .item .title { font-weight: 500; }
+        .item .cat {
+            display: inline-block;
+            font-size: 8pt;
+            color: var(--primary-700);
+            background: var(--primary-100);
+            border-radius: 999px;
+            padding: 1px 7px;
+            margin-left: 6px;
+            vertical-align: middle;
+        }
+        .item .where, .item .note { color: var(--muted); font-size: 9.5pt; }
+
+        table.list { width: 100%; border-collapse: collapse; }
+        table.list th, table.list td {
+            text-align: left;
+            padding: 6px 8px;
+            border-bottom: 1px solid var(--border);
+            vertical-align: top;
+        }
+        table.list th {
+            font-size: 9pt;
+            text-transform: uppercase;
+            letter-spacing: 0.04em;
+            color: var(--muted);
+            font-weight: 600;
+        }
+        table.list td.num { text-align: right; font-variant-numeric: tabular-nums; }
+
+        .card {
+            background: var(--surface);
+            border: 1px solid var(--border);
+            border-radius: 12px;
+            padding: 10px 12px;
+            margin-bottom: 8px;
+            page-break-inside: avoid;
+        }
+        .card .head { font-weight: 600; }
+        .card .sub { color: var(--muted); font-size: 9.5pt; }
+
+        .chk-group { margin-bottom: 8px; page-break-inside: avoid; }
+        .chk-group .gname { font-weight: 600; color: var(--primary-700); }
+        .chk-group .count { color: var(--muted); font-weight: 400; font-size: 9.5pt; }
+        .chk { padding: 1px 0; }
+        .box {
+            display: inline-block;
+            width: 11px; height: 11px;
+            border: 1.5px solid var(--primary-600);
+            border-radius: 3px;
+            margin-right: 7px;
+            vertical-align: -1px;
+        }
+        .box.on { background: var(--success); border-color: var(--success); }
+        .done-text { color: var(--muted); text-decoration: line-through; }
+        .star { color: var(--amber); }
+
+        .totals td { font-weight: 600; border-top: 2px solid var(--primary-100); }
+        .remaining-ok { color: var(--success); font-weight: 600; }
+        .remaining-over { color: var(--danger); font-weight: 600; }
+
+        .muted { color: var(--muted); }
+        .empty { color: var(--muted); font-style: italic; }
+        .progress { color: var(--muted); font-size: 10pt; font-weight: 400; }
+    </style>
+</head>
+<body>
+    <div class="cover">
+        <h1>{{ trip.title or "Untitled trip" }}</h1>
+        <div class="meta">
+            {% if destinations %}<span>{{ destinations }}</span>{% endif %}
+            {% if trip.startDate %}<span class="dot">•</span><span>{{ trip.startDate }}</span>{% if trip.endDate %} → {{ trip.endDate }}{% endif %}{% endif %}
+        </div>
+    </div>
+
+    {% if trip.notes %}
+    <section>
+        <p class="muted">{{ trip.notes }}</p>
+    </section>
+    {% endif %}
+
+    <section>
+        <h2 class="section-title">Itinerary</h2>
+        {% if days %}
+            {% for day in days %}
+            <div class="day">
+                <div class="day-date">{{ day.label }}</div>
+                {% if day['items'] %}
+                    {% for it in day['items'] %}
+                    <div class="item">
+                        <div class="time">
+                            {% if it.allDay %}All day{% elif it.startTime %}{{ it.startTime }}{% if it.endTime %} – {{ it.endTime }}{% endif %}{% endif %}
+                        </div>
+                        <div>
+                            <span class="title">{{ it.title or "Untitled" }}</span>
+                            {% if it.category %}<span class="cat">{{ it.category }}</span>{% endif %}
+                            {% if it.location and it.location.name %}<div class="where">{{ it.location.name }}</div>{% endif %}
+                            {% if it.notes %}<div class="note">{{ it.notes }}</div>{% endif %}
+                        </div>
+                    </div>
+                    {% endfor %}
+                {% else %}
+                    <div class="day-empty">Nothing scheduled.</div>
+                {% endif %}
+            </div>
+            {% endfor %}
+        {% else %}
+            <p class="empty">No itinerary items yet.</p>
+        {% endif %}
+    </section>
+
+    <section>
+        <h2 class="section-title">Flights</h2>
+        {% if flights %}
+            {% for f in flights %}
+            <div class="card">
+                {% for seg in f.segments %}
+                <div class="head">
+                    {{ seg.airline or "" }} {{ seg.flightNumber or "" }}
+                    {% if seg.from %}{{ seg.from.code or seg.from.city or "" }}{% endif %} →
+                    {% if seg.to %}{{ seg.to.code or seg.to.city or "" }}{% endif %}
+                </div>
+                <div class="sub">
+                    {% if seg.departLocal %}Depart {{ seg.departLocal }}{% endif %}
+                    {% if seg.arriveLocal %} • Arrive {{ seg.arriveLocal }}{% endif %}
+                    {% if seg.seat %} • Seat {{ seg.seat }}{% endif %}
+                    {% if seg.terminal %} • Term {{ seg.terminal }}{% endif %}
+                    {% if seg.gate %} • Gate {{ seg.gate }}{% endif %}
+                </div>
+                {% endfor %}
+                {% if f.bookingRef %}<div class="sub">Booking ref: {{ f.bookingRef }}</div>{% endif %}
+            </div>
+            {% endfor %}
+        {% else %}
+            <p class="empty">No flights recorded.</p>
+        {% endif %}
+    </section>
+
+    <section>
+        <h2 class="section-title">Reservations</h2>
+        {% if reservations %}
+            {% for r in reservations %}
+            <div class="card">
+                <div class="head">{{ r.name or "Reservation" }}{% if r.kind %} <span class="cat">{{ r.kind }}</span>{% endif %}</div>
+                <div class="sub">
+                    {% if r.location and r.location.name %}{{ r.location.name }}{% endif %}
+                    {% if r.start %} • {{ r.start }}{% if r.end %} → {{ r.end }}{% endif %}{% endif %}
+                    {% if r.confirmation %} • Conf. {{ r.confirmation }}{% endif %}
+                </div>
+                {% if r.notes %}<div class="sub">{{ r.notes }}</div>{% endif %}
+            </div>
+            {% endfor %}
+        {% else %}
+            <p class="empty">No reservations recorded.</p>
+        {% endif %}
+    </section>
+
+    <section>
+        <h2 class="section-title">
+            Checklist
+            <span class="progress">{{ checklist_progress.done }}/{{ checklist_progress.total }} done</span>
+        </h2>
+        {% if checklist_groups %}
+            {% for g in checklist_groups %}
+            <div class="chk-group">
+                <div class="gname">{{ g.name }} <span class="count">{{ g.done }}/{{ g.total }}</span></div>
+                {% for c in g['items'] %}
+                <div class="chk">
+                    <span class="box{% if c.done %} on{% endif %}"></span>
+                    <span class="{% if c.done %}done-text{% endif %}">
+                        {% if c.important %}<span class="star">★</span>{% endif %} {{ c.text or "" }}
+                    </span>
+                </div>
+                {% endfor %}
+            </div>
+            {% endfor %}
+        {% else %}
+            <p class="empty">Your checklist is empty.</p>
+        {% endif %}
+    </section>
+
+    <section>
+        <h2 class="section-title">Costs &amp; Budget</h2>
+        {% if costs.hasData %}
+        <table class="list">
+            <thead>
+                <tr><th>Category</th><th class="num">Estimate</th><th class="num">Actual</th></tr>
+            </thead>
+            <tbody>
+                {% for row in costs.rows %}
+                <tr>
+                    <td>{{ row.category }}</td>
+                    <td class="num">{{ row.estimate or "—" }}</td>
+                    <td class="num">{{ row.actual or "—" }}</td>
+                </tr>
+                {% endfor %}
+            </tbody>
+            <tfoot>
+                <tr>
+                    <td>Total</td>
+                    <td class="num">{{ costs.totalEstimate or "—" }}</td>
+                    <td class="num">{{ costs.totalActual or "—" }}</td>
+                </tr>
+            </tfoot>
+        </table>
+        {% if costs.budget %}
+        <p style="margin-top:8px;">
+            Budget: <strong>{{ costs.budget }}</strong> .
+            Remaining:
+            <span class="{% if costs.remaining and costs.remaining.startswith('-') %}remaining-over{% else %}remaining-ok{% endif %}">
+                {{ costs.remaining }}
+            </span>
+        </p>
+        {% endif %}
+        {% else %}
+            <p class="empty">No expenses recorded.</p>
+        {% endif %}
+    </section>
+
+    <p class="muted" style="font-size:8pt; margin-top:14px;">Generated by Itinera • {{ generatedAt }}</p>
+</body>
+</html>

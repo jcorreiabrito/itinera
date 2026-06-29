@@ -1,0 +1,15 @@
+# Package managers
+pnpm-lock.yaml
+package-lock.json
+yarn.lock
+
+# Output
+build/
+.svelte-kit/
+dev-dist/
+dist/
+package/
+coverage/
+playwright-report/
+test-results/
+node_modules/

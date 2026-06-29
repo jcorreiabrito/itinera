@@ -1,0 +1,6 @@
+# pnpm: allow esbuild (used by Vite) to run its install script.
+allowBuilds:
+  esbuild: true
+# Don't force a reinstall before every `pnpm run <script>` (lets scripts run
+# against the existing node_modules even if a dependency is unavailable offline).
+verifyDepsBeforeRun: false

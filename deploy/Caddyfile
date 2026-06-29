@@ -1,0 +1,108 @@
+# Itinera reverse proxy + static PWA host.
+#
+# One origin serves everything, so the browser talks to the DB and the API
+# same-origin (no CORS):
+#   /         -> the built SvelteKit PWA (SPA fallback to index.html)
+#   /db/*     -> CouchDB  (Caddy injects admin Basic-auth; browser holds none)
+#   /api/*    -> FastAPI  (the /api prefix is PRESERVED; FastAPI mounts every
+#                         route under /api, so the full path is forwarded unchanged)
+#
+# COUCHDB_BASIC_AUTH is computed at container start by caddy-entrypoint.sh from
+# COUCHDB_USER / COUCHDB_PASSWORD, so no credentials live in this file or the browser.
+#
+{
+    # The admin API isn't needed inside the container.
+    admin off
+}
+
+# ========================================================================
+# Out-of-the-box: plain HTTP on localhost (and any LAN/tailnet IP). Open
+# http://localhost (or http://localhost:<HOST_HTTP_PORT>).
+# ========================================================================
+:80 {
+    # --- Security response headers (enforced for EVERY response: PWA, /db, /api) ---
+    # `header` sits above the handle blocks in Caddy's directive order, so it wraps
+    # them all. CSP is owned by the SvelteKit app (build-stable hash-mode
+    # <meta http-equiv=content-security-policy>); Caddy sends only header-only
+    # protections (X-Frame-Options, X-Content-Type-Options, Referrer-Policy, and
+    # HSTS on HTTPS) because frame-ancestors and HSTS cannot live in a <meta> CSP.
+    # This guarantees the SPA's inline bootstrap is never blocked by a proxy-set
+    # script-src.
+    header {
+        X-Content-Type-Options "nosniff"
+        Referrer-Policy "no-referrer"
+        X-Frame-Options "DENY"
+    }
+
+    # --- CouchDB: PouchDB syncs against /db/itinera (same-origin) ---
+    # handle_path strips the /db prefix, so CouchDB receives clean paths
+    # (e.g. /db/itinera/_changes -> /itinera/_changes).
+    handle_path /db/* {
+        reverse_proxy couchdb:5984 {
+            header_up Authorization "Basic {env.COUCHDB_BASIC_AUTH}"
+        }
+    }
+
+    # --- FastAPI helper: public URL /api/... -> app route /api/... ---
+    # handle (NOT handle_path) PRESERVES the /api prefix, because FastAPI mounts
+    # every route under /api (e.g. browser GET /api/health -> FastAPI GET
+    # /api/health; POST /api/backups/run -> POST /api/backups/run).
+    handle /api/* {
+        reverse_proxy fastapi:8000
+    }
+
+    # --- Static PWA with SPA fallback ---
+    handle {
+        root * /srv
+        encode zstd gzip
+        try_files {path} /index.html
+        file_server
+    }
+}
+
+# ========================================================================
+# Production over Tailscale with automatic HTTPS (commented).
+# ========================================================================
+# Simplest path (recommended): keep the :80 block above and let Tailscale
+# terminate TLS on the host:
+#   tailscale serve --bg http://localhost:80
+# then open https://<host>.<tailnet>.ts.net from any device on your tailnet.
+#
+# Alternative: let Caddy serve the Tailscale hostname directly. Public ACME
+# (Let's Encrypt) can't validate a private *.ts.net name, so supply a
+# tailscale-issued cert. On the host run:
+#   tailscale cert <host>.<tailnet>.ts.net
+# mount the resulting .crt/.key into this container (e.g. at /certs) and the
+# 443 ports in docker-compose.yml, then enable:
+#
+#<host>.<tailnet>.ts.net {
+#    tls /certs/<host>.<tailnet>.ts.net.crt /certs/<host>.<tailnet>.ts.net.key
+#
+#    # Same header-only protections as the :80 block, plus HSTS (only safe over
+#    # HTTPS). CSP still comes from the SvelteKit app's hash-mode <meta> tag.
+#    header {
+#        X-Content-Type-Options "nosniff"
+#        Referrer-Policy "no-referrer"
+#        X-Frame-Options "DENY"
+#        Strict-Transport-Security "max-age=31536000"
+#    }
+#
+#    handle_path /db/* {
+#        reverse_proxy couchdb:5984 {
+#            header_up Authorization "Basic {env.COUCHDB_BASIC_AUTH}"
+#        }
+#    }
+#
+#    # handle (NOT handle_path) preserves the /api prefix (FastAPI mounts all
+#    # routes under /api).
+#    handle /api/* {
+#        reverse_proxy fastapi:8000
+#    }
+#
+#    handle {
+#        root * /srv
+#        encode zstd gzip
+#        try_files {path} /index.html
+#        file_server
+#    }
+#}

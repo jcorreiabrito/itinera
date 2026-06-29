@@ -1,0 +1,25 @@
+node_modules
+
+# Output
+/build
+/.svelte-kit
+/package
+dev-dist
+
+# Vite
+vite.config.js.timestamp-*
+vite.config.ts.timestamp-*
+
+# Env
+.env
+.env.*
+!.env.example
+
+# Tests
+/playwright-report
+/test-results
+/coverage
+
+# OS / editor
+.DS_Store
+Thumbs.db

@@ -1,0 +1,8 @@
+# Never commit real secrets – only the template is tracked.
+.env
+!.env.example
+
+# Local data / backup staging (in case bind-mounts or local snapshots are used).
+data/
+*.tar.gz
+*.tar.zst

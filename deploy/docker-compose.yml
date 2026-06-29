@@ -1,0 +1,123 @@
+# Itinera – single-command home-server stack.
+#
+# cd itinera/deploy && cp .env.example .env && docker compose up --build -d
+#
+# Services:
+#   couchdb   – source of truth (NOT published to the host; reachable only on the
+#               internal Docker network, proxied by Caddy at /db).
+#   fastapi   – Python helper (backups/exports/PDFs). Reachable only via Caddy at /api.
+#   caddy     – reverse proxy + HTTPS that ALSO serves the built PWA. This image is
+#               produced by web.Dockerfile, which bakes the SvelteKit static build
+#               (adapter-static `build/`) into /srv and copies the Caddyfile in – so
+#               there is no fragile shared-volume timing between "build" and "serve".
+#
+# The Browser holds NO CouchDB credentials: Caddy injects the admin Basic-auth
+# header on /db/* requests. The LAN / tailnet is the security boundary (decision D9).
+#
+name: itinera
+#
+services:
+  couchdb:
+    image: couchdb:3
+    restart: unless-stopped
+    environment:
+      # Single server-side admin credential (browser never sees these).
+      COUCHDB_USER: ${COUCHDB_USER}
+      COUCHDB_PASSWORD: ${COUCHDB_PASSWORD}
+      TZ: ${TZ:-UTC}
+    volumes:
+      - couchdb-data:/opt/couchdb/data
+      # Enable single-node mode so the system DBs (_users/_replicator/_global_changes)
+      # are created automatically on first start.
+      - ./couchdb/10-single-node.ini:/opt/couchdb/etc/local.d/10-single-node.ini:ro
+    # IMPORTANT: no `ports:` here – CouchDB is never published to the host or the
+    # internet. It is reached only through Caddy on the internal network.
+    expose:
+      - "5984"
+    healthcheck:
+      # `/_up` is CouchDB's built-in readiness endpoint (no auth required).
+      test: ["CMD", "curl", "-fsS", "http://127.0.0.1:5984/_up"]
+      interval: 10s
+      timeout: 5s
+      retries: 12
+      start_period: 30s
+    networks:
+      - internal
+#
+  fastapi:
+    build:
+      # Build context = repo root `itinera/` so the Dockerfile can COPY api/.
+      context: ..
+      dockerfile: deploy/api.Dockerfile
+    restart: unless-stopped
+    environment:
+      COUCHDB_URL: http://couchdb:5984
+      COUCHDB_USER: ${COUCHDB_USER}
+      COUCHDB_PASSWORD: ${COUCHDB_PASSWORD}
+      COUCHDB_DB: ${COUCHDB_DB:-itinera}
+      EXPORT_DIR: /data/exports
+      # Turn off OpenAPI/Swagger/ReDoc in production (app default is true).
+      DOCS_ENABLED: ${DOCS_ENABLED:-false}
+      TZ: ${TZ:-UTC}
+    volumes:
+      - exports-data:/data/exports
+    depends_on:
+      couchdb:
+        # FastAPI creates the `itinera` DB + Mango indexes on startup, so it must
+        # wait until CouchDB is actually healthy.
+        condition: service_healthy
+    # Reached only via Caddy at /api – not published to the host.
+    expose:
+      - "8000"
+    healthcheck:
+      # Pure-stdlib HTTP GET (python:sim has no curl) against the app's REAL route.
+      # uvicorn listens on 0.0.0.0:8000; /api/health is FastAPI's readiness endpoint.
+      test: ["CMD", "python", "-c", "import urllib.request,sys; sys.exit(0 if urllib.request.urlopen('http://localhost:8000/api/health').status == 200 else 1)"]
+      interval: 10s
+      timeout: 5s
+      retries: 12
+      # Generous: the app provisions the CouchDB DB + Mango indexes on startup.
+      start_period: 40s
+    networks:
+      - internal
+#
+  caddy:
+    build:
+      # Built from web.Dockerfile: multi-stage that builds the PWA, then bakes it
+      # into a caddy:2-alpine image together with the Caddyfile + entrypoint.
+      context: ..
+      dockerfile: deploy/web.Dockerfile
+    restart: unless-stopped
+    environment:
+      # The entrypoint derives COUCHDB_BASIC_AUTH (base64 user:pass) from these so
+      # the browser never holds CouchDB credentials.
+      COUCHDB_USER: ${COUCHDB_USER}
+      COUCHDB_PASSWORD: ${COUCHDB_PASSWORD}
+      TZ: ${TZ:-UTC}
+    ports:
+      # Out-of-the-box: http://localhost (override host port via HOST_HTTP_PORT).
+      - "${HOST_HTTP_PORT:-80}:80"
+      # For Tailscale + automatic HTTPS, also publish 443 (see Caddyfile + README):
+      # - "443:443"
+      # - "443:443/udp"
+    depends_on:
+      couchdb:
+        condition: service_started
+      fastapi:
+        condition: service_started
+    volumes:
+      - caddy-data:/data
+      - caddy-config:/config
+    networks:
+      - internal
+#
+volumes:
+  couchdb-data:
+  exports-data:
+  caddy-data:
+  caddy-config:
+#
+networks:
+  internal:
+    driver: bridge
+    

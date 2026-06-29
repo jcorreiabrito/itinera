@@ -1,0 +1,1 @@
+"""Service layer: export shaping, PDF rendering and backup orchestration."""
