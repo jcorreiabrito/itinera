@@ -69,17 +69,24 @@ export function getDb(): Database {
   return local ?? createLocalDb();
 }
 
+function resolveRemoteUrl(url: string): string {
+  if (url.startsWith('http://') || url.startsWith('https://') || typeof window === 'undefined') {
+    return url;
+  }
+  return `${window.location.origin}${url}`;
+}
+
 /**
  * Build a handle to the remote CouchDB (same-origin, via Caddy). `skip_setup`
  * avoids the client attempting to create the database – the server owns that.
  */
 export function createRemoteDb(): Database {
-  return new impl(remoteUrl, { skip_setup: true });
+  return new impl(resolveRemoteUrl(remoteUrl), { skip_setup: true });
 }
 
 /** The configured remote URL. */
 export function getRemoteUrl(): string {
-  return remoteUrl;
+  return resolveRemoteUrl(remoteUrl);
 }
 
 /**

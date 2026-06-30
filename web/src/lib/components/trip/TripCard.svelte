@@ -88,7 +88,7 @@
     });
 </script>
 
-<Card class="group relative flex flex-col transition-shadow hover:shadow-card">
+<Card class="group relative flex flex-col glass-panel transition-shadow hover:shadow-card">
     <div class="relative aspect-[3/2] w-full overflow-hidden rounded-t-lg">
         <TripCover
             attId={trip.coverImageAttId}

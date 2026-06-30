@@ -299,17 +299,26 @@ export function startSync(db: Database = getDb()): void {
   if (started) return;
   started = true;
 
+  console.log('startSync: creating remote db handle');
   const remote = createRemoteDb();
+  console.log('startSync: remote db handle created, url:', remote.name);
 
+  console.log('startSync: calling db.sync');
   const sync = db.sync(remote, { live: true, retry: true });
+  console.log('startSync: db.sync returned');
   sync
-    .on('active', () => patch({ state: 'syncing', error: null }))
+    .on('active', () => {
+      console.log('sync event: active');
+      patch({ state: 'syncing', error: null });
+    })
     .on('change', (info: unknown) => {
+      console.log('sync event: change', info);
       const docs = (info as { change?: { docs?: Array<{ _id: string }> } })?.change?.docs ?? [];
       for (const d of docs) if (d?._id) void handleDocChange(d._id, db);
       patch({ lastSyncedAt: new Date().toISOString() });
     })
     .on('paused', (err: unknown) => {
+      console.log('sync event: paused', err);
       if (err) {
         patch({ state: isOnline() ? 'error' : 'offline', error: String(err) });
       } else if (isOnline()) {
@@ -318,10 +327,14 @@ export function startSync(db: Database = getDb()): void {
         patch({ state: 'offline' });
       }
     })
-    .on('denied', (err: unknown) => patch({ state: 'error', error: String(err) }))
-    .on('error', (err: unknown) =>
-      patch({ state: isOnline() ? 'error' : 'offline', error: String(err) })
-    );
+    .on('denied', (err: unknown) => {
+      console.log('sync event: denied', err);
+      patch({ state: 'error', error: String(err) });
+    })
+    .on('error', (err: unknown) => {
+      console.log('sync event: error', err);
+      patch({ state: isOnline() ? 'error' : 'offline', error: String(err) });
+    });
   handler = sync as unknown as Cancelable;
 
   // Track local writes so we can show "pending" while offline.

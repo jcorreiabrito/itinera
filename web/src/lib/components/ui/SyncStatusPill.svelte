@@ -64,7 +64,7 @@
             aria-haspopup="true"
             aria-expanded={isOpen}
             aria-label="Sync status: {$syncStatus.state}. Show details."
-            class="relative inline-flex items-center gap-1.5 rounded-full border px-2.5 py-1 text-xs font-medium transition-colors hover:brightness-90 focus:visible:outline-none focus:visible:ring-2 focus:visible:ring-primary-600 focus:visible:ring-offset-2 focus:visible:ring-offset-bg"
+            class="relative inline-flex items-center gap-1.5 rounded-full glass-panel px-2.5 py-1 text-xs font-medium transition-colors hover:brightness-90 focus:visible:outline-none focus:visible:ring-2 focus:visible:ring-primary-600 focus:visible:ring-offset-2 focus:visible:ring-offset-bg"
         >
             {#if $syncStatus.state === 'synced'}
                 <Check class="size-3.5" />

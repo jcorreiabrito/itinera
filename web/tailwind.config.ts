@@ -22,7 +22,7 @@ export default {
           amber: '#E0A458',
         },
         // Surfaces (warm paper)
-        bg: '#BFE1F1',
+        bg: 'var(--color-bg)',
         surface: {
           DEFAULT: '#FFFDF9',
           sunken: '#F4EEE4'

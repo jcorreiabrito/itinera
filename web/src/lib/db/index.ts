@@ -136,13 +136,30 @@ export interface InitOptions extends DbOptions {
  * Safe to call once at app start. Returns the local database handle.
  */
 export async function initDb(options: InitOptions = {}): Promise<Database> {
+  console.log('initDb: start bootstrap');
   const { sync, ...dbOptions } = options;
   if (Object.keys(dbOptions).length > 0) configureDb(dbOptions);
 
+  console.log('initDb: creating local db');
   const db = createLocalDb();
+  console.log('initDb: local db created');
+  
+  console.log('initDb: requesting storage persistence');
   await requestPersistentStorage();
+  console.log('initDb: storage persistence done');
+  
+  console.log('initDb: ensuring indexes');
   await ensureIndexes(db);
+  console.log('initDb: indexes ensured');
+  
+  console.log('initDb: running migrations');
   await runMigrations(db);
-  if (sync !== false) startSync(db);
+  console.log('initDb: migrations done');
+  
+  if (sync !== false) {
+    console.log('initDb: starting sync');
+    startSync(db);
+    console.log('initDb: sync started');
+  }
   return db;
 }

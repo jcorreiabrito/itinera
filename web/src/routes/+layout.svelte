@@ -26,7 +26,14 @@
   });
 </script>
 
-<div class="flex min-h-dvh flex-col bg-bg">
+<div class="flex min-h-dvh flex-col">
+  <!-- Dynamic Gradient Mesh Background -->
+  <div class="mesh-container" aria-hidden="true">
+    <div class="mesh-orb mesh-orb-1"></div>
+    <div class="mesh-orb mesh-orb-2"></div>
+    <div class="mesh-orb mesh-orb-3"></div>
+  </div>
+
   <OfflineBanner />
   {@render children()}
 </div>

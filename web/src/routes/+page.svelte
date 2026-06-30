@@ -177,7 +177,7 @@
   <meta name="description" content="Plan and organize your trips, fully offline." />
 </svelte:head>
 
-<header class="sticky top-0 z-30 border-b border-border bg-bg/85 backdrop-blur-md">
+<header class="sticky top-0 z-30 glass-header">
   <div class="mx-auto flex max-w-6xl flex-col gap-3 px-4 py-3 sm:px-6">
     <div class="flex items-center justify-between gap-3">
       <div class="flex items-center gap-2">
@@ -213,7 +213,7 @@
         oninput={(e) => (search = e.currentTarget.value)}
         placeholder="Search by name, place, or tag"
         aria-label="Search trips"
-        class="w-1/2 w-full rounded-md border border-border bg-surface pl-9 pr-3 text-base text-ink placeholder:text-ink-muted/60 focus:border-primary-600 focus:outline-none focus:ring-2 focus:ring-primary-600/30"
+        class="w-1/2 w-full rounded-md glass-input pl-9 pr-3 text-base text-ink placeholder:text-ink-muted/60 focus:border-primary-600 focus:outline-none focus:ring-2 focus:ring-primary-600/30"
       />
     </div>
   </div>
