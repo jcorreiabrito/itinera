@@ -82,7 +82,17 @@ const DICTIONARY: Record<Language, Record<string, string>> = {
     'settings_saved': 'Settings saved.',
     'night': 'night',
     'nights': 'nights',
-    'actions_for': 'Actions for'
+    'actions_for': 'Actions for',
+    'today': 'today',
+    'in_days': 'in {days}',
+    'ended_ago': 'ended {days} ago',
+    'day_of': 'Day {dayNo} of {total}',
+    'day': '1 day',
+    'days_plural': '{n} days',
+    'weeks_plural': '{n} weeks',
+    'months_plural': '{n} months',
+    'year_plural': '1 year',
+    'years_plural': '{n} years'
   },
   'pt-BR': {
     'trips': 'Viagens',
@@ -138,7 +148,17 @@ const DICTIONARY: Record<Language, Record<string, string>> = {
     'settings_saved': 'Configurações salvas.',
     'night': 'noite',
     'nights': 'noites',
-    'actions_for': 'Ações para'
+    'actions_for': 'Ações para',
+    'today': 'hoje',
+    'in_days': 'em {days}',
+    'ended_ago': 'terminou há {days}',
+    'day_of': 'Dia {dayNo} de {total}',
+    'day': '1 dia',
+    'days_plural': '{n} dias',
+    'weeks_plural': '{n} semanas',
+    'months_plural': '{n} meses',
+    'year_plural': '1 ano',
+    'years_plural': '{n} anos'
   }
 };
 

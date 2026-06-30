@@ -7,6 +7,7 @@
  */
 
 import { DateTime } from 'luxon';
+import { t } from './i18n.svelte';
 
 /** "12-19 Sep 2026" / "28 Sep – 3 Oct 2026" / "12 Sep 2026". */
 export function formatDateRange(start?: string | null, end?: string | null): string {
@@ -55,7 +56,8 @@ export function relativeTime(iso: string | null): string {
 
 /** "7 nights" / "1 night". */
 export function formatNights(nights: number): string {
-  return `${nights} ${nights === 1 ? 'night' : 'nights'}`;
+  const label = nights === 1 ? t('night') : t('nights');
+  return `${nights} ${label}`;
 }
 
 /**

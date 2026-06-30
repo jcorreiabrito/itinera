@@ -14,6 +14,7 @@
  */
 
 import { DateTime } from 'luxon';
+import { t } from '../i18n.svelte';
 
 /** Trip display status derived purely from dates (Archived is layered on by the UI). */
 export type TripDateStatus = 'Upcoming' | 'Active' | 'Past';
@@ -110,12 +111,15 @@ export function countdownText(
   const status = tripDateStatus(startDate, endDate, today);
   if (status === 'Active') {
     const dayNo = dayDelta(startDate, today) + 1;
-    return `Day ${dayNo} of ${tripDayCount(startDate, endDate)}`;
+    const total = tripDayCount(startDate, endDate);
+    return t('day_of', { dayNo: String(dayNo), total: String(total) });
   }
   if (status === 'Upcoming') {
-    return `in ${humanizeDays(dayDelta(today, startDate))}`;
+    const days = humanizeDays(dayDelta(today, startDate));
+    return t('in_days', { days });
   }
-  return `ended ${humanizeDays(dayDelta(endDate, today))} ago`;
+  const days = humanizeDays(dayDelta(endDate, today));
+  return t('ended_ago', { days });
 }
 
 /**
@@ -125,13 +129,13 @@ export function countdownText(
  */
 export function humanizeDays(days: number): string {
   const n = Math.abs(Math.round(days));
-  if (n === 0) return 'today';
-  if (n === 1) return '1 day';
-  if (n < 14) return `${n} days`;
-  if (n < 60) return `${Math.round(n / 7)} weeks`;
-  if (n < 365) return `${Math.round(n / 30)} months`;
+  if (n === 0) return t('today');
+  if (n === 1) return t('day');
+  if (n < 14) return t('days_plural', { n: String(n) });
+  if (n < 60) return t('weeks_plural', { n: String(Math.round(n / 7)) });
+  if (n < 365) return t('months_plural', { n: String(Math.round(n / 30)) });
   const years = Math.round((n / 365) * 10) / 10;
-  return `${years} ${years === 1 ? 'year' : 'years'}`;
+  return years === 1 ? t('year_plural') : t('years_plural', { n: String(years) });
 }
 
 /** Resolve a stored local ISO datetime in its endpoint zone to an absolute instant. */
