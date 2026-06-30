@@ -5,6 +5,7 @@
   import { page } from '$app/state';
   import { trips } from '$lib/db';
   import type { Trip } from '$lib/db';
+  import { t } from '$lib/i18n.svelte';
   import {
     ArrowLeft,
     BedDouble,
@@ -70,28 +71,28 @@
 
   const bookingsActive = $derived(pathname.startsWith(`/trip/${id}/bookings`));
 
-  const tabs: { label: string; icon: IconComponent; seg: string }[] = $derived([
-    { label: 'Overview', icon: LayoutDashboard, seg: 'overview' },
-    { label: 'Itinerary', icon: CalendarDays, seg: 'itinerary' },
-    { label: 'Bookings', icon: Plane, seg: 'bookings' },
-    { label: 'Checklist', icon: ListChecks, seg: 'checklist' },
+  const tabs: { labelKey: string; icon: IconComponent; seg: string }[] = $derived([
+    { labelKey: 'overview', icon: LayoutDashboard, seg: 'overview' },
+    { labelKey: 'itinerary', icon: CalendarDays, seg: 'itinerary' },
+    { labelKey: 'bookings', icon: Plane, seg: 'bookings' },
+    { labelKey: 'checklist', icon: ListChecks, seg: 'checklist' },
   ]);
 </script>
 
-{#snippet sideLink(href: string, label: string, icon: IconComponent, active: boolean)}
+{#snippet sideLink(href: string, labelKey: string, icon: IconComponent, active: boolean)}
     {@const Icon = icon}
     <a
       {href}
       aria-current={active ? 'page' : undefined}
       class={cn(
-        'flex min-h-touch items-center gap-1 rounded-md px-3 py-2 text-sm font-medium transition-colors [&_svg]:size-5',
+        'relative flex min-h-touch items-center gap-1 rounded-md px-3 py-2 text-sm font-medium transition-[background-color,color,padding-left] duration-150 [&_svg]:size-5',
         active
-          ? 'bg-primary-100 text-primary-700'
+          ? 'bg-primary-100 text-primary-700 pl-4 before:absolute before:left-0 before:top-1/2 before:h-5 before:-translate-y-1/2 before:w-0.5 before:rounded-full before:bg-primary-600 before:content-[""]'
           : 'text-ink-muted hover:bg-surface-sunken hover:text-ink'
       )}
     >
       <Icon />
-      <span>{label}</span>
+      <span>{t(labelKey)}</span>
     </a>
   {/snippet}
 
@@ -105,22 +106,22 @@
         class="flex h-16 items-center gap-2 border-b border-border px-4 text-sm font-medium text-ink-muted transition-colors hover:text-ink [&_svg]:size-4"
       >
         <ArrowLeft />
-        <span>All trips</span>
+        <span>{t('all_trips')}</span>
       </a>
       <nav aria-label="Trip sections" class="flex-1 overflow-y-auto p-3">
         <ul class="flex flex-col gap-1">
-          <li>{@render sideLink(`/trip/${id}/overview`, 'Overview', LayoutDashboard, isActive('overview'))}</li>
-          <li>{@render sideLink(`/trip/${id}/itinerary`, 'Itinerary', CalendarDays, isActive('itinerary'))}</li>
-          <li>{@render sideLink(`/trip/${id}/checklist`, 'Checklist', ListChecks, isActive('checklist'))}</li>
+          <li>{@render sideLink(`/trip/${id}/overview`, 'overview', LayoutDashboard, isActive('overview'))}</li>
+          <li>{@render sideLink(`/trip/${id}/itinerary`, 'itinerary', CalendarDays, isActive('itinerary'))}</li>
+          <li>{@render sideLink(`/trip/${id}/checklist`, 'checklist', ListChecks, isActive('checklist'))}</li>
           <li class="mt-2">
             <p class="px-3 pb-1 text-xs font-semibold uppercase tracking-wide text-ink-muted/70">
-              Bookings
+              {t('bookings')}
             </p>
             <ul class="flex flex-col gap-1">
               <li>
                 {@render sideLink(
                   `/trip/${id}/bookings?tab=flights`,
-                  'Flights',
+                  'flights',
                   Plane,
                   bookingsActive && tab !== 'reservations'
                 )}
@@ -128,17 +129,17 @@
               <li>
                 {@render sideLink(
                   `/trip/${id}/bookings?tab=reservations`,
-                  'Reservations',
+                  'reservations',
                   BedDouble,
                   bookingsActive && tab === 'reservations'
                 )}
               </li>
             </ul>
           </li>
-          <li class="mt-2">{@render sideLink(`/trip/${id}/costs`, 'Costs', Wallet, isActive('costs'))}</li>
+          <li class="mt-2">{@render sideLink(`/trip/${id}/costs`, 'costs', Wallet, isActive('costs'))}</li>
         </ul>
       </nav>
-      <div class="border-t border-border p-4 text-xs text-ink-muted">Offline-ready</div>
+      <div class="border-t border-border p-4 text-xs text-ink-muted">{t('offline_ready')}</div>
     </aside>
 
     <!-- Content column -->
@@ -149,13 +150,13 @@
         <div class="flex min-w-0 items-center gap-2">
           <a
             href="/"
-            aria-label="Back to all trips"
-            class="grid size-9 shrink-0 place-items-center rounded-md text-ink-muted transition-colors hover:bg-surface-sunken hover:text-ink lg:hidden [&_svg]:size-5"
+            aria-label={t('back_to_trips')}
+            class="grid size-9 shrink-0 place-items-center rounded-md text-ink-muted transition-colors hover:bg-surface-sunken hover:text-ink active:scale-95 lg:hidden [&_svg]:size-5"
           >
             <ArrowLeft />
           </a>
           {#if loaded}
-            <h1 class="truncate font-serif text-lg font-semibold">
+            <h1 class="truncate font-serif text-lg font-semibold animate-slide-down">
               {trip?.title?.trim() || 'Trip'}
             </h1>
           {:else}
@@ -169,8 +170,8 @@
             type="button"
             onclick={openEditor}
             disabled={!trip}
-            aria-label="Edit trip"
-            class="grid size-9 place-items-center rounded-md text-ink-muted transition-colors hover:bg-surface-sunken hover:text-ink disabled:opacity-40 [&_svg]:size-5"
+            aria-label={t('edit')}
+            class="grid size-9 place-items-center rounded-md text-ink-muted transition-colors hover:bg-surface-sunken hover:text-ink active:scale-95 disabled:opacity-40 [&_svg]:size-5"
           >
             <Pencil />
           </button>
@@ -184,13 +185,13 @@
         {#if loaded && !trip}
           <div class="flex min-h-[50dvh] flex-col items-center justify-center text-center">
             <MapPinned class="size-10 text-ink-muted" aria-hidden="true" />
-            <h2 class="mt-4 text-xl font-semibold">Trip not found</h2>
-            <p class="mt-1 text-ink-muted">It may have been deleted on another device.</p>
+            <h2 class="mt-4 text-xl font-semibold">{t('trip_not_found')}</h2>
+            <p class="mt-1 text-ink-muted">{t('trip_not_found_desc')}</p>
             <a
               href="/"
-              class="mt-5 inline-flex h-11 items-center rounded-md bg-primary-600 px-4 font-medium text-white shadow-soft transition-colors hover:bg-primary-700"
+              class="mt-5 inline-flex h-11 items-center rounded-md bg-primary-600 px-4 font-medium text-white shadow-soft transition-colors hover:bg-primary-700 active:scale-[0.97]"
             >
-              Back to trips
+              {t('back_to_trips')}
             </a>
           </div>
         {:else}
@@ -212,12 +213,15 @@
                 href={`/trip/${id}/${item.seg}`}
                 aria-current={active ? 'page' : undefined}
                 class={cn(
-                  'flex min-h-[3.5rem] flex-col items-center justify-center gap-1 px-1 py-2 text-[0.7rem] font-medium transition-colors [&_svg]:size-5',
+                  'relative flex min-h-[3.5rem] flex-col items-center justify-center gap-1 px-1 py-2 text-[0.7rem] font-medium transition-colors active:[&_svg]:scale-90 [&_svg]:transition-transform [&_svg]:duration-100 [&_svg]:size-5',
                   active ? 'text-primary-600' : 'text-ink-muted hover:text-ink'
                 )}
               >
                 <Icon />
-                <span>{item.label}</span>
+                <span>{t(item.labelKey)}</span>
+                {#if active}
+                  <span class="absolute bottom-1.5 size-1 rounded-full bg-primary-600 animate-fade-in" aria-hidden="true"></span>
+                {/if}
               </a>
             </li>
           {/each}

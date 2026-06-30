@@ -11,6 +11,6 @@
     let { class: className, children, ...rest }: Props = $props();
 </script>
 
-<div class={cn('rounded-lg border border-border bg-surface shadow-card', className)} {...rest}>
+<div class={cn('overflow-hidden rounded-lg border border-border bg-surface shadow-card transition-[border-color,box-shadow] duration-200', className)} {...rest}>
     {@render children()}
 </div>

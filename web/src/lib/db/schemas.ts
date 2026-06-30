@@ -357,7 +357,8 @@ export const settingsSchema = z
     homeCurrencyDefault: z.string().optional(),
     defaultChecklistTemplateId: z.string().nullable().optional(),
     theme: themePrefSchema.optional(),
-    firstDayOfWeek: z.number().int().optional()
+    firstDayOfWeek: z.number().int().optional(),
+    language: z.string().optional()
   })
   .passthrough();
 export type Settings = z.infer<typeof settingsSchema>;

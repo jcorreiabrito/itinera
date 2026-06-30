@@ -35,5 +35,5 @@
     aria-valuemax={100}
     aria-label={label}
 >
-    <div class={cn('h-full rounded-full transition-[width] duration-300 ease-out', tones[tone])} style={`width:${pct}%`}></div>
+    <div class={cn('h-full rounded-full transition-[width] duration-700 ease-out', tones[tone])} style={`width:${pct}%`}></div>
 </div>

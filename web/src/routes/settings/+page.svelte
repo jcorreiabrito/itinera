@@ -2,6 +2,7 @@
   import { onMount } from 'svelte';
   import { checklist, requestPersistentStorage, settings, storageEstimate, syncStatus } from '$lib/db';
   import { downloadAllExport, listBackups, runBackup, type BackupSummary } from '$lib/api';
+  import { t, setLanguage, getLanguage, type Language } from '$lib/i18n.svelte';
   import {
     ArrowLeft,
     Database,
@@ -30,7 +31,7 @@
 
   const CURRENCIES = [
     'EUR', 'USD', 'GBP', 'JPY', 'CHF', 'CAD', 'AUD', 'SEK', 'NOK', 'DKK', 'PLN', 'CZK', 'HUF',
-    'RON', 'TRY', 'SGD', 'INR', 'AED', 'ZAR'
+    'MXN', 'BRL', 'CLP', 'RON', 'TRY', 'SGD', 'INR', 'AED', 'ZAR'
   ];
 
   const WEEK_START = [
@@ -42,6 +43,7 @@
   let current = $state<Settings | null>(null);
   let homeCurrency = $state('EUR');
   let firstDayOfWeek = $state(1);
+  let language = $state<Language>('en');
   let saving = $state(false);
 
   let templates = $state<ChecklistTemplate[]>([]);
@@ -129,6 +131,7 @@
       current = s;
       homeCurrency = s.homeCurrencyDefault ?? 'EUR';
       firstDayOfWeek = s.firstDayOfWeek ?? 1;
+      language = (s.language as Language) ?? 'en';
     } catch {
       toast.error('Could not load settings.');
     }
@@ -160,8 +163,9 @@
   async function save() {
     saving = true;
     try {
-      await settings.update({ homeCurrencyDefault: homeCurrency, firstDayOfWeek });
-      toast.success('Settings saved.');
+      await settings.update({ homeCurrencyDefault: homeCurrency, firstDayOfWeek, language });
+      setLanguage(language);
+      toast.success(t('settings_saved'));
     } catch {
       toast.error('Could not save settings.');
     } finally {
@@ -258,21 +262,17 @@
   }
 </script>
 
-<svelte:head>
-  <title>Settings – Itinera</title>
-</svelte:head>
-
 <header class="sticky top-0 z-30 border-b border-border bg-bg/85 backdrop-blur-md">
   <div class="mx-auto flex h-16 max-w-3xl items-center justify-between gap-3 px-4 sm:px-6">
     <div class="flex items-center gap-2">
       <a
         href="/"
-        aria-label="Back to trips"
-        class="grid size-9 place-items-center rounded-md text-ink-muted transition-colors hover:bg-surface-sunken hover:text-ink [&_svg]:size-5"
+        aria-label={t('back_to_trips')}
+        class="grid size-9 place-items-center rounded-md text-ink-muted transition-colors hover:bg-surface-sunken hover:text-ink active:scale-95 [&_svg]:size-5"
       >
         <ArrowLeft />
       </a>
-      <h1 class="font-serif text-xl font-semibold">Settings</h1>
+      <h1 class="font-serif text-xl font-semibold">{t('settings_title')}</h1>
     </div>
     <SyncStatusPill />
   </div>
@@ -280,11 +280,11 @@
 
 <main class="mx-auto w-full max-w-3xl flex-1 px-4 pb-28 pt-6 sm:px-6 lg:pb-12">
   <section class="rounded-lg border border-border bg-surface p-5">
-    <h2 class="text-base font-semibold">Defaults</h2>
-    <p class="mt-1 text-sm text-ink-muted">Used when creating new trips and showing calendars.</p>
+    <h2 class="text-base font-semibold">{t('settings_title')}</h2>
+    <p class="mt-1 text-sm text-ink-muted">{t('home_currency_desc')}</p>
 
     <div class="mt-4 grid gap-4 sm:grid-cols-2">
-      <Field label="Home currency" for="settings-currency">
+      <Field label={t('home_currency')} for="settings-currency">
         <Select
           id="settings-currency"
           value={homeCurrency}
@@ -296,7 +296,7 @@
         </Select>
       </Field>
 
-      <Field label="First day of week" for="settings-week-start">
+      <Field label={t('first_day')} for="settings-week-start">
         <Select
           id="settings-week-start"
           value={String(firstDayOfWeek)}
@@ -307,11 +307,22 @@
           {/each}
         </Select>
       </Field>
+
+      <Field label={t('language')} for="settings-language" class="sm:col-span-2">
+        <Select
+          id="settings-language"
+          value={language}
+          onchange={(e) => (language = e.currentTarget.value as Language)}
+        >
+          <option value="en">English</option>
+          <option value="pt-BR">Português (Brasil)</option>
+        </Select>
+      </Field>
     </div>
 
     <div class="mt-5">
       <Button onclick={save} disabled={saving || !current}>
-        {saving ? 'Saving…' : 'Save'}
+        {saving ? t('saving') : t('save')}
       </Button>
     </div>
   </section>

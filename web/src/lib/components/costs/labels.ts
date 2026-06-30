@@ -94,6 +94,7 @@ const CURRENCIES = [
     'HUF',
     'MXN',
     'BRL',
+    'CLP',
     'THB',
     'SGD',
     'INR',

@@ -3,6 +3,7 @@
   import { goto } from '$app/navigation';
   import { bareTripUid, settings, trips } from '$lib/db';
   import type { Trip } from '$lib/db';
+  import { t } from '$lib/i18n.svelte';
   import { ChevronDown, Compass, MapPin, Plus, Search, Settings } from 'lucide-svelte';
   import { Button, Dialog, EmptyState, Skeleton, SyncStatusPill, toast } from '$lib/components/ui';
   import { DuplicateTripSheet, NewTripSheet, TripCard, TripFormSheet } from '$lib/components/trip';
@@ -173,32 +174,32 @@
 </script>
 
 <svelte:head>
-  <title>Itinera – Your trips</title>
+  <title>Itinera – {t('trips')}</title>
   <meta name="description" content="Plan and organize your trips, fully offline." />
 </svelte:head>
 
-<header class="sticky top-0 z-30 glass-header">
+<header class="sticky top-0 z-30 glass-header animate-slide-down">
   <div class="mx-auto flex max-w-6xl flex-col gap-3 px-4 py-3 sm:px-6">
     <div class="flex items-center justify-between gap-3">
       <div class="flex items-center gap-2">
         <span
-          class="grid size-9 place-items-center rounded-md bg-primary-600 text-white [&_svg]:size-5"
+          class="grid size-9 place-items-center rounded-md bg-primary-600 text-white animate-bounce-soft [&_svg]:size-5"
         >
           <Compass />
         </span>
-        <h1 class="font-serif text-2xl font-semibold">Trips</h1>
+        <h1 class="font-serif text-2xl font-semibold">{t('trips')}</h1>
       </div>
       <div class="flex items-center gap-2">
         <SyncStatusPill />
         <a
           href="/settings"
-          aria-label="Settings"
-          class="grid size-9 place-items-center rounded-md text-ink-muted transition-colors hover:bg-surface-sunken hover:text-ink [&_svg]:size-5"
+          aria-label={t('settings')}
+          class="grid size-9 place-items-center rounded-md text-ink-muted transition-colors hover:bg-surface-sunken hover:text-ink active:scale-95 [&_svg]:size-5"
         >
           <Settings />
         </a>
         <Button class="hidden sm:inline-flex" size="sm" onclick={openCreate}>
-          <Plus class="size-4" /> New trip
+          <Plus class="size-4" /> {t('new_trip')}
         </Button>
       </div>
     </div>
@@ -211,9 +212,9 @@
         type="search"
         value={search}
         oninput={(e) => (search = e.currentTarget.value)}
-        placeholder="Search by name, place, or tag"
-        aria-label="Search trips"
-        class="w-1/2 w-full rounded-md glass-input pl-9 pr-3 text-base text-ink placeholder:text-ink-muted/60 focus:border-primary-600 focus:outline-none focus:ring-2 focus:ring-primary-600/30"
+        placeholder={t('search_placeholder')}
+        aria-label={t('search_placeholder')}
+        class="w-1/2 w-full rounded-md glass-input pl-9 pr-3 text-base text-ink placeholder:text-ink-muted/60 focus:border-primary-600 focus:outline-none focus:ring-2 focus:ring-primary-600/30 transition-[box-shadow] duration-150"
       />
     </div>
   </div>
@@ -235,14 +236,14 @@
     </div>
   {:else if totalTrips === 0}
     <section aria-labelledby="trips-empty" class="flex min-h-[60dvh] flex-col">
-      <h2 id="trips-empty" class="sr-only">Your trips</h2>
+      <h2 id="trips-empty" class="sr-only">{t('trips')}</h2>
       <EmptyState
         icon={MapPin}
-        title="Plan your first trip"
-        description="Itinera keeps every itinerary, packing list, booking, and budget in one cozy place – and it all works offline."
+        title={t('plan_first_trip')}
+        description={t('empty_description')}
       >
         <Button size="lg" onclick={openCreate}>
-          <Plus class="size-5" /> New trip
+          <Plus class="size-5" /> {t('new_trip')}
         </Button>
       </EmptyState>
     </section>
@@ -250,13 +251,13 @@
     <div class="space-y-8">
       {#if filtered}
         {#if filtered.active.length}
-          {@render section('Active now', filtered.active, true)}
+          {@render section('active_now', filtered.active, true, 0)}
         {/if}
         {#if filtered.upcoming.length}
-          {@render section('Upcoming', filtered.upcoming)}
+          {@render section('upcoming', filtered.upcoming, false, filtered.active.length ? 80 : 0)}
         {/if}
         {#if filtered.past.length}
-          {@render section('Past', filtered.past)}
+          {@render section('past', filtered.past, false, (filtered.active.length ? 80 : 0) + (filtered.upcoming.length ? 80 : 0))}
         {/if}
 
         {#if filtered.archived.length}
@@ -268,7 +269,7 @@
               class="mb-3 flex items-center gap-2 text-sm font-semibold text-ink-muted transition-colors hover:text-ink"
             >
               <ChevronDown class="size-4 transition-transform ${archiveOpen ? '' : '-rotate-90'}" />
-              Archived
+              {t('archived')}
             </button>
             {#if archiveOpen}
               <div class="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
@@ -291,18 +292,18 @@
 
       {#if search.trim() && visibleNonArchived === 0 && filtered?.archived.length === 0}
         <p class="py-12 text-center text-ink-muted">
-          No trips match "{search.trim()}".
+          {t('no_trips_found', { search: search.trim() })}
         </p>
       {/if}
     </div>
   {/if}
 </main>
 
-{#snippet section(label: string, list: trips.TripWithDerived[], highlight = false)}
-  <section aria-labelledby={`section-${label}`}>
+{#snippet section(label: string, list: trips.TripWithDerived[], highlight = false, sectionDelay = 0)}
+  <section aria-labelledby={`section-${label}`} class="animate-slide-up" style="animation-delay: {sectionDelay}ms">
     <div class="mb-3 flex items-center gap-2">
       {#if highlight}
-        <span class="size-2 rounded-full bg-success" aria-hidden="true"></span>
+        <span class="size-2 rounded-full bg-success animate-pulse" aria-hidden="true"></span>
       {/if}
       <h2
         id={`section-${label}`}
@@ -310,14 +311,15 @@
           ? 'text-sm font-semibold text-success'
           : 'text-sm font-semibold text-ink-muted'}
       >
-        {label}
+        {t(label)}
       </h2>
     </div>
     <div class="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
-      {#each list as trip (trip._id)}
+      {#each list as trip, i (trip._id)}
         <TripCard
           {trip}
           {reloadKey}
+          animationDelay={i * 70}
           onedit={() => openEdit(trip)}
           onduplicate={() => openDuplicate(trip)}
           onarchive={() => archive(trip)}
@@ -333,7 +335,7 @@
 <button
   type="button"
   onclick={openCreate}
-  aria-label="New trip"
+  aria-label={t('new_trip')}
   class="fixed bottom-6 right-5 z-40 grid size-14 place-items-center rounded-full bg-primary-600 text-white shadow-sheet transition-colors hover:bg-primary-700 focus:visible:outline-none focus:visible:ring-2 focus:visible:ring-primary-600 focus:visible:ring-offset-2 focus:visible:ring-offset-bg sm:hidden [&_svg]:size-6"
 >
   <Plus />
@@ -360,16 +362,16 @@
 
 <Dialog
   bind:open={deleteOpen}
-  title="Delete this trip?"
+  title={t('delete_trip_title')}
   description={deleteTrip?.title
-    ? `"${deleteTrip.title}" will be moved to Trash. You can restore it later.`
-    : 'It will be moved to Trash. You can restore it later.'}
+    ? `"${deleteTrip.title}" ${t('delete_trip_desc').toLowerCase()}`
+    : t('delete_trip_desc')}
 >
   <p class="text-sm text-ink-muted">
-    Deleting moves the trip and its plans to Trash – nothing is permanently removed yet.
+    {t('delete_trip_desc')}
   </p>
   {#snippet footer()}
-    <Button variant="ghost" onclick={() => (deleteOpen = false)}>Cancel</Button>
-    <Button variant="destructive" onclick={confirmDelete}>Delete</Button>
+    <Button variant="ghost" onclick={() => (deleteOpen = false)}>{t('cancel')}</Button>
+    <Button variant="destructive" onclick={confirmDelete}>{t('delete')}</Button>
   {/snippet}
 </Dialog>

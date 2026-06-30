@@ -27,12 +27,12 @@
         ...rest
     }: Props = $props();
 
-    const base = 'inline-flex select-none items-center justify-center gap-2 whitespace-nowrap rounded-md font-medium transition-colors duration-200 ease-out focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary-600 focus-visible:ring-offset-2 focus-visible:ring-offset-bg disabled:pointer-events-none disabled:opacity-50';
+    const base = 'inline-flex select-none items-center justify-center gap-2 whitespace-nowrap rounded-md font-medium transition-[background-color,color,transform,box-shadow] duration-150 ease-out focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary-600 focus-visible:ring-offset-2 focus-visible:ring-offset-bg active:scale-[0.97] disabled:pointer-events-none disabled:opacity-50';
     const variants: Record<ButtonVariant, string> = {
-        primary: 'bg-primary-600 text-white shadow-sm hover:bg-primary-700 active:bg-primary-700',
+        primary: 'bg-primary-600 text-white shadow-sm hover:bg-primary-700 hover:shadow-[0_0_0_3px_rgba(47,104,79,0.18)] active:bg-primary-700',
         secondary: 'bg-surface-100 hover:bg-surface-200 text-ink hover:text-ink-hover',
         ghost: 'bg-transparent text-ink hover:bg-surface-sunken',
-        destructive: 'bg-danger text-white shadow-sm hover:bg-danger-50 active:brightness-90',
+        destructive: 'bg-danger text-white shadow-sm hover:brightness-110 active:brightness-90',
     };
 
     // sm: h-8 px-3

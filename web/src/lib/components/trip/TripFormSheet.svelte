@@ -33,9 +33,9 @@
     const fid = (s: string) => `trip-${s}-${uid}`;
 
     const CURRENCIES = [
-        'EUR', 'USD', 'GBP', 'JPY', 'CHF', 'CAD', 'AUD', 'SEK', 'NOK', 'DKK', 'PLN', 'CZK', 'HUF',
-        'MXN', 'BRL', 'THB', 'SGD', 'INR', 'AED', 'ZAR',
-    ];
+        'Ad hoc', 'EUR', 'USD', 'GBP', 'JPY', 'CHF', 'CAD', 'AUD', 'SEK', 'NOK', 'DKK', 'PLN', 'CZK', 'HUF',
+        'MXN', 'BRL', 'CLP', 'THB', 'SGD', 'INR', 'AED', 'ZAR',
+    ].filter(c => c !== 'Ad hoc');
 
     interface FormState {
         title: string;

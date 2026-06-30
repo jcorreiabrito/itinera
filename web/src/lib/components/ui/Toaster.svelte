@@ -1,5 +1,5 @@
 <script lang="ts">
-	import { fade } from 'svelte/transition';
+	import { fly } from 'svelte/transition';
 	import { X } from 'lucide-svelte';
 	import { cn } from '$lib/utils';
 	import { toast, toasts, type ToastVariant } from './toast';
@@ -20,7 +20,7 @@
 >
 	{#each $toasts as item (item.id)}
 		<div
-			transition:fade={{ duration: 150 }}
+			transition:fly={{ y: 16, duration: 280, opacity: 0 }}
 			role="status"
 			class={cn(
 				'pointer-events-auto flex w-full max-w-sm items-start gap-3 rounded-md border border-l-4 border-border bg-surface px-4 py-3 shadow-card',
@@ -35,7 +35,7 @@
 						item.action?.onClick();
 						toast.dismiss(item.id);
 					}}
-					class="shrink-0 rounded-md px-2 py-1 text-sm font-semibold text-primary-700 transition-colors hover:bg-primary-100"
+					class="shrink-0 rounded-md px-2 py-1 text-sm font-semibold text-primary-700 transition-colors hover:bg-primary-100 active:scale-95"
 				>
 					{item.action.label}
 				</button>
@@ -44,7 +44,7 @@
 				type="button"
 				onclick={() => toast.dismiss(item.id)}
 				aria-label="Dismiss notification"
-				class="-mr-1 grid size-6 shrink-0 place-items-center rounded text-ink-muted transition-colors hover:text-ink"
+				class="-mr-1 grid size-6 shrink-0 place-items-center rounded text-ink-muted transition-colors hover:text-ink active:scale-90"
 			>
 				<X class="size-4" />
 			</button>

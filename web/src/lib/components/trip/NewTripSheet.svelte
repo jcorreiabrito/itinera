@@ -34,7 +34,7 @@
 
     const CURRENCIES = [
         'EUR', 'USD', 'GBP', 'JPY', 'CHF', 'CAD', 'AUD', 'SEK', 'NOK', 'DKK', 'PLN', 'CZK', 'HUF',
-        'MXN', 'BRL', 'THB', 'SGD', 'INR', 'AED', 'ZAR'
+        'MXN', 'BRL', 'CLP', 'THB', 'SGD', 'INR', 'AED', 'ZAR'
     ];
 
     type Step = 'choose' | 'blank' | 'template' | 'duplicate';

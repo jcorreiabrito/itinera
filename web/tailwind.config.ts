@@ -75,11 +75,57 @@ export default {
         'fade-in': {
           from: { opacity: '0' },
           to: { opacity: '1' }
+        },
+        'slide-up-fade': {
+          from: { opacity: '0', transform: 'translateY(12px)' },
+          to: { opacity: '1', transform: 'translateY(0)' }
+        },
+        'slide-down-fade': {
+          from: { opacity: '0', transform: 'translateY(-8px)' },
+          to: { opacity: '1', transform: 'translateY(0)' }
+        },
+        'slide-from-right': {
+          from: { opacity: '0', transform: 'translateX(100%)' },
+          to: { opacity: '1', transform: 'translateX(0)' }
+        },
+        'slide-to-right': {
+          from: { opacity: '1', transform: 'translateX(0)' },
+          to: { opacity: '0', transform: 'translateX(100%)' }
+        },
+        'slide-to-down': {
+          from: { opacity: '1', transform: 'translateY(0)' },
+          to: { opacity: '0', transform: 'translateY(16px)' }
+        },
+        'pop-in': {
+          from: { opacity: '0', transform: 'scale(0.92)' },
+          to: { opacity: '1', transform: 'scale(1)' }
+        },
+        'pop-out': {
+          from: { opacity: '1', transform: 'scale(1)' },
+          to: { opacity: '0', transform: 'scale(0.92)' }
+        },
+        'bounce-soft': {
+          '0%, 100%': { transform: 'translateY(0)' },
+          '50%': { transform: 'translateY(-5px)' }
+        },
+        'pulse-ring': {
+          '0%': { boxShadow: '0 0 0 0 rgba(47,104,79,0.45)' },
+          '70%': { boxShadow: '0 0 0 8px rgba(47,104,79,0)' },
+          '100%': { boxShadow: '0 0 0 0 rgba(47,104,79,0)' }
         }
       },
       animation: {
         shimmer: 'shimmer 1.5s infinite',
-        'fade-in': 'fade-in 200ms ease-out both'
+        'fade-in': 'fade-in 200ms ease-out both',
+        'slide-up': 'slide-up-fade 320ms cubic-bezier(0.16,1,0.3,1) both',
+        'slide-down': 'slide-down-fade 240ms cubic-bezier(0.16,1,0.3,1) both',
+        'slide-from-right': 'slide-from-right 320ms cubic-bezier(0.16,1,0.3,1) both',
+        'slide-to-right': 'slide-to-right 220ms cubic-bezier(0.16,1,0.3,1) both',
+        'slide-to-down': 'slide-to-down 220ms cubic-bezier(0.16,1,0.3,1) both',
+        'pop-in': 'pop-in 200ms cubic-bezier(0.34,1.56,0.64,1) both',
+        'pop-out': 'pop-out 180ms cubic-bezier(0.16,1,0.3,1) both',
+        'bounce-soft': 'bounce-soft 2.8s ease-in-out infinite',
+        'pulse-ring': 'pulse-ring 2s cubic-bezier(0.455,0.03,0.515,0.955) infinite'
       }
     }
   },

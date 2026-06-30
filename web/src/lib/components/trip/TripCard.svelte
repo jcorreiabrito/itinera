@@ -1,4 +1,5 @@
 <script lang="ts">
+    import { onMount } from 'svelte';
     import { bareTripUlid, checklist, expenses, todayIso, trips } from '$lib/db';
     import {
         Archive,
@@ -20,6 +21,8 @@
         trip: trips.TripWithDerived;
         /** Bumping this re-queries the card's live metrics. */
         reloadKey?: number;
+        /** Animation delay for staggered entrance (ms). */
+        animationDelay?: number;
         onedit?: () => void;
         onduplicate?: () => void;
         onarchive?: () => void;
@@ -27,13 +30,15 @@
         ondelete?: () => void;
     }
 
-    let { trip, reloadKey = 0, onedit, onduplicate, onarchive, onunarchive, ondelete }: Props = $props();
+    let { trip, reloadKey = 0, animationDelay = 0, onedit, onduplicate, onarchive, onunarchive, ondelete }: Props = $props();
 
     const today = todayIso();
 
     let progress = $state<{ done: number; total: number; fraction: number } | null>(null);
     let budget = $state<expenses.BudgetSummary | null>(null);
     let menuOpen = $state(false);
+    let cardEl = $state<HTMLDivElement | null>(null);
+    let visible = $state(false);
 
     const href = $derived(`/trip/${bareTripUlid(trip._id)}/overview`);
     const title = $derived(trip.title?.trim() || 'Untitled trip');
@@ -41,6 +46,9 @@
     const firstDestination = $derived(destinations[0]);
     const extraDestinations = $derived(Math.max(0, destinations.length - 1));
     const currency = $derived(budget?.homeCurrency ?? trip.homeCurrency ?? 'EUR');
+    const isNearCountdown = $derived(
+        trip.derived?.countdown && /^\d+ days?$/.test(trip.derived.countdown) && parseInt(trip.derived.countdown) <= 7
+    );
 
     const budgetTone = $derived(
         budget?.usedFraction == null
@@ -86,16 +94,33 @@
             active = false;
         };
     });
+
+    // Trigger progress bar animations when card enters viewport
+    onMount(() => {
+        if (!cardEl) return;
+        const observer = new IntersectionObserver(
+            ([entry]) => { if (entry.isIntersecting) { visible = true; observer.disconnect(); } },
+            { threshold: 0.2 }
+        );
+        observer.observe(cardEl);
+        return () => observer.disconnect();
+    });
 </script>
 
-<Card class="group relative flex flex-col glass-panel transition-shadow hover:shadow-card">
+<div bind:this={cardEl}>
+<Card
+    class="group relative flex flex-col glass-panel hover-lift animate-slide-up"
+    style="animation-delay: {animationDelay}ms"
+>
     <div class="relative aspect-[3/2] w-full overflow-hidden rounded-t-lg">
-        <TripCover
-            attId={trip.coverImageAttId}
-            blob="thumb"
-            {title}
-            class="absolute inset-0 size-full"
-        />
+        <div class="absolute inset-0 transition-transform duration-500 ease-out group-hover:scale-105">
+            <TripCover
+                attId={trip.coverImageAttId}
+                blob="thumb"
+                {title}
+                class="absolute inset-0 size-full"
+            />
+        </div>
         <div
             class="absolute inset-0 bg-gradient-to-t from-ink/75 via-ink/15 to-transparent"
             aria-hidden="true"
@@ -126,7 +151,9 @@
                 <span class="text-ink-muted/60">·</span>
                 {formatNights(trip.derived.nights)}
             </span>
-            <span class="shrink-0 text-xs font-medium text-accent-terracotta">{trip.derived.countdown}</span>
+            <span class={`shrink-0 text-xs font-medium text-accent-terracotta ${isNearCountdown ? 'animate-pulse-ring rounded px-1' : ''}`}>
+                {trip.derived.countdown}
+            </span>
         </div>
 
         <div class="space-y-2">
@@ -139,7 +166,7 @@
                         class="flex-1"
                         size="sm"
                         tone="success"
-                        value={progress.fraction}
+                        value={visible ? progress.fraction : 0}
                         label="Checklist progress"
                     />
                     <span class="shrink-0 font-medium tabular-nums text-ink">
@@ -159,7 +186,7 @@
                         class="flex-1"
                         size="sm"
                         tone={budgetTone}
-                        value={budget.usedFraction ?? 0}
+                        value={visible ? (budget.usedFraction ?? 0) : 0}
                         label="Budget used"
                     />
                     <span class="shrink-0 font-medium tabular-nums text-ink">
@@ -189,7 +216,7 @@
                     aria-label="Actions for {title}"
                     aria-haspopup="true"
                     aria-expanded={open}
-                    class="grid size-8 place-items-center rounded-full bg-surface/80 text-ink shadow-soft backdrop-blur transition-colors hover:bg-surface focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary-600"
+                    class="grid size-8 place-items-center rounded-full bg-surface/80 text-ink shadow-soft backdrop-blur transition-[colors,transform] duration-200 hover:bg-surface hover:rotate-90 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary-600"
                 >
                     <MoreVertical class="size-4" />
                 </button>
@@ -212,3 +239,4 @@
         </Popover>
     </div>
 </Card>
+</div>

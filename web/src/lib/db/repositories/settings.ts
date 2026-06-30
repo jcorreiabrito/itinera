@@ -16,13 +16,15 @@ export interface SettingsPatch {
   defaultChecklistTemplateId?: string | null;
   theme?: ThemePref;
   firstDayOfWeek?: number;
+  language?: string;
 }
 
 const DEFAULTS = {
   homeCurrencyDefault: 'EUR',
   defaultChecklistTemplateId: null,
   theme: 'system' as ThemePref,
-  firstDayOfWeek: 1
+  firstDayOfWeek: 1,
+  language: 'en'
 };
 
 /** Get the settings document, creating it with defaults on first access. */

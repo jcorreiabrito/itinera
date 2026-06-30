@@ -33,6 +33,7 @@
     }: Props = $props();
 
     let dialogEl = $state<HTMLDialogElement>();
+    let closing = $state(false);
 
     const uid = ++nextId;
     const titleId = `sheet-title-${uid}`;
@@ -41,8 +42,16 @@
     $effect(() => {
         const el = dialogEl;
         if (!el) return;
-        if (open && !el.open) el.showModal();
-        else if (!open && el.open) el.close();
+        if (open && !el.open) {
+            closing = false;
+            el.showModal();
+        } else if (!open && el.open && !closing) {
+            closing = true;
+            setTimeout(() => {
+                el.close();
+                closing = false;
+            }, 220);
+        }
     });
 
     function requestClose() {
@@ -58,6 +67,16 @@
         bottom: 'm-auto mb-0 mt-auto w-full max-w-2xl rounded-t-xl rounded-b-none',
         right: 'my-auto ml-auto mr-0 h-[100dvh] max-h-[100dvh] w-[min(92vw,28rem)] rounded-l-xl rounded-r-none'
     };
+
+    const openAnimation: Record<SheetSide, string> = {
+        bottom: 'open:animate-slide-up',
+        right: 'open:animate-slide-from-right'
+    };
+
+    const closeAnimation: Record<SheetSide, string> = {
+        bottom: 'animate-slide-to-down',
+        right: 'animate-slide-to-right'
+    };
 </script>
 
 <dialog
@@ -65,8 +84,9 @@
     aria-labelledby={title ? titleId : undefined}
     aria-describedby={description ? descId : undefined}
     class={cn(
-        'border border-border bg-surface p-0 text-ink shadow-sheet backdrop:bg-ink/40',
+        'border border-border bg-surface p-0 text-ink shadow-sheet backdrop:bg-ink/40 backdrop:backdrop-blur-sm',
         sideClasses[side],
+        closing ? closeAnimation[side] : openAnimation[side],
         className
     )}
     oncancel={(event) => {
@@ -78,7 +98,7 @@
     <div class={cn('flex flex-col', side === 'right' ? 'h-full' : 'max-h-[85dvh]')}>
         {#if side === 'bottom'}
             <div class="flex justify-center pt-3" aria-hidden="true">
-                <span class="h-1.5 w-10 rounded-full bg-border"></span>
+                <span class="h-1.5 w-10 rounded-full bg-border transition-[width,background-color] duration-200 hover:w-14 hover:bg-border/70 cursor-grab"></span>
             </div>
         {/if}
 
@@ -96,7 +116,7 @@
                     type="button"
                     onclick={requestClose}
                     aria-label={closeLabel}
-                    class="grid size-9 shrink-0 place-items-center rounded-md text-ink-muted transition-colors hover:bg-surface-sunken hover:text-ink"
+                    class="grid size-9 shrink-0 place-items-center rounded-md text-ink-muted transition-colors hover:bg-surface-sunken hover:text-ink active:scale-95"
                 >
                     <X class="size-5" />
                 </button>

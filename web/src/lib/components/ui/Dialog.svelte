@@ -30,6 +30,7 @@
     }: Props = $props();
 
     let dialogEl = $state<HTMLDialogElement>();
+    let closing = $state(false);
 
     const uid = ++nextId;
     const titleId = `dialog-title-${uid}`;
@@ -38,8 +39,17 @@
     $effect(() => {
         const el = dialogEl;
         if (!el) return;
-        if (open && !el.open) el.showModal();
-        else if (!open && el.open) el.close();
+        if (open && !el.open) {
+            closing = false;
+            el.showModal();
+        } else if (!open && el.open && !closing) {
+            // Trigger close animation then close
+            closing = true;
+            setTimeout(() => {
+                el.close();
+                closing = false;
+            }, 180);
+        }
     });
 
     function requestClose() {
@@ -57,7 +67,8 @@
     aria-labelledby={title ? titleId : undefined}
     aria-describedby={description ? descId : undefined}
     class={cn(
-        'open:animate-fade-in m-auto w-[min(92vw,32rem)] rounded-xl border border-border bg-surface p-0 text-ink shadow-sheet backdrop:bg-ink/40',
+        'm-auto w-[min(92vw,32rem)] rounded-xl border border-border bg-surface p-0 text-ink shadow-sheet backdrop:bg-ink/40 backdrop:backdrop-blur-sm',
+        closing ? 'animate-pop-out' : 'open:animate-pop-in',
         className
     )}
     oncancel={(event) => {
@@ -81,7 +92,7 @@
                     type="button"
                     onclick={requestClose}
                     aria-label={closeLabel}
-                    class="grid size-9 shrink-0 place-items-center rounded-md text-ink-muted transition-colors hover:bg-surface-sunken hover:text-ink"
+                    class="grid size-9 shrink-0 place-items-center rounded-md text-ink-muted transition-colors hover:bg-surface-sunken hover:text-ink active:scale-95"
                 >
                     <X class="size-5" />
                 </button>

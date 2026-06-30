@@ -8,6 +8,7 @@
   import type { Snippet } from 'svelte';
   import { onMount } from 'svelte';
   import { initDb } from '$lib/db';
+  import { initLanguage } from '$lib/i18n.svelte';
   import { Toaster, toast } from '$lib/components/ui';
   import ReloadPrompt from '$lib/components/ReloadPrompt.svelte';
   import OfflineBanner from '$lib/components/OfflineBanner.svelte';
@@ -17,6 +18,8 @@
   onMount(() => {
     if (booted) return;
     booted = true;
+    // Load language preference from settings
+    initLanguage();
     // Creates the local db, requests persistent storage, ensures indexes, runs
     // migrations, and starts live sync. The UI reads/writes local data only.
     initDb().catch((error) => {
@@ -35,7 +38,9 @@
   </div>
 
   <OfflineBanner />
-  {@render children()}
+  <div class="animate-slide-up">
+    {@render children()}
+  </div>
 </div>
 
 <Toaster />
