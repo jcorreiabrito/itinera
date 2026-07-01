@@ -215,7 +215,8 @@ export function dateOf(iso: string | null | undefined): string | null {
 export function minutesOfDay(time: string | null | undefined): number | null {
   if (!time) return null;
   // Accept `HH:mm`, `HH:mm:ss` or a full ISO datetime.
-  const match = /^(?:T?)(\d{2}):(\d{2})/.exec(time);
+  const timePart = time.includes('T') ? time.split('T')[1] : time;
+  const match = /^(\d{2}):(\d{2})/.exec(timePart);
   if (!match) return null;
   return Number(match[1]) * 60 + Number(match[2]);
 }

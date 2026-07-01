@@ -5,9 +5,10 @@
   import type { Flight, ItineraryItem, Reservation, Trip } from '$lib/db';
   import { CalendarDays, Plus } from 'lucide-svelte';
   import { Button, EmptyState, ErrorState, Skeleton } from '$lib/components/ui';
-  import { DateStrip, ItineraryDay, ItineraryItemSheet } from '$lib/components/itinerary';
+  import { DateStrip, ItineraryDay, ItineraryItemSheet, WholeTripOverview } from '$lib/components/itinerary';
   import { getTripShellContext } from '$lib/trip-context';
   import { startLive } from '$lib/live';
+  import { cn } from '$lib/utils';
 
   const shell = getTripShellContext();
   const reloadSignal = shell.reloadSignal;
@@ -28,6 +29,46 @@
   // `null` selection = the Unscheduled / Ideas bucket.
   let selectedDate = $state<string | null>(null);
   let initForId = '';
+  let viewMode = $state<'day' | 'overview'>('day');
+
+  // Enforce desktop-only: default to day view when viewport drops below 1024px
+  $effect(() => {
+    if (typeof window !== 'undefined') {
+      const mediaQuery = window.matchMedia('(min-width: 1024px)');
+      const listener = (e: MediaQueryListEvent) => {
+        if (!e.matches) {
+          viewMode = 'day';
+        }
+      };
+      mediaQuery.addEventListener('change', listener);
+      if (!mediaQuery.matches) {
+        viewMode = 'day';
+      }
+      return () => mediaQuery.removeEventListener('change', listener);
+    }
+  });
+
+  // Dynamically expand layout width for the Whole Trip Overview
+  $effect(() => {
+    if (typeof document !== 'undefined') {
+      const mainEl = document.querySelector('main');
+      if (mainEl) {
+        if (viewMode === 'overview') {
+          mainEl.classList.remove('max-w-5xl');
+          mainEl.classList.add('max-w-none');
+        } else {
+          mainEl.classList.remove('max-w-none');
+          mainEl.classList.add('max-w-5xl');
+        }
+      }
+      return () => {
+        if (mainEl) {
+          mainEl.classList.remove('max-w-none');
+          mainEl.classList.add('max-w-5xl');
+        }
+      };
+    }
+  });
 
   let sheetOpen = $state(false);
   let sheetMode = $state<'create' | 'edit'>('create');
@@ -110,7 +151,10 @@
     loadAll(id);
   }
 
-  function openAdd() {
+  function openAdd(date: string | null = null) {
+    if (date !== null) {
+      selectedDate = date;
+    }
     sheetMode = 'create';
     sheetItem = null;
     sheetOpen = true;
@@ -149,30 +193,78 @@
     </EmptyState>
   {:else}
     <div class="space-y-5">
-      {#if hasDays}
-        <DateStrip
-          {dates}
-          selected={selectedDate}
-          {today}
-          ideasCount={ideasCount}
-          onselect={(d) => (selectedDate = d)}
-        />
-      {/if}
+      <div class="flex items-center justify-between gap-4">
+        {#if viewMode === 'day' && hasDays}
+          <div class="flex-1 min-w-0">
+            <DateStrip
+              {dates}
+              selected={selectedDate}
+              {today}
+              ideasCount={ideasCount}
+              onselect={(d) => (selectedDate = d)}
+            />
+          </div>
+        {:else if viewMode === 'overview'}
+          <h2 class="font-serif text-xl font-semibold text-ink">Whole Trip Overview</h2>
+        {/if}
 
-      {#if currentDay}
-        {#key selectedKey}
-          <ItineraryDay
-            day={currentDay}
-            tripId={id}
-            {dates}
-            {homeCurrency}
-            flightsById={flightsById}
-            reservationsById={reservationsById}
-            {links}
-            onedit={openEdit}
-            onchanged={reload}
-          />
-        {/key}
+        <div class="hidden lg:inline-flex items-center rounded-lg border border-border bg-surface-sunken p-1 select-none">
+          <button
+            type="button"
+            onclick={() => (viewMode = 'day')}
+            class={cn(
+              'rounded-md px-3 py-1.5 text-xs font-medium transition-colors',
+              viewMode === 'day'
+                ? 'bg-surface text-primary-700 shadow-soft'
+                : 'text-ink-muted hover:text-ink'
+            )}
+          >
+            Day
+          </button>
+          <button
+            type="button"
+            onclick={() => (viewMode = 'overview')}
+            class={cn(
+              'rounded-md px-3 py-1.5 text-xs font-medium transition-colors',
+              viewMode === 'overview'
+                ? 'bg-surface text-primary-700 shadow-soft'
+                : 'text-ink-muted hover:text-ink'
+            )}
+          >
+            Overview
+          </button>
+        </div>
+      </div>
+
+      {#if viewMode === 'day'}
+        {#if currentDay}
+          {#key selectedKey}
+            <ItineraryDay
+              day={currentDay}
+              tripId={id}
+              {dates}
+              {homeCurrency}
+              flightsById={flightsById}
+              reservationsById={reservationsById}
+              {links}
+              onedit={openEdit}
+              onchanged={reload}
+            />
+          {/key}
+        {/if}
+      {:else if timeline}
+        <WholeTripOverview
+          days={timeline.days}
+          tripId={id}
+          {dates}
+          {homeCurrency}
+          flightsById={flightsById}
+          reservationsById={reservationsById}
+          {links}
+          onedit={openEdit}
+          onchanged={reload}
+          onaddactivity={(date) => openAdd(date)}
+        />
       {/if}
     </div>
   {/if}
@@ -182,7 +274,7 @@
 {#if !loaded && !hasDays && ideasCount > 0}
   <button
     type="button"
-    onclick={openAdd}
+    onclick={() => openAdd()}
     aria-label="Add activity"
     class="fixed bottom-20 right-4 z-40 inline-flex h-14 items-center gap-2 rounded-full bg-primary-600 px-5 text-base font-medium text-white shadow-card transition-colors hover:bg-primary-700 focus:visible:outline-none focus:visible:ring-2 focus:visible:ring-primary-600 focus:visible:ring-offset-2 focus:visible:ring-offset-bg lg:bottom-8 [&_svg]:size-5"
   >
