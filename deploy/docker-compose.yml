@@ -49,6 +49,7 @@ services:
       # Build context = repo root `itinera/` so the Dockerfile can COPY api/.
       context: ..
       dockerfile: deploy/api.Dockerfile
+      network: host
     restart: unless-stopped
     environment:
       COUCHDB_URL: http://couchdb:5984
@@ -87,6 +88,7 @@ services:
       # into a caddy:2-alpine image together with the Caddyfile + entrypoint.
       context: ..
       dockerfile: deploy/web.Dockerfile
+      network: host
     restart: unless-stopped
     environment:
       # The entrypoint derives COUCHDB_BASIC_AUTH (base64 user:pass) from these so

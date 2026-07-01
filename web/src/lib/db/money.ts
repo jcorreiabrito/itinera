@@ -19,6 +19,7 @@ export interface ExpenseLike {
   paid?: boolean;
   date?: string | null;
   category?: string | null;
+  costType?: 'total' | 'per_person' | null;
 }
 
 /** Aggregated money figures, always expressed in the home currency. */
@@ -78,21 +79,22 @@ function emptyTotals(): MoneyTotals {
   return { estimate: 0, actual: 0, spent: 0, unpaid: 0, missingRateCount: 0 };
 }
 
-function addExpense(totals: MoneyTotals, exp: ExpenseLike, homeCurrency: string): void {
+function addExpense(totals: MoneyTotals, exp: ExpenseLike, homeCurrency: string, travelerCount: number = 1): void {
   const { estimate, actual, spent, missingRate } = expenseAmounts(exp, homeCurrency);
-  if (estimate != null) totals.estimate += estimate;
-  if (actual != null) totals.actual += actual;
+  const factor = exp.costType === 'per_person' ? travelerCount : 1;
+  if (estimate != null) totals.estimate += estimate * factor;
+  if (actual != null) totals.actual += actual * factor;
   if (spent != null) {
-    totals.spent += spent;
-    if (!exp.paid) totals.unpaid += spent;
+    totals.spent += spent * factor;
+    if (!exp.paid) totals.unpaid += spent * factor;
   }
   if (missingRate) totals.missingRateCount += 1;
 }
 
 /** Sum a list of expenses into home-currency totals. */
-export function sumExpenses(expenses: ExpenseLike[], homeCurrency: string): MoneyTotals {
+export function sumExpenses(expenses: ExpenseLike[], homeCurrency: string, travelerCount: number = 1): MoneyTotals {
   const totals = emptyTotals();
-  for (const exp of expenses) addExpense(totals, exp, homeCurrency);
+  for (const exp of expenses) addExpense(totals, exp, homeCurrency, travelerCount);
   return totals;
 }
 
@@ -111,16 +113,16 @@ export interface ByDayRollup {
 }
 
 /** Roll expenses up by day. Undated expenses collect in their own bucket. */
-export function rollupByDay(expenses: ExpenseLike[], homeCurrency: string): ByDayRollup {
+export function rollupByDay(expenses: ExpenseLike[], homeCurrency: string, travelerCount: number = 1): ByDayRollup {
   const byDate = new Map<string, MoneyTotals>();
   const undated = emptyTotals();
   for (const exp of expenses) {
     if (exp.date) {
       let t = byDate.get(exp.date);
       if (!t) byDate.set(exp.date, (t = emptyTotals()));
-      addExpense(t, exp, homeCurrency);
+      addExpense(t, exp, homeCurrency, travelerCount);
     } else {
-      addExpense(undated, exp, homeCurrency);
+      addExpense(undated, exp, homeCurrency, travelerCount);
     }
   }
   const days = [...byDate.entries()]
@@ -132,13 +134,14 @@ export function rollupByDay(expenses: ExpenseLike[], homeCurrency: string): ByDa
 /** Roll expenses up by category (home currency). */
 export function rollupByCategory(
   expenses: ExpenseLike[],
-  homeCurrency: string
+  homeCurrency: string,
+  travelerCount: number = 1
 ): Record<string, MoneyTotals> {
   const out: Record<string, MoneyTotals> = {};
   for (const exp of expenses) {
     const cat = exp.category ?? 'other';
     const t = out[cat] ??= emptyTotals();
-    addExpense(t, exp, homeCurrency);
+    addExpense(t, exp, homeCurrency, travelerCount);
   }
   return out;
 }

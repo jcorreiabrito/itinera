@@ -76,6 +76,7 @@
     { labelKey: 'itinerary', icon: CalendarDays, seg: 'itinerary' },
     { labelKey: 'bookings', icon: Plane, seg: 'bookings' },
     { labelKey: 'checklist', icon: ListChecks, seg: 'checklist' },
+    { labelKey: 'costs', icon: Wallet, seg: 'costs' }
   ]);
 </script>
 

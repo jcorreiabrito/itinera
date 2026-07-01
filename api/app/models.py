@@ -141,6 +141,15 @@ class TripDay(CouchDoc):
     notes: str | None = None
 
 
+class ItineraryCostItem(BaseModel):
+    model_config = ConfigDict(populate_by_name=True, extra="allow")
+
+    id: str
+    label: str = ""
+    category: ExpenseCategory = "activities"
+    amount: float = 0.0
+
+
 class ItineraryItem(CouchDoc):
     type: Literal["itineraryItem"] = "itineraryItem"
     date: str | None = None
@@ -155,6 +164,7 @@ class ItineraryItem(CouchDoc):
     linked_reservation_id: str | None = Field(default=None, alias="linkedReservationId")
     est_cost: float | None = Field(default=None, alias="estCost")
     currency: str | None = None
+    costs: list[ItineraryCostItem] | None = None
     order: float | None = None
 
 

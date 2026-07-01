@@ -77,6 +77,7 @@
         carrier: string;
         seat: string;
         coach: string;
+        costType: 'total' | 'per_person';
     }
 
     let form = $state<FormState>(blankForm());
@@ -84,6 +85,20 @@
     let saving = $state(false);
     let wasOpen = false;
     let attachmentItems = $state<Attachment[]>([]);
+    let travelerCount = $state(1);
+
+    import { trips } from '$lib/db';
+
+    async function loadTravelerCount() {
+        if (tripId) {
+            try {
+                const t = await trips.get(tripId);
+                travelerCount = t?.travelerCount ?? 1;
+            } catch {
+                travelerCount = 1;
+            }
+        }
+    }
 
     function blankForm(): FormState {
         return {
@@ -118,7 +133,8 @@
             transTo: '',
             carrier: '',
             seat: '',
-            coach: ''
+            coach: '',
+            costType: 'total'
         };
     }
 
@@ -134,6 +150,7 @@
 
     function initForm() {
         errors = {};
+        void loadTravelerCount();
         if (mode === 'edit' && reservation) {
             const d = (reservation.details ?? {}) as Record<string, unknown>;
             const str = (k: string) => (typeof d[k] === 'string' ? (d[k] as string) : '');
@@ -169,7 +186,8 @@
                 transTo: str('to'),
                 carrier: str('carrier'),
                 seat: str('seat'),
-                coach: str('coach')
+                coach: str('coach'),
+                costType: reservation.costType ?? 'total'
             };
             void loadAttachments();
         } else {
@@ -294,7 +312,8 @@
             currency: validCost != null ? form.currency.trim().toUpperCase() || homeCurrency : undefined,
             contact,
             details: buildDetails(),
-            notes: form.notes.trim() || undefined
+            notes: form.notes.trim() || undefined,
+            costType: form.costType
         };
     }
 
@@ -494,6 +513,19 @@
                 <Input id={fid('cur')} value={form.currency} maxlength={3} class="uppercase" oninput={(e) => (form.currency = e.currentTarget.value)} />
             </Field>
         </div>
+
+        {#if travelerCount > 1 && form.cost.trim()}
+            <Field label="Cost distribution" for={fid('cost-dist')} hint="Select if this reservation cost is the total or per person.">
+                <Select
+                    id={fid('cost-dist')}
+                    value={form.costType}
+                    onchange={(e) => (form.costType = e.currentTarget.value as 'total' | 'per_person')}
+                >
+                    <option value="total">Total Cost (for the whole group)</option>
+                    <option value="per_person">Per Person ({travelerCount} people)</option>
+                </Select>
+            </Field>
+        {/if}
 
         <!-- Contact -->
         <div class="grid grid-cols-1 gap-3 sm:grid-cols-2">

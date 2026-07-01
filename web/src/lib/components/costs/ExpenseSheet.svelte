@@ -42,6 +42,8 @@
     const fid = (s: string) => `exp-${s}-${uid}`;
     const home = $derived((homeCurrency || 'EUR').toUpperCase());
 
+    import { trips } from '$lib/db';
+
     interface FormState {
         description: string;
         category: ExpenseCategory;
@@ -53,6 +55,7 @@
         wholeTrip: boolean;
         paid: boolean;
         link: string;
+        costType: 'total' | 'per_person';
     }
 
     interface LinkOption {
@@ -67,6 +70,7 @@
     let flightOpts = $state<LinkOption[]>([]);
     let resOpts = $state<LinkOption[]>([]);
     let itemOpts = $state<LinkOption[]>([]);
+    let travelerCount = $state(1);
 
     const isLinked = $derived(mode === 'edit' && !!expense?.linkedType);
     const source = $derived(sourceMeta(expense?.linkedType));
@@ -82,12 +86,25 @@
             date: defaultDate ?? todayIso(),
             wholeTrip: false,
             paid: false,
-            link: ''
+            link: '',
+            costType: 'total'
         };
+    }
+
+    async function loadTravelerCount() {
+        if (tripId) {
+            try {
+                const t = await trips.get(tripId);
+                travelerCount = t?.travelerCount ?? 1;
+            } catch {
+                travelerCount = 1;
+            }
+        }
     }
 
     function initForm() {
         errors = {};
+        void loadTravelerCount();
         if (mode === 'edit' && expense) {
             form = {
                 description: expense.description ?? '',
@@ -102,7 +119,8 @@
                 link:
                     expense.linkedType && expense.linkedId
                         ? `${expense.linkedType}:${expense.linkedId}`
-                        : ''
+                        : '',
+                costType: expense.costType ?? 'total'
             };
         } else {
             form = blankForm();
@@ -183,7 +201,8 @@
                 await expenses.update(expense._id, {
                     amountActual: actNum,
                     fxRate: fx,
-                    paid: form.paid
+                    paid: form.paid,
+                    costType: form.costType
                 });
             } else {
                 const link = parseLink(form.link);
@@ -197,7 +216,8 @@
                     fxRate: fx,
                     paid: form.paid,
                     linkedType: link?.type ?? null,
-                    linkedId: link?.id ?? null
+                    linkedId: link?.id ?? null,
+                    costType: form.costType
                 };
                 if (mode === 'create') await expenses.create(tripId, payload);
                 else if (expense) await expenses.update(expense._id, payload);
@@ -324,6 +344,19 @@
                 />
             </Field>
         </div>
+
+        {#if travelerCount > 1}
+            <Field label="Cost distribution" for={fid('cost-dist')} hint="Select if this amount is the total cost or cost per person.">
+                <Select
+                    id={fid('cost-dist')}
+                    value={form.costType}
+                    onchange={(e) => (form.costType = e.currentTarget.value as 'total' | 'per_person')}
+                >
+                    <option value="total">Total Cost (for the whole group)</option>
+                    <option value="per_person">Per Person ({travelerCount} people)</option>
+                </Select>
+            </Field>
+        {/if}
 
         <Field label="Currency" for={fid('cur')}>
             <Select

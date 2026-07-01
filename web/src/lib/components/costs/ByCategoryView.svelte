@@ -77,7 +77,7 @@
         {/each}
     </ul>
 
-    <div class="mt-4 flex items-center justify-between rounded-lg bg-primary-100 px-4 py-3">
+    <div class="mt-4 flex flex-col gap-1 sm:flex-row sm:items-center sm:justify-between rounded-lg bg-primary-100 px-4 py-3">
         <span class="font-medium text-primary-700">Total</span>
         {#if unpaidOnly}
             <span class="font-semibold tabular-nums text-primary-700">{money(summary.unpaid)}</span>

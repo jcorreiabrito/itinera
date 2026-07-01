@@ -53,6 +53,7 @@
         endDate: string;
         destination: string;
         homeCurrency: string;
+        travelerCount: string;
     }
 
     let form = $state<FormState>(blankForm());
@@ -64,7 +65,8 @@
             startDate: '',
             endDate: '',
             destination: '',
-            homeCurrency: defaultCurrency || 'EUR'
+            homeCurrency: defaultCurrency || 'EUR',
+            travelerCount: '1'
         };
     }
 
@@ -106,6 +108,12 @@
         if (form.startDate && form.endDate && form.endDate < form.startDate) {
             e.endDate = 'End date is before the start date.';
         }
+        if (form.travelerCount.trim()) {
+            const n = Number(form.travelerCount);
+            if (!Number.isInteger(n) || n < 1) {
+                e.travelerCount = 'Enter a valid number of travelers.';
+            }
+        }
         errors = e;
         return Object.keys(e).length === 0;
     }
@@ -119,7 +127,8 @@
                 startDate: form.startDate,
                 endDate: form.endDate,
                 homeCurrency: form.homeCurrency,
-                destinations: form.destination.trim() ? [{ name: form.destination.trim() }] : []
+                destinations: form.destination.trim() ? [{ name: form.destination.trim() }] : [],
+                travelerCount: form.travelerCount.trim() ? Number(form.travelerCount) : 1
             });
             // Apply a checklist template (chosen one in template mode, otherwise the
             // default). Idempotent and best-effort, so it stays offline-safe and a
@@ -276,6 +285,19 @@
                         <option value={code}>{code}</option>
                     {/each}
                 </Select>
+            </Field>
+
+            <Field label="Travelers" for={fid('travelers')} error={errors.travelerCount} hint="Number of people traveling on this trip.">
+                <Input
+                    id={fid('travelers')}
+                    type="number"
+                    inputmode="numeric"
+                    min={1}
+                    value={form.travelerCount}
+                    placeholder="1"
+                    invalid={!!errors.travelerCount}
+                    oninput={(e) => (form.travelerCount = e.currentTarget.value)}
+                />
             </Field>
 
             {#if step === 'template'}

@@ -5,7 +5,7 @@
 <script lang="ts">
     import { flights } from '$lib/db';
     import type { Attachment, Flight, FlightSegment } from '$lib/db';
-    import { Button, Field, Input, Sheet, Textarea, toast } from '$lib/components/ui';
+    import { Button, Field, Input, Select, Sheet, Textarea, toast } from '$lib/components/ui';
     import { AttachmentField } from '$lib/components/attachments';
     import { AlertTriangle, ArrowRight, Plane, Plus, Trash2 } from 'lucide-svelte';
     import FlightLegFields, { type FormLeg } from './FlightLegFields.svelte';
@@ -33,6 +33,8 @@
     const uid = ++instanceCount;
     const fid = (s: string) => `flt-${s}-${uid}`;
 
+    import { trips } from '$lib/db';
+
     // Booking-level fields. `notes` is persisted via `update` (see save()).
     type FlightPatch = Partial<flights.NewFlightInput> & { notes?: string };
 
@@ -41,6 +43,8 @@
     let cost = $state('');
     let currency = $state('');
     let notes = $state('');
+    let costType = $state<'total' | 'per_person'>('total');
+    let travelerCount = $state(1);
     let legs = $state<FormLeg[]>([]);
     let saving = $state(false);
     let formError = $state<string | null>(null);
@@ -86,14 +90,27 @@
         };
     }
 
+    async function loadTravelerCount() {
+        if (tripId) {
+            try {
+                const t = await trips.get(tripId);
+                travelerCount = t?.travelerCount ?? 1;
+            } catch {
+                travelerCount = 1;
+            }
+        }
+    }
+
     function initForm() {
         formError = null;
+        void loadTravelerCount();
         if (mode === 'edit' && flight) {
             bookingRef = flight.bookingRef ?? '';
             checkInUrl = flight.checkInUrl ?? '';
             cost = flight.cost != null ? String(flight.cost) : '';
             currency = flight.currency ?? homeCurrency;
             notes = (flight as Flight & { notes?: string }).notes ?? '';
+            costType = flight.costType ?? 'total';
             const segs = flight.segments ?? [];
             legs = segs.length ? segs.map(segToLeg) : [blankLeg()];
             void loadAttachments();
@@ -103,6 +120,7 @@
             cost = '';
             currency = homeCurrency;
             notes = '';
+            costType = 'total';
             legs = [blankLeg()];
             attachmentItems = [];
         }
@@ -194,7 +212,8 @@
             checkInUrl: checkInUrl.trim() || undefined,
             // Setting cost unserts a linked transport expense in the repo; null clears it.
             cost: validCost,
-            currency: validCost != null ? currency.trim().toUpperCase() || homeCurrency : undefined
+            currency: validCost != null ? currency.trim().toUpperCase() || homeCurrency : undefined,
+            costType: costType
         };
     }
 
@@ -313,6 +332,19 @@
                 />
             </Field>
         </div>
+
+        {#if travelerCount > 1 && cost.trim()}
+            <Field label="Cost distribution" for={fid('cost-dist')} hint="Select if this flight cost is the total or per person.">
+                <Select
+                    id={fid('cost-dist')}
+                    value={costType}
+                    onchange={(e) => (costType = e.currentTarget.value as 'total' | 'per_person')}
+                >
+                    <option value="total">Total Cost (for the whole group)</option>
+                    <option value="per_person">Per Person ({travelerCount} people)</option>
+                </Select>
+            </Field>
+        {/if}
 
         <Field label="Notes" for={fid('notes')}>
             <Textarea

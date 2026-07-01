@@ -40,6 +40,7 @@ export interface NewReservationInput {
   notes?: string;
   attachmentIds?: string[];
   order?: number;
+  costType?: 'total' | 'per_person';
 }
 
 /** Derived nights for a lodging reservation (0 when dates are missing). */
@@ -89,7 +90,8 @@ async function syncCost(res: Reservation): Promise<void> {
       amount: res.cost,
       currency: res.currency,
       description: res.name ?? 'Reservation',
-      date: dateOf(res.start)
+      date: dateOf(res.start),
+      costType: res.costType
     });
   } else {
     await removeLinkedExpense(tripid, 'reservation', res._id);
@@ -115,7 +117,8 @@ export async function create(tripid: string, input: NewReservationInput): Promis
     details: withDerivedDetails(input),
     notes: input.notes,
     attachmentIds: input.attachmentIds ?? [],
-    order: input.order ?? 0
+    order: input.order ?? 0,
+    costType: input.costType ?? 'total'
   });
   await syncCost(res);
   return res;

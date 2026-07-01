@@ -170,7 +170,7 @@
             <!-- View tabs + unpaid-only master toggle -->
             <div class="flex flex-wrap items-center justify-between gap-3">
                 <div
-                    class="inline-flex rounded-lg border border-border bg-surface-sunken p-1"
+                    class="flex w-full sm:inline-flex rounded-lg border border-border bg-surface-sunken p-1"
                     role="tablist"
                     aria-label="Cost views"
                 >
@@ -184,7 +184,7 @@
                             tabindex={view === t.value ? 0 : -1}
                             onclick={() => (view = t.value)}
                             onkeydown={onViewKeydown}
-                            class={segClass(view === t.value)}
+                            class={cn(segClass(view === t.value), 'flex-1 justify-center text-center px-1 text-xs sm:text-sm')}
                         >
                             {t.label}
                         </button>
@@ -212,7 +212,7 @@
                 {:else if view === 'category'}
                     <ByCategoryView {categories} homeCurrency={home} {summary} {unpaidOnly} />
                 {:else if view === 'list'}
-                    <ListView expenses={explist} homeCurrency={home} {unpaidOnly} onedit={openEdit} ontogglePaid={togglePaid} />
+                    <ListView expenses={explist} homeCurrency={home} {unpaidOnly} travelerCount={summary.travelerCount} onedit={openEdit} ontogglePaid={togglePaid} />
                 {/if}
             </div>
         {/if}

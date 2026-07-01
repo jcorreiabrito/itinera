@@ -37,6 +37,7 @@ export interface NewExpenseInput {
   paid?: boolean;
   linkedType?: LinkedType | null;
   linkedId?: string | null;
+  costType?: 'total' | 'per_person';
 }
 
 /** All non-deleted expenses for a trip (prefix scan, no index needed). */
@@ -75,7 +76,8 @@ export function create(tripid: string, input: NewExpenseInput): Promise<Expense>
     fxRate: input.fxRate ?? null,
     paid: input.paid ?? false,
     linkedType: input.linkedType ?? null,
-    linkedId: input.linkedId ?? null
+    linkedId: input.linkedId ?? null,
+    costType: input.costType ?? 'total'
   });
 }
 
@@ -113,6 +115,7 @@ export interface LinkedExpenseInput {
   currency?: string;
   description?: string;
   date?: string | null;
+  costType?: 'total' | 'per_person';
 }
 
 /** Find the existing expense linked to a given booking, if any. */
@@ -145,7 +148,8 @@ export async function upsertLinkedExpense(input: LinkedExpenseInput): Promise<Ex
       currency: input.currency,
       description: input.description,
       date: input.date ?? existing.date ?? null,
-      deletedAt: null
+      deletedAt: null,
+      costType: input.costType
     });
   }
   return create(input.tripid, {
@@ -155,7 +159,8 @@ export async function upsertLinkedExpense(input: LinkedExpenseInput): Promise<Ex
     currency: input.currency,
     date: input.date ?? null,
     linkedType: input.linkedType,
-    linkedId: input.linkedId
+    linkedId: input.linkedId,
+    costType: input.costType
   });
 }
 
@@ -184,13 +189,15 @@ export interface BudgetSummary extends MoneyTotals {
   usedFraction: number | null;
   /** Spent ÷ elapsed-or-total days, in home currency. */
   dailyAverage: number;
+  travelerCount: number;
 }
 
 /** Compute the summary header figures for a trip. */
 export async function summary(tripid: string, today: string = todayIso()): Promise<BudgetSummary> {
   const { trip, home } = await tripContext(tripid);
+  const travelerCount = trip?.travelerCount ?? 1;
   const expenses = await byTrip(tripid);
-  const totals = sumExpenses(expenses, home);
+  const totals = sumExpenses(expenses, home, travelerCount);
   const budgetTotal = trip?.budget?.total ?? null;
 
   let days = 1;
@@ -206,7 +213,8 @@ export async function summary(tripid: string, today: string = todayIso()): Promi
     budgetTotal,
     remaining: budgetRemaining(totals.spent, budgetTotal),
     usedFraction: budgetUsedFraction(totals.spent, budgetTotal),
-    dailyAverage: totals.spent / days
+    dailyAverage: totals.spent / days,
+    travelerCount
   };
 }
 
@@ -224,13 +232,15 @@ export interface ByDayBudget {
   perDayTarget: number | null;
   days: DayBudgetRow[];
   undated: MoneyTotals;
+  travelerCount: number;
 }
 
 /** Per-day totals (every trip date represented), with over-target flags. */
 export async function byDayRollup(tripid: string): Promise<ByDayBudget> {
   const { trip, home } = await tripContext(tripid);
+  const travelerCount = trip?.travelerCount ?? 1;
   const expenses = await byTrip(tripid);
-  const rollup = rollupByDay(expenses, home);
+  const rollup = rollupByDay(expenses, home, travelerCount);
   const target = trip?.budget?.perDay ?? null;
   const byDate = new Map(rollup.days.map((d) => [d.date, d.totals]));
   const dates: string[] =
@@ -252,7 +262,7 @@ export async function byDayRollup(tripid: string): Promise<ByDayBudget> {
     return { date, totals, target, overBudget: target !== null && totals.spent > target };
   });
 
-  return { homeCurrency: home, perDayTarget: target, days, undated: rollup.undated };
+  return { homeCurrency: home, perDayTarget: target, days, undated: rollup.undated, travelerCount };
 }
 
 /** One category's budget row. */
@@ -267,10 +277,12 @@ export interface CategoryBudgetRow {
 export async function byCategoryRollup(tripid: string): Promise<{
   homeCurrency: string;
   categories: CategoryBudgetRow[];
+  travelerCount: number;
 }> {
   const { trip, home } = await tripContext(tripid);
+  const travelerCount = trip?.travelerCount ?? 1;
   const expenses = await byTrip(tripid);
-  const rollup = rollupByCategory(expenses, home);
+  const rollup = rollupByCategory(expenses, home, travelerCount);
   const caps = trip?.budget?.byCategory ?? {};
 
   // Categories that have spend OR a budget cap - an unused cap must still be
@@ -298,7 +310,7 @@ export async function byCategoryRollup(tripid: string): Promise<{
   });
   categories.sort((a, b) => b.totals.spent - a.totals.spent);
 
-  return { homeCurrency: home, categories };
+  return { homeCurrency: home, categories, travelerCount };
 }
 
 /** A combined budget snapshot for dashboards (overall + per-category + per-day). */

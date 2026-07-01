@@ -64,6 +64,35 @@
         </p>
     {/if}
 
+    {#if summary.travelerCount > 1}
+        <div class="mt-4 border-t border-border/60 pt-3.5">
+            <h4 class="text-xs font-semibold uppercase tracking-wider text-ink-muted/80">Per Person ({summary.travelerCount} people)</h4>
+            <dl class="mt-2 grid grid-cols-2 gap-x-4 gap-y-1.5 text-xs text-ink-muted">
+                <div class="flex justify-between border-b border-border/40 pb-1">
+                    <dt>Spent</dt>
+                    <dd class="font-semibold text-ink tabular-nums">
+                        {money(summary.spent / summary.travelerCount)}
+                        {#if summary.budgetTotal != null}
+                            <span class="font-normal text-ink-muted text-[10px]"> / {money(summary.budgetTotal / summary.travelerCount)}</span>
+                        {/if}
+                    </dd>
+                </div>
+                <div class="flex justify-between border-b border-border/40 pb-1">
+                    <dt>Daily avg</dt>
+                    <dd class="font-semibold text-ink tabular-nums">{money(summary.dailyAverage / summary.travelerCount)}</dd>
+                </div>
+                <div class="flex justify-between border-b border-border/40 pb-1">
+                    <dt>Estimated</dt>
+                    <dd class="font-semibold text-ink tabular-nums">{money(summary.estimate / summary.travelerCount)}</dd>
+                </div>
+                <div class="flex justify-between border-b border-border/40 pb-1">
+                    <dt>Actual</dt>
+                    <dd class="font-semibold text-ink tabular-nums">{money(summary.actual / summary.travelerCount)}</dd>
+                </div>
+            </dl>
+        </div>
+    {/if}
+
     {#if summary.missingRateCount > 0}
         <p
             role="status"

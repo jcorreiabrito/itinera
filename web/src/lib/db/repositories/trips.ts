@@ -67,6 +67,7 @@ export interface NewTripInput {
   notes?: string;
   tags?: string[];
   coverImageAttId?: string | null;
+  travelerCount?: number;
 }
 
 /** Mutable trip fields. */
@@ -194,7 +195,8 @@ export async function create(input: NewTripInput): Promise<Trip> {
     budget: input.budget,
     notes: input.notes,
     tags: input.tags ?? [],
-    coverImageAttId: input.coverImageAttId ?? null
+    coverImageAttId: input.coverImageAttId ?? null,
+    travelerCount: input.travelerCount ?? 1
   };
   return createDoc<Trip>(doc);
 }

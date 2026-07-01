@@ -12,17 +12,21 @@
         homeCurrency: string;
         /** Global unpaid-only master toggle (overrides the local paid filter). */
         unpaidOnly?: boolean;
+        travelerCount?: number;
         onedit: (expense: Expense) => void;
         ontogglePaid: (expense: Expense) => void;
     }
 
-    let { expenses, homeCurrency, unpaidOnly = false, onedit, ontogglePaid }: Props = $props();
+    let { expenses, homeCurrency, unpaidOnly = false, travelerCount = 1, onedit, ontogglePaid }: Props = $props();
 
     let search = $state('');
     let paidFilter = $state<'all' | 'paid' | 'unpaid'>('all');
     let sort = $state<'date' | 'amount'>('date');
 
-    const homeSpent = (e: Expense) => expenseAmounts(e, homeCurrency).spent ?? 0;
+    const homeSpent = (e: Expense) => {
+        const base = expenseAmounts(e, homeCurrency).spent ?? 0;
+        return e.costType === 'per_person' ? base * travelerCount : base;
+    };
 
     const rows = $derived.by(() => {
         const q = search.trim().toLowerCase();

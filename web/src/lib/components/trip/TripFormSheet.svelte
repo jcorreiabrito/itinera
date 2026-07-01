@@ -47,6 +47,7 @@
         budgetTotal: string;
         notes: string;
         tags: string;
+        travelerCount: string;
     }
 
     let form = $state<FormState>(blankForm());
@@ -64,7 +65,8 @@
             homeCurrency: defaultCurrency || 'EUR',
             budgetTotal: '',
             notes: '',
-            tags: ''
+            tags: '',
+            travelerCount: '1'
         };
     }
 
@@ -83,7 +85,8 @@
                 homeCurrency: trip.homeCurrency ?? defaultCurrency ?? 'EUR',
                 budgetTotal: trip.budget?.total != null ? String(trip.budget.total) : '',
                 notes: trip.notes ?? '',
-                tags: (trip.tags ?? []).join(', ')
+                tags: (trip.tags ?? []).join(', '),
+                travelerCount: trip.travelerCount != null ? String(trip.travelerCount) : '1'
             };
         } else {
             form = blankForm();
@@ -118,6 +121,12 @@
         if (!form.endDate) e.endDate = 'Pick an end date.';
         if (form.startDate && form.endDate && form.endDate < form.startDate)
             e.endDate = 'End date is before the start date.';
+        if (form.travelerCount.trim()) {
+            const n = Number(form.travelerCount);
+            if (!Number.isInteger(n) || n < 1) {
+                e.travelerCount = 'Enter a valid number of travelers (at least 1).';
+            }
+        }
         if (mode === 'edit' && form.budgetTotal.trim()) {
             const n = Number(form.budgetTotal);
             if (!Number.isFinite(n) || n < 0) e.budgetTotal = 'Enter a valid amount.';
@@ -136,7 +145,8 @@
                     startDate: form.startDate,
                     endDate: form.endDate,
                     homeCurrency: form.homeCurrency,
-                    destinations: form.destination.trim() ? [{ name: form.destination.trim() }] : []
+                    destinations: form.destination.trim() ? [{ name: form.destination.trim() }] : [],
+                    travelerCount: form.travelerCount.trim() ? Number(form.travelerCount) : 1
                 });
                 open = false;
                 onsaved?.(created);
@@ -151,7 +161,8 @@
                     destinations: parseDestinations(form.destinations),
                     notes: form.notes.trim() ? form.notes : undefined,
                     tags: parseList(form.tags),
-                    budget: hasBudget ? { ...(trip.budget ?? {}), total: budgetTotalNum } : undefined
+                    budget: hasBudget ? { ...(trip.budget ?? {}), total: budgetTotalNum } : undefined,
+                    travelerCount: form.travelerCount.trim() ? Number(form.travelerCount) : 1
                 };
                 const updated = await trips.update(bareTripUid(trip._id), patch);
                 open = false;
@@ -245,6 +256,19 @@
                     <option value={code}>{code}</option>
                 {/each}
             </Select>
+        </Field>
+
+        <Field label="Travelers" for={fid('travelers')} error={errors.travelerCount} hint="Number of people traveling on this trip.">
+            <Input
+                id={fid('travelers')}
+                type="number"
+                inputmode="numeric"
+                min={1}
+                value={form.travelerCount}
+                placeholder="1"
+                invalid={!!errors.travelerCount}
+                oninput={(e) => (form.travelerCount = e.currentTarget.value)}
+            />
         </Field>
 
         {#if mode === 'edit' && trip}

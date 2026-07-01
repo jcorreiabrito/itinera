@@ -25,20 +25,20 @@
   <h1 id="bookings-heading" class="sr-only">Bookings</h1>
 
   <nav
-    class="mt-4 inline-flex rounded-lg border border-border bg-surface-sunken p-1 text-sm"
+    class="mt-4 flex w-full sm:inline-flex rounded-lg border border-border bg-surface-sunken p-1 text-sm"
     aria-label="Bookings type"
   >
     <a
       href={`/trip/${id}/bookings?tab=flights`}
       aria-current={tab === 'flights' ? 'page' : undefined}
-      class={segClass(tab === 'flights')}
+      class={cn(segClass(tab === 'flights'), 'flex-1 justify-center text-center')}
     >
       Flights
     </a>
     <a
       href={`/trip/${id}/bookings?tab=reservations`}
       aria-current={tab === 'reservations' ? 'page' : undefined}
-      class={segClass(tab === 'reservations')}
+      class={cn(segClass(tab === 'reservations'), 'flex-1 justify-center text-center')}
     >
       Reservations
     </a>

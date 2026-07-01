@@ -20,6 +20,7 @@ import type {
   FlightSegment,
   GeoLocation,
   ItineraryCategory,
+  ItineraryCostItem,
   ItineraryItem,
   Reservation,
   Trip,
@@ -43,6 +44,7 @@ export interface NewItineraryItemInput {
   linkedReservationId?: string | null;
   estCost?: number;
   currency?: string;
+  costs?: ItineraryCostItem[];
   order?: number;
 }
 
@@ -97,28 +99,69 @@ export function create(tripid: string, input: NewItineraryItemInput): Promise<It
     linkedReservationId: input.linkedReservationId ?? null,
     estCost: input.estCost,
     currency: input.currency,
+    costs: input.costs,
     order: input.order ?? 0
   });
 }
 
 /** Patch an itinerary item. */
-export function update(id: string, patch: Partial<NewItineraryItemInput>): Promise<ItineraryItem> {
-  return patchDoc<ItineraryItem>(id, patch as Partial<ItineraryItem>);
+export async function update(id: string, patch: Partial<NewItineraryItemInput>): Promise<ItineraryItem> {
+  const item = await patchDoc<ItineraryItem>(id, patch as Partial<ItineraryItem>);
+  if (item.tripid) {
+    const allExpenses = await expenses.byTrip(item.tripid);
+    const hasLinked = allExpenses.some(
+      (e) => e.linkedType === 'itineraryItem' && e.linkedId?.startsWith(id)
+    );
+    if (hasLinked) {
+      await addExpense(id);
+    }
+  }
+  return item;
 }
 
 /** Soft-delete an itinerary item. */
-export function softDelete(id: string): Promise<ItineraryItem> {
-  return softDeleteDoc<ItineraryItem>(id);
+export async function softDelete(id: string): Promise<ItineraryItem> {
+  const item = await softDeleteDoc<ItineraryItem>(id);
+  if (item.tripid) {
+    const allExpenses = await expenses.byTrip(item.tripid);
+    const linkedExps = allExpenses.filter(
+      (e) => e.linkedType === 'itineraryItem' && e.linkedId?.startsWith(id)
+    );
+    for (const exp of linkedExps) {
+      await expenses.softDelete(exp._id);
+    }
+  }
+  return item;
 }
 
 /** Restore a soft-deleted itinerary item. */
-export function restore(id: string): Promise<ItineraryItem> {
-  return restoreDoc<ItineraryItem>(id);
+export async function restore(id: string): Promise<ItineraryItem> {
+  const item = await restoreDoc<ItineraryItem>(id);
+  if (item.tripid) {
+    const allExpenses = await listTripDocs<Expense>('expense', item.tripid, { includeDeleted: true });
+    const linkedExps = allExpenses.filter(
+      (e) => e.linkedType === 'itineraryItem' && e.linkedId?.startsWith(id) && e.deletedAt != null
+    );
+    for (const exp of linkedExps) {
+      await expenses.restore(exp._id);
+    }
+  }
+  return item;
 }
 
 /** Move an item to a different day (or the Unscheduled bucket when `date` is null). */
-export function moveToDay(id: string, date: string | null, order = 0): Promise<ItineraryItem> {
-  return patchDoc<ItineraryItem>(id, { date, order });
+export async function moveToDay(id: string, date: string | null, order = 0): Promise<ItineraryItem> {
+  const item = await patchDoc<ItineraryItem>(id, { date, order });
+  if (item.tripid) {
+    const allExpenses = await expenses.byTrip(item.tripid);
+    const hasLinked = allExpenses.some(
+      (e) => e.linkedType === 'itineraryItem' && e.linkedId?.startsWith(id)
+    );
+    if (hasLinked) {
+      await addExpense(id);
+    }
+  }
+  return item;
 }
 
 /** Reorder items within a day by assigning sequential `order` values. */
@@ -145,19 +188,74 @@ export function link(
  * creating duplicates, and any user-set `amountActual`/`paid`/`fxRate` are
  * preserved. The day subtotal still sums expenses, so there is no double counting.
  */
+/**
+ * Create or update the linked `expense` from an item's estimated cost
+ * ("Add as expense"). Idempotent: keyed on `itineraryItem` `itemId` (or sub-costs)
+ * through `@link expenses.upsertLinkedExpense`, so repeated taps UPDATE the same linked
+ * expense(s) instead of creating duplicates, and any user-set values are preserved.
+ */
 export async function addExpense(itemId: string): Promise<Expense | null> {
   const item = await get(itemId);
-  if (!item || item.estCost == null || !item.tripid) return null;
-  return expenses.upsertLinkedExpense({
-    tripid: item.tripid,
-    linkedType: 'itineraryItem',
-    linkedId: itemId,
-    category: ITEM_EXPENSE_CATEGORY[item.category ?? 'other'],
-    amount: item.estCost,
-    currency: item.currency,
-    description: item.title ?? 'Activity',
-    date: item.date ?? null
-  });
+  if (!item || !item.tripid) return null;
+
+  const allExpenses = await expenses.byTrip(item.tripid);
+  const existingLinked = allExpenses.filter(
+    (e) => e.linkedType === 'itineraryItem' && e.linkedId?.startsWith(itemId)
+  );
+
+  const hasCosts = item.costs && item.costs.length > 0;
+
+  if (hasCosts) {
+    const activeLinkedIds = new Set<string>();
+    let firstExpense: Expense | null = null;
+
+    for (const cost of item.costs!) {
+      const linkedId = `${itemId}:${cost.id}`;
+      activeLinkedIds.add(linkedId);
+
+      const exp = await expenses.upsertLinkedExpense({
+        tripid: item.tripid,
+        linkedType: 'itineraryItem',
+        linkedId: linkedId,
+        category: cost.category as ExpenseCategory,
+        amount: cost.amount,
+        currency: item.currency || 'EUR',
+        description: `${cost.label || 'Cost'} (${item.title || 'Activity'})`,
+        date: item.date ?? null
+      });
+
+      if (!firstExpense) firstExpense = exp;
+    }
+
+    for (const exp of existingLinked) {
+      if (exp.linkedId && !activeLinkedIds.has(exp.linkedId)) {
+        await expenses.softDelete(exp._id);
+      }
+    }
+
+    return firstExpense;
+  } else {
+    if (item.estCost == null) return null;
+
+    const exp = await expenses.upsertLinkedExpense({
+      tripid: item.tripid,
+      linkedType: 'itineraryItem',
+      linkedId: itemId,
+      category: ITEM_EXPENSE_CATEGORY[item.category ?? 'other'],
+      amount: item.estCost,
+      currency: item.currency || 'EUR',
+      description: item.title ?? 'Activity',
+      date: item.date ?? null
+    });
+
+    for (const oldExp of existingLinked) {
+      if (oldExp.linkedId && oldExp.linkedId.startsWith(`${itemId}:`)) {
+        await expenses.softDelete(oldExp._id);
+      }
+    }
+
+    return exp;
+  }
 }
 
 // --- Day metadata (tripDay) ------------------------------------------------

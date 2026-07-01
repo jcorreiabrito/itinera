@@ -4,11 +4,15 @@
 
 <script lang="ts">
     import { itinerary } from '$lib/db';
-    import type { Flight, ItineraryItem, Reservation } from '$lib/db';
+    import type { Flight, ItineraryItem, Reservation, ExpenseCategory } from '$lib/db';
     import { Button, Checkbox, Field, Input, Select, Sheet, Textarea, toast } from '$lib/components/ui';
-    import { Trash2, Wallet } from 'lucide-svelte';
+    import { Trash2, Wallet, Plus } from 'lucide-svelte';
     import { DateTime } from 'luxon';
     import { CATEGORY_ORDER, CATEGORY_META } from './categories';
+    import {
+        CATEGORY_ORDER as EXPENSE_CATEGORY_ORDER,
+        CATEGORY_META as EXPENSE_CATEGORY_META
+    } from '../costs/labels';
 
     interface Props {
         open?: boolean;
@@ -58,6 +62,12 @@
         linkedFlightId: string;
         linkedReservationId: string;
         estCost: string;
+        costs: Array<{
+            id: string;
+            label: string;
+            category: ExpenseCategory;
+            amount: string;
+        }>;
     }
 
     let form = $state<FormState>(blankForm());
@@ -80,7 +90,8 @@
             notes: '',
             linkedFlightId: '',
             linkedReservationId: '',
-            estCost: ''
+            estCost: '',
+            costs: []
         };
     }
 
@@ -107,7 +118,13 @@
                 notes: item.notes ?? '',
                 linkedFlightId: item.linkedFlightId ?? '',
                 linkedReservationId: item.linkedReservationId ?? '',
-                estCost: item.estCost != null ? String(item.estCost) : ''
+                estCost: item.estCost != null ? String(item.estCost) : '',
+                costs: (item.costs ?? []).map((c) => ({
+                    id: c.id,
+                    label: c.label ?? '',
+                    category: c.category as ExpenseCategory,
+                    amount: c.amount != null ? String(c.amount) : ''
+                }))
             };
         } else {
             form = blankForm();
@@ -135,7 +152,33 @@
 
     const showFlightLink = $derived(flights.length > 0 || !form.linkedFlightId);
     const showReservationLink = $derived(reservations.length > 0 || !form.linkedReservationId);
-    const canAddExpense = $derived(mode === 'edit' && form.estCost.trim() !== '');
+    
+    const totalCostsSum = $derived(
+        form.costs.reduce((sum, cost) => {
+            const val = Number(cost.amount);
+            return Number.isFinite(val) ? sum + val : sum;
+        }, 0)
+    );
+
+    const canAddExpense = $derived(
+        mode === 'edit' && (form.costs.length > 0 || form.estCost.trim() !== '')
+    );
+
+    function addCostLine() {
+        form.costs = [
+            ...form.costs,
+            {
+                id: Math.random().toString(36).substring(2, 9),
+                label: '',
+                category: 'activities' as ExpenseCategory,
+                amount: ''
+            }
+        ];
+    }
+
+    function removeCostLine(index: number) {
+        form.costs = form.costs.filter((_, i) => i !== index);
+    }
 
     function validate(): boolean {
         const e: Partial<Record<keyof FormState, string>> = {};
@@ -143,7 +186,19 @@
         if (form.allDay && form.startTime && form.endTime && form.endTime < form.startTime) {
             e.endTime = 'End time is before the start.';
         }
-        if (form.estCost.trim()) {
+        if (form.costs.length > 0) {
+            for (const cost of form.costs) {
+                if (!cost.label.trim()) {
+                    e.estCost = 'Enter a description for all cost items.';
+                    break;
+                }
+                const n = Number(cost.amount);
+                if (!cost.amount.trim() || !Number.isFinite(n) || n < 0) {
+                    e.estCost = 'Enter valid amounts for all cost items.';
+                    break;
+                }
+            }
+        } else if (form.estCost.trim()) {
             const n = Number(form.estCost);
             if (!Number.isFinite(n) || n < 0) e.estCost = 'Enter a valid amount.';
         }
@@ -156,7 +211,12 @@
         const lng = form.lng.trim() ? Number(form.lng) : undefined;
         const hasLocation =
             form.locName.trim() || form.locAddress.trim() || lat != null || lng != null;
-        const cost = form.estCost.trim() ? Number(form.estCost) : undefined;
+        
+        const hasCosts = form.costs.length > 0;
+        const cost = hasCosts
+            ? totalCostsSum
+            : (form.estCost.trim() ? Number(form.estCost) : undefined);
+            
         return {
             title: form.title.trim(),
             date: form.date ? form.date : null,
@@ -176,7 +236,15 @@
             linkedFlightId: form.linkedFlightId || null,
             linkedReservationId: form.linkedReservationId || null,
             estCost: cost,
-            currency: cost != null ? homeCurrency : undefined
+            currency: cost != null ? homeCurrency : undefined,
+            costs: hasCosts
+                ? form.costs.map((c) => ({
+                      id: c.id,
+                      label: c.label.trim(),
+                      category: c.category,
+                      amount: Number(c.amount)
+                  }))
+                : undefined
         };
     }
 
@@ -415,7 +483,7 @@
             label="Estimated cost"
             for={fid('cost')}
             error={errors.estCost}
-            hint={`In ${homeCurrency}. Use "Add as expense" to count it in your budget.`}
+            hint={form.costs.length > 0 ? `Calculated from segregated costs below. In ${homeCurrency}.` : `In ${homeCurrency}. Use "Add as expense" to count it in your budget.`}
         >
             <Input
                 id={fid('cost')}
@@ -423,12 +491,76 @@
                 inputmode="decimal"
                 min={0}
                 step="any"
-                value={form.estCost}
+                value={form.costs.length > 0 ? String(totalCostsSum) : form.estCost}
                 placeholder="25"
+                disabled={form.costs.length > 0}
                 invalid={!!errors.estCost}
                 oninput={(e) => (form.estCost = e.currentTarget.value)}
             />
         </Field>
+
+        <div class="border-t border-border pt-4">
+            <div class="flex items-center justify-between mb-2">
+                <span class="text-sm font-semibold text-ink">Segregated Costs</span>
+                <Button
+                    type="button"
+                    variant="secondary"
+                    size="sm"
+                    class="h-7 px-2 text-xs"
+                    onclick={addCostLine}
+                >
+                    <Plus class="size-3.5" /> Add line
+                </Button>
+            </div>
+
+            {#if form.costs.length === 0}
+                <p class="text-xs text-ink-muted mb-2">No segregated costs added. Use the single field above or add detailed lines.</p>
+            {:else}
+                <div class="flex flex-col gap-2 mb-3">
+                    {#each form.costs as cost, index (cost.id)}
+                        <div class="flex items-center gap-2">
+                            <div class="flex-[2]">
+                                <Input
+                                    value={cost.label}
+                                    placeholder="Tickets, entrance, Uber..."
+                                    oninput={(e) => { form.costs[index].label = e.currentTarget.value; }}
+                                />
+                            </div>
+                            <div class="flex-[1.5]">
+                                <Select
+                                    value={cost.category}
+                                    onchange={(e) => { form.costs[index].category = e.currentTarget.value as ExpenseCategory; }}
+                                >
+                                    {#each EXPENSE_CATEGORY_ORDER as cat (cat)}
+                                        <option value={cat}>{EXPENSE_CATEGORY_META[cat].label}</option>
+                                    {/each}
+                                </Select>
+                            </div>
+                            <div class="flex-[1]">
+                                <Input
+                                    type="number"
+                                    inputmode="decimal"
+                                    min={0}
+                                    step="any"
+                                    value={cost.amount}
+                                    placeholder="0"
+                                    oninput={(e) => { form.costs[index].amount = e.currentTarget.value; }}
+                                />
+                            </div>
+                            <Button
+                                type="button"
+                                variant="ghost"
+                                size="sm"
+                                class="text-danger hover:bg-danger/10 px-2"
+                                onclick={() => removeCostLine(index)}
+                            >
+                                <Trash2 class="size-4" />
+                            </Button>
+                        </div>
+                    {/each}
+                </div>
+            {/if}
+        </div>
 
         {#if canAddExpense}
             <Button

@@ -10,7 +10,8 @@
     "sourceMap": true,
     "strict": true,
     "moduleResolution": "bundler"
-  }
+  },
+  "exclude": ["vite.config.ts"]
   // Path aliases ($lib etc.) and includes/excludes are managed by SvelteKit
   // in `.svelte-kit/tsconfig.json`, which this file extends.
 }

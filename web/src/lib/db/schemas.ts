@@ -214,7 +214,8 @@ export const tripSchema = z
     budget: budgetSchema.optional(),
     coverImageAttId: z.string().nullable().optional(),
     notes: z.string().optional(),
-    tags: z.array(z.string()).default([])
+    tags: z.array(z.string()).default([]),
+    travelerCount: z.number().int().min(1).default(1)
   })
   .passthrough();
 export type Trip = z.infer<typeof tripSchema>;
@@ -229,6 +230,16 @@ export const tripDaySchema = z
   })
   .passthrough();
 export type TripDay = z.infer<typeof tripDaySchema>;
+
+export const itineraryCostItemSchema = z
+  .object({
+    id: z.string(),
+    label: z.string().default(''),
+    category: expenseCategorySchema.default('activities'),
+    amount: z.number().default(0)
+  })
+  .passthrough();
+export type ItineraryCostItem = z.infer<typeof itineraryCostItemSchema>;
 
 export const itineraryItemSchema = z
   .object({
@@ -246,6 +257,7 @@ export const itineraryItemSchema = z
     linkedReservationId: z.string().nullable().optional(),
     estCost: z.number().optional(),
     currency: z.string().optional(),
+    costs: z.array(itineraryCostItemSchema).optional(),
     order: z.number().default(0)
   })
   .passthrough();
@@ -279,7 +291,8 @@ export const flightSchema = z
     cost: z.number().optional(),
     currency: z.string().optional(),
     attachmentIds: z.array(z.string()).default([]),
-    order: z.number().default(0)
+    order: z.number().default(0),
+    costType: z.enum(['total', 'per_person']).default('total')
   })
   .passthrough();
 export type Flight = z.infer<typeof flightSchema>;
@@ -300,7 +313,8 @@ export const reservationSchema = z
     details: z.record(z.unknown()).default({}),
     notes: z.string().optional(),
     attachmentIds: z.array(z.string()).default([]),
-    order: z.number().default(0)
+    order: z.number().default(0),
+    costType: z.enum(['total', 'per_person']).default('total')
   })
   .passthrough();
 export type Reservation = z.infer<typeof reservationSchema>;
@@ -318,7 +332,8 @@ export const expenseSchema = z
     fxRate: z.number().nullable().optional(),
     paid: z.boolean().default(false),
     linkedType: z.enum(LINKED_TYPES).nullable().optional(),
-    linkedId: z.string().nullable().optional()
+    linkedId: z.string().nullable().optional(),
+    costType: z.enum(['total', 'per_person']).default('total')
   })
   .passthrough();
 export type Expense = z.infer<typeof expenseSchema>;

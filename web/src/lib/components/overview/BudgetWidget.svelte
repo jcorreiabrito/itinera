@@ -25,42 +25,99 @@
 </script>
 
 <WidgetCard title="Budget" icon={Wallet} {href} linkLabel="Costs">
-    {#if budget.budgetTotal != null}
-        <div class="flex items-baseline justify-between gap-2">
-            <span class="text-lg font-semibold tabular-nums text-ink">{formatMoney(budget.spent, cur)}</span>
-            <span class="text-sm text-ink-muted">of {formatMoney(budget.budgetTotal, cur)}</span>
+    {#if budget.travelerCount > 1}
+        <div class="space-y-4">
+            <!-- Group Total -->
+            <div>
+                <div class="text-xs font-semibold uppercase tracking-wider text-ink-muted/80">Group Total</div>
+                <div class="flex items-baseline justify-between gap-2 mt-1">
+                    <span class="text-lg font-semibold tabular-nums text-ink">{formatMoney(budget.spent, cur)}</span>
+                    {#if budget.budgetTotal != null}
+                        <span class="text-sm text-ink-muted">of {formatMoney(budget.budgetTotal, cur)}</span>
+                    {/if}
+                </div>
+                {#if budget.budgetTotal != null}
+                    <ProgressBar class="mt-1.5" tone={tone} value={budget.usedFraction ?? 0} label="Group budget used" />
+                {/if}
+            </div>
+
+            <!-- Per Person -->
+            <div class="border-t border-border/60 pt-3">
+                <div class="text-xs font-semibold uppercase tracking-wider text-ink-muted/80">Per Person ({budget.travelerCount} people)</div>
+                <div class="flex items-baseline justify-between gap-2 mt-1">
+                    <span class="text-lg font-semibold tabular-nums text-ink">
+                        {formatMoney(budget.spent / budget.travelerCount, cur)}
+                    </span>
+                    {#if budget.budgetTotal != null}
+                        <span class="text-sm text-ink-muted">
+                            of {formatMoney(budget.budgetTotal / budget.travelerCount, cur)}
+                        </span>
+                    {/if}
+                </div>
+                {#if budget.budgetTotal != null}
+                    <ProgressBar class="mt-1.5" tone={tone} value={budget.usedFraction ?? 0} label="Per person budget used" />
+                {/if}
+            </div>
+
+            <dl class="grid grid-cols-2 gap-3 text-sm border-t border-border/60 pt-3">
+                {#if budget.budgetTotal != null}
+                    <div>
+                        <dt class="text-ink-muted">Remaining (Group)</dt>
+                        <dd class="font-medium tabular-nums {budget.remaining != null && budget.remaining < 0 ? 'text-danger' : 'text-ink'}">
+                            {formatMoney(budget.remaining ?? 0, cur)}
+                        </dd>
+                    </div>
+                {:else}
+                    <div>
+                        <dt class="text-ink-muted">Estimated (Group)</dt>
+                        <dd class="font-medium tabular-nums text-ink">{formatMoney(budget.estimate, cur)}</dd>
+                    </div>
+                {/if}
+                <div>
+                    <dt class="text-ink-muted">Daily avg (Group)</dt>
+                    <dd class="font-medium tabular-nums text-ink">{formatMoney(budget.dailyAverage, cur)}</dd>
+                </div>
+            </dl>
         </div>
-        <ProgressBar class="mt-2" tone={tone} value={budget.usedFraction ?? 0} label="Budget used" />
-        <dl class="mt-3 grid grid-cols-2 gap-3 text-sm">
-            <div>
-                <dt class="text-ink-muted">Remaining</dt>
-                <dd
-                    class="font-medium tabular-nums ${budget.remaining != null && budget.remaining < 0 ? 'text-danger' : 'text-ink'}"
-                >
-                    {formatMoney(budget.remaining ?? 0, cur)}
-                </dd>
-            </div>
-            <div>
-                <dt class="text-ink-muted">Daily avg</dt>
-                <dd class="font-medium tabular-nums text-ink">{formatMoney(budget.dailyAverage, cur)}</dd>
-            </div>
-        </dl>
     {:else}
-        <div class="flex items-baseline justify-between gap-2">
-            <span class="text-lg font-semibold tabular-nums text-ink">{formatMoney(budget.spent, cur)}</span>
-            <span class="text-sm text-ink-muted">spent</span>
-        </div>
-        <dl class="mt-3 grid grid-cols-2 gap-3 text-sm">
-            <div>
-                <dt class="text-ink-muted">Estimated</dt>
-                <dd class="font-medium tabular-nums text-ink">{formatMoney(budget.estimate, cur)}</dd>
+        <!-- Original layout for 1 traveler -->
+        {#if budget.budgetTotal != null}
+            <div class="flex items-baseline justify-between gap-2">
+                <span class="text-lg font-semibold tabular-nums text-ink">{formatMoney(budget.spent, cur)}</span>
+                <span class="text-sm text-ink-muted">of {formatMoney(budget.budgetTotal, cur)}</span>
             </div>
-            <div>
-                <dt class="text-ink-muted">Daily avg</dt>
-                <dd class="font-medium tabular-nums text-ink">{formatMoney(budget.dailyAverage, cur)}</dd>
+            <ProgressBar class="mt-2" tone={tone} value={budget.usedFraction ?? 0} label="Budget used" />
+            <dl class="mt-3 grid grid-cols-2 gap-3 text-sm">
+                <div>
+                    <dt class="text-ink-muted">Remaining</dt>
+                    <dd
+                        class="font-medium tabular-nums {budget.remaining != null && budget.remaining < 0 ? 'text-danger' : 'text-ink'}"
+                    >
+                        {formatMoney(budget.remaining ?? 0, cur)}
+                    </dd>
+                </div>
+                <div>
+                    <dt class="text-ink-muted">Daily avg</dt>
+                    <dd class="font-medium tabular-nums text-ink">{formatMoney(budget.dailyAverage, cur)}</dd>
+                </div>
+            </dl>
+        {:else}
+            <div class="flex items-baseline justify-between gap-2">
+                <span class="text-lg font-semibold tabular-nums text-ink">{formatMoney(budget.spent, cur)}</span>
+                <span class="text-sm text-ink-muted">spent</span>
             </div>
-        </dl>
-        <p class="mt-2 text-xs text-ink-muted">No budget set yet.</p>
+            <dl class="mt-3 grid grid-cols-2 gap-3 text-sm">
+                <div>
+                    <dt class="text-ink-muted">Estimated</dt>
+                    <dd class="font-medium tabular-nums text-ink">{formatMoney(budget.estimate, cur)}</dd>
+                </div>
+                <div>
+                    <dt class="text-ink-muted">Daily avg</dt>
+                    <dd class="font-medium tabular-nums text-ink">{formatMoney(budget.dailyAverage, cur)}</dd>
+                </div>
+            </dl>
+            <p class="mt-2 text-xs text-ink-muted">No budget set yet.</p>
+        {/if}
     {/if}
     {#if budget.missingRateCount > 0}
         <p class="mt-2 text-xs text-warning">

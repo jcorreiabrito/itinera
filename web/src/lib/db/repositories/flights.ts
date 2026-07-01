@@ -33,6 +33,7 @@ export interface NewFlightInput {
   notes?: string;
   attachmentIds?: string[];
   order?: number;
+  costType?: 'total' | 'per_person';
 }
 
 /** Compact route string "BCN → FCO" from first origin to last destination. */
@@ -77,7 +78,8 @@ async function syncCost(flight: Flight): Promise<void> {
       amount: flight.cost,
       currency: flight.currency,
       description: `Flight ${route(flight)}`.trim(),
-      date: dateOf(firstDepartLocal(flight))
+      date: dateOf(firstDepartLocal(flight)),
+      costType: flight.costType
     });
   } else {
     await removeLinkedExpense(tripid, 'flight', flight._id);
@@ -98,7 +100,8 @@ export async function create(tripid: string, input: NewFlightInput): Promise<Fli
     currency: input.currency,
     notes: input.notes,
     attachmentIds: input.attachmentIds ?? [],
-    order: input.order ?? 0
+    order: input.order ?? 0,
+    costType: input.costType ?? 'total'
   });
   await syncCost(flight);
   return flight;
