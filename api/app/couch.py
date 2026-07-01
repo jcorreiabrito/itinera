@@ -23,7 +23,7 @@ _HIGH = "\ufff0"
 
 # Prefixes for trip-scoped documents (see "IDs are meaningful and prefix-sortable"
 # in 04-data-model.md). The trip document itself is fetched by id separately.
-_TRIP_CHILD_PREFIXES: tuple[str, ...] = ("day", "itm", "chk", "flt", "res", "exp", "att")
+_TRIP_CHILD_PREFIXES: tuple[str, ...] = ("day", "itin", "chk", "flt", "res", "exp", "att")
 
 #: Mango indexes created on startup. These align with the "Queries the app needs"
 #: table in 04-data-model.md. The data-sync layer should rely on these names.

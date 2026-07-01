@@ -8,6 +8,7 @@
     import type { Expense, ExpenseCategory, LinkedType } from '$lib/db';
     import { Button, Checkbox, Field, Input, Select, Sheet, Textarea, toast } from '$lib/components/ui';
     import { formatMoney } from '$lib/format';
+    import { t } from '$lib/i18n.svelte';
     import {
         CATEGORY_META,
         CATEGORY_ORDER,
@@ -263,7 +264,7 @@
 <Sheet
     bind:open
     side="right"
-    title={mode === 'create' ? 'Add expense' : 'Edit expense'}
+    title={mode === 'create' ? t('add_expense') : t('edit_expense')}
     description={isLinked
         ? 'Linked to a booking – record what you actually paid. Log a cost; refine the details anytime.'
         : ''}
@@ -291,7 +292,7 @@
             </div>
         {/if}
 
-        <Field label="Description" for={fid('desc')}>
+        <Field label={t('description')} for={fid('desc')}>
             <Input
                 id={fid('desc')}
                 value={form.description}
@@ -301,7 +302,7 @@
             />
         </Field>
 
-        <Field label="Category" for={fid('cat')}>
+        <Field label={t('category')} for={fid('cat')}>
             <Select
                 id={fid('cat')}
                 value={form.category}
@@ -315,7 +316,7 @@
         </Field>
 
         <div class="grid grid-cols-2 gap-3">
-            <Field label="Estimated" for={fid('est')} error={errors.amountEstimate}>
+            <Field label={t('estimated')} for={fid('est')} error={errors.amountEstimate}>
                 <Input
                     id={fid('est')}
                     type="number"
@@ -330,7 +331,7 @@
                 />
             </Field>
 
-            <Field label="Actual" for={fid('act')} error={errors.amountActual}>
+            <Field label={t('actual')} for={fid('act')} error={errors.amountActual}>
                 <Input
                     id={fid('act')}
                     type="number"
@@ -346,19 +347,19 @@
         </div>
 
         {#if travelerCount > 1}
-            <Field label="Cost distribution" for={fid('cost-dist')} hint="Select if this amount is the total cost or cost per person.">
+            <Field label={t('cost_distribution')} for={fid('cost-dist')} hint="Select if this amount is the total cost or cost per person.">
                 <Select
                     id={fid('cost-dist')}
                     value={form.costType}
                     onchange={(e) => (form.costType = e.currentTarget.value as 'total' | 'per_person')}
                 >
-                    <option value="total">Total Cost (for the whole group)</option>
-                    <option value="per_person">Per Person ({travelerCount} people)</option>
+                    <option value="total">{t('total_cost_split')}</option>
+                    <option value="per_person">{t('per_person_cost')}</option>
                 </Select>
             </Field>
         {/if}
 
-        <Field label="Currency" for={fid('cur')}>
+        <Field label={t('home_currency')} for={fid('cur')}>
             <Select
                 id={fid('cur')}
                 value={form.currency}
@@ -462,7 +463,7 @@
         {/if}
 
         <Checkbox
-            label="Paid"
+            label={t('paid') || 'Paid'}
             description="Cleared from your outstanding (unpaid) total."
             bind:checked={form.paid}
             onchange={(e) => (form.paid = e.currentTarget.checked)}
@@ -476,7 +477,7 @@
                 class="mt-1 inline-flex items-center gap-2 self-start text-sm font-medium text-danger transition-colors hover:underline disabled:opacity-50 [&_svg]:size-4"
             >
                 <Trash2 />
-                Delete expense
+                {t('delete')}
             </button>
         {/if}
 
@@ -484,9 +485,9 @@
     </form>
 
     {#snippet footer()}
-        <Button variant="ghost" onclick={() => (open = false)} disabled={saving}>Cancel</Button>
+        <Button variant="ghost" onclick={() => (open = false)} disabled={saving}>{t('cancel')}</Button>
         <Button onclick={save} disabled={saving}>
-            {saving ? 'Saving...' : mode === 'create' ? 'Add expense' : 'Save changes'}
+            {saving ? t('saving') : mode === 'create' ? t('add_expense') : t('save_changes')}
         </Button>
     {/snippet}
 </Sheet>

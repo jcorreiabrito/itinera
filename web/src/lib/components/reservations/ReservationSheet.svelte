@@ -13,6 +13,7 @@
         ReservationKind
     } from '$lib/db';
     import { Button, Field, Input, Select, Sheet, Textarea, toast } from '$lib/components/ui';
+    import { t } from '$lib/i18n.svelte';
     import { AttachmentField } from '$lib/components/attachments';
     import { Trash2 } from 'lucide-svelte';
     import { formatNights } from '$lib/format';
@@ -365,7 +366,7 @@
 <Sheet
     bind:open
     side="right"
-    title={mode === 'create' ? 'Add reservation' : 'Edit reservation'}
+    title={mode === 'create' ? t('add_reservation') : t('edit_expense')}
     description="Name and type get you a row fast – refine the details anytime."
 >
     <form
@@ -375,7 +376,7 @@
             save();
         }}
     >
-        <Field label="Type" for={fid('kind')}>
+        <Field label={t('category')} for={fid('kind')}>
             <Select id={fid('kind')} value={form.kind} onchange={(e) => (form.kind = e.currentTarget.value as ReservationKind)}>
                 {#each KIND_ORDER as k (k)}
                     <option value={k}>{KIND_META[k].label}</option>
@@ -383,7 +384,7 @@
             </Select>
         </Field>
 
-        <Field label="Name" for={fid('name')} required error={errors.name}>
+        <Field label={t('trip_name') || 'Name'} for={fid('name')} required error={errors.name}>
             <Input
                 id={fid('name')}
                 value={form.name}
@@ -506,23 +507,23 @@
         </Field>
 
         <div class="grid grid-cols-[1fr_7rem] gap-3">
-            <Field label="Cost" for={fid('cost')} error={errors.cost} hint="Adds one linked expense to your budget.">
+            <Field label={t('cost')} for={fid('cost')} error={errors.cost} hint="Adds one linked expense to your budget.">
                 <Input id={fid('cost')} type="number" inputmode="decimal" min={0} value={form.cost} placeholder="340" invalid={!!errors.cost} oninput={(e) => (form.cost = e.currentTarget.value)} />
             </Field>
-            <Field label="Currency" for={fid('cur')}>
+            <Field label={t('home_currency')} for={fid('cur')}>
                 <Input id={fid('cur')} value={form.currency} maxlength={3} class="uppercase" oninput={(e) => (form.currency = e.currentTarget.value)} />
             </Field>
         </div>
 
         {#if travelerCount > 1 && form.cost.trim()}
-            <Field label="Cost distribution" for={fid('cost-dist')} hint="Select if this reservation cost is the total or per person.">
+            <Field label={t('cost_distribution')} for={fid('cost-dist')} hint="Select if this reservation cost is the total or per person.">
                 <Select
                     id={fid('cost-dist')}
                     value={form.costType}
                     onchange={(e) => (form.costType = e.currentTarget.value as 'total' | 'per_person')}
                 >
-                    <option value="total">Total Cost (for the whole group)</option>
-                    <option value="per_person">Per Person ({travelerCount} people)</option>
+                    <option value="total">{t('total_cost_split')}</option>
+                    <option value="per_person">{t('per_person_cost')}</option>
                 </Select>
             </Field>
         {/if}
@@ -540,7 +541,7 @@
             <Input id={fid('web')} type="url" value={form.website} placeholder="https://..." oninput={(e) => (form.website = e.currentTarget.value)} />
         </Field>
 
-        <Field label="Notes" for={fid('notes')}>
+        <Field label={t('notes')} for={fid('notes')}>
             <Textarea id={fid('notes')} rows={2} value={form.notes} placeholder="Anything worth remembering..." oninput={(e) => (form.notes = e.currentTarget.value)} />
         </Field>
 
@@ -568,7 +569,7 @@
                 disabled={saving}
                 class="mt-1 inline-flex items-center gap-2 self-start text-sm font-medium text-danger transition-colors hover:underline disabled:opacity-50 [&_svg]:size-4"
             >
-                <Trash2 /> Delete reservation
+                <Trash2 /> {t('delete')}
             </button>
         {/if}
 
@@ -576,9 +577,9 @@
     </form>
 
     {#snippet footer()}
-        <Button variant="ghost" onclick={() => (open = false)} disabled={saving}>Cancel</Button>
+        <Button variant="ghost" onclick={() => (open = false)} disabled={saving}>{t('cancel')}</Button>
         <Button onclick={save} disabled={saving}>
-            {saving ? 'Saving...' : mode === 'create' ? 'Add reservation' : 'Save changes'}
+            {saving ? t('saving') : mode === 'create' ? t('add_reservation') : t('save_changes')}
         </Button>
     {/snippet}
 </Sheet>

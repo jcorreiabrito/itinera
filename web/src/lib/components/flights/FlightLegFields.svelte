@@ -22,6 +22,7 @@
     import { Field, Input } from '$lib/components/ui';
     import { Trash2 } from 'lucide-svelte';
     import AirportInput from './AirportInput.svelte';
+    import { t } from '$lib/i18n.svelte';
 
     interface Props {
         leg: FormLeg;
@@ -58,14 +59,14 @@
                 onclick={onremove}
                 class="inline-flex items-center gap-1 rounded px-1.5 py-0.5 text-xs font-medium text-danger hover:underline [&_svg]:size-3.5"
             >
-                <Trash2 /> Remove
+                <Trash2 /> {t('delete')}
             </button>
         {/if}
     </legend>
 
     <div class="mt-2 flex flex-col gap-3">
         <div class="grid grid-cols-1 gap-3 sm:grid-cols-2">
-            <Field label="Airline" for={fid('airline')}>
+            <Field label={t('airline')} for={fid('airline')}>
                 <Input
                     id={fid('airline')}
                     value={leg.airline}
@@ -73,7 +74,7 @@
                     oninput={(e) => (leg.airline = e.currentTarget.value)}
                 />
             </Field>
-            <Field label="Flight no." for={fid('no')}>
+            <Field label={t('flight_number')} for={fid('no')}>
                 <Input
                     id={fid('no')}
                     value={leg.flightNumber}
@@ -84,7 +85,7 @@
         </div>
 
         <div class="grid grid-cols-1 gap-3 sm:grid-cols-2">
-            <Field label="From" for={fid('from')}>
+            <Field label={t('from')} for={fid('from')}>
                 <AirportInput
                     id={fid('from')}
                     value={leg.from}
@@ -92,7 +93,7 @@
                     onchange={(v) => (leg.from = v)}
                 />
             </Field>
-            <Field label="To" for={fid('to')}>
+            <Field label={t('to')} for={fid('to')}>
                 <AirportInput
                     id={fid('to')}
                     value={leg.to}
@@ -104,7 +105,7 @@
 
         <div class="grid grid-cols-1 gap-3 sm:grid-cols-2">
             <Field
-                label="Departs"
+                label={t('departure')}
                 for={fid('dep')}
                 hint={leg.from?.tz ? `Local time · ${leg.from.tz}` : 'Local time at the origin'}
             >
@@ -116,7 +117,7 @@
                 />
             </Field>
             <Field
-                label="Arrives"
+                label={t('arrival')}
                 for={fid('arr')}
                 error={error}
                 hint={leg.to?.tz ? `Local time · ${leg.to.tz}` : 'Local time at the destination'}

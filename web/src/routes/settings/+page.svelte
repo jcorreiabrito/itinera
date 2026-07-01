@@ -331,11 +331,10 @@
   <section class="mt-4 rounded-lg border border-border bg-surface p-5">
     <div class="flex items-center gap-2">
       <Database class="size-4 text-primary-700" />
-      <h2 class="text-base font-semibold">Data & backups</h2>
+      <h2 class="text-base font-semibold">{t('data_and_backups')}</h2>
     </div>
     <p class="mt-1 text-sm text-ink-muted">
-      Export your data or run a server-side backup. Your trips always live on your devices; these
-      extras run on your home server.
+      {t('data_and_backups_desc')}
     </p>
 
     {#if online}
@@ -350,17 +349,17 @@
     <div class="mt-4 flex flex-wrap gap-2">
       <Button variant="secondary" onclick={exportAll} disabled={!online || exporting}>
         <Download class="size-4" />
-        {exporting ? 'Exporting…' : 'Export everything (JSON)'}
+        {exporting ? 'Exporting…' : t('export_everything')}
       </Button>
       <Button variant="secondary" onclick={backupNow} disabled={!online || backingUp}>
         <Database class="size-4" />
-        {backingUp ? 'Backing up…' : 'Back up now'}
+        {backingUp ? 'Backing up…' : t('backup_now')}
       </Button>
     </div>
 
     <div class="mt-5">
       <div class="flex items-center justify-between gap-2">
-        <h3 class="text-sm font-semibold text-ink">Recent backups</h3>
+        <h3 class="text-sm font-semibold text-ink">{t('recent_backups')}</h3>
         {#if online}
           <button
             type="button"
@@ -368,7 +367,7 @@
             disabled={loadingBackups}
             class="-m-1 flex items-center gap-1 rounded-md px-2 py-1 text-xs font-medium text-ink-muted transition-colors hover:bg-surface-sunken hover:text-ink disabled:opacity-50 [&_svg]:size-3.5"
           >
-            <RefreshCw class={loadingBackups ? 'animate-spin' : ''} /> Refresh
+            <RefreshCw class={loadingBackups ? 'animate-spin' : ''} /> {t('refresh')}
           </button>
         {/if}
       </div>
@@ -403,7 +402,7 @@
   <section class="mt-4 rounded-lg border border-border bg-surface p-5">
     <div class="flex items-center gap-2">
       <HardDrive class="size-4 text-primary-700" />
-      <h2 class="text-base font-semibold">Storage</h2>
+      <h2 class="text-base font-semibold">{t('storage_durability')}</h2>
     </div>
     <p class="mt-1 text-sm text-ink-muted">
       Itinera keeps everything on this device so it works offline.
@@ -432,7 +431,7 @@
       {:else}
         <Button variant="secondary" size="sm" onclick={makePersistent} disabled={persisting}>
           <ShieldCheck class="size-4" />
-          {persisting ? 'Requesting…' : 'Make storage persistent'}
+          {persisting ? 'Requesting…' : t('persistent_storage')}
         </Button>
       {/if}
     </div>

@@ -10,6 +10,7 @@
     import { AlertTriangle, ArrowRight, Plane, Plus, Trash2 } from 'lucide-svelte';
     import FlightLegFields, { type FormLeg } from './FlightLegFields.svelte';
     import { endpointCode } from './labels';
+    import { t } from '$lib/i18n.svelte';
 
     interface Props {
         open?: boolean;
@@ -274,7 +275,7 @@
 <Sheet
     bind:open
     side="right"
-    title={mode === 'create' ? 'Add flight booking' : 'Edit flight booking'}
+    title={mode === 'create' ? t('add_flight') : t('edit_expense')}
     description="One booking can hold every leg – outbound, return and connections."
 >
     <form
@@ -307,7 +308,7 @@
 
         <div class="grid grid-cols-[1fr_7rem] gap-3">
             <Field
-                label="Cost"
+                label={t('cost')}
                 for={fid('cost')}
                 hint="Adds one linked expense to your budget – no double-counting."
             >
@@ -322,7 +323,7 @@
                     oninput={(e) => (cost = e.currentTarget.value)}
                 />
             </Field>
-            <Field label="Currency" for={fid('cur')}>
+            <Field label={t('home_currency')} for={fid('cur')}>
                 <Input
                     id={fid('cur')}
                     value={currency}
@@ -334,19 +335,19 @@
         </div>
 
         {#if travelerCount > 1 && cost.trim()}
-            <Field label="Cost distribution" for={fid('cost-dist')} hint="Select if this flight cost is the total or per person.">
+            <Field label={t('cost_distribution')} for={fid('cost-dist')} hint="Select if this flight cost is the total or per person.">
                 <Select
                     id={fid('cost-dist')}
                     value={costType}
                     onchange={(e) => (costType = e.currentTarget.value as 'total' | 'per_person')}
                 >
-                    <option value="total">Total Cost (for the whole group)</option>
-                    <option value="per_person">Per Person ({travelerCount} people)</option>
+                    <option value="total">{t('total_cost_split')}</option>
+                    <option value="per_person">{t('per_person_cost')}</option>
                 </Select>
             </Field>
         {/if}
 
-        <Field label="Notes" for={fid('notes')}>
+        <Field label={t('notes')} for={fid('notes')}>
             <Textarea
                 id={fid('notes')}
                 value={notes}
@@ -420,7 +421,7 @@
                 disabled={saving}
                 class="mt-1 inline-flex items-center gap-2 self-start text-sm font-medium text-danger transition-colors hover:underline disabled:opacity-50 [&_svg]:size-4"
             >
-                <Trash2 /> Delete flight
+                <Trash2 /> {t('delete')}
             </button>
         {/if}
 
@@ -428,10 +429,10 @@
     </form>
 
     {#snippet footer()}
-        <Button variant="ghost" onclick={() => (open = false)} disabled={saving}>Cancel</Button>
+        <Button variant="ghost" onclick={() => (open = false)} disabled={saving}>{t('cancel')}</Button>
         <Button onclick={save} disabled={saving}>
             <Plane class="size-4" />
-            {saving ? 'Saving...' : mode === 'create' ? 'Add flight' : 'Save changes'}
+            {saving ? t('saving') : mode === 'create' ? t('add_flight') : t('save_changes')}
         </Button>
     {/snippet}
 </Sheet>

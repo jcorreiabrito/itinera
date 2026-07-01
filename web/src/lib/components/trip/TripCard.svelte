@@ -131,7 +131,7 @@
         </div>
 
         <div class="absolute inset-x-3 bottom-2.5 text-white">
-            <h3 class="truncate font-serif text-lg font-semibold drop-shadow-sm">{title}</h3>
+            <h3 class="truncate font-serif text-lg font-semibold drop-shadow-sm text-white">{title}</h3>
             {#if firstDestination}
                 <p class="truncate text-sm text-white/85">
                     {#if flagEmoji(firstDestination.country)}<span aria-hidden="true">{flagEmoji(firstDestination.country)}</span>{/if}

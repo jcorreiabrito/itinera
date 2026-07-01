@@ -8,6 +8,7 @@
     import { Button, Checkbox, Field, Input, Select, Sheet, Textarea, toast } from '$lib/components/ui';
     import { Trash2, Wallet, Plus } from 'lucide-svelte';
     import { DateTime } from 'luxon';
+    import { t } from '$lib/i18n.svelte';
     import { CATEGORY_ORDER, CATEGORY_META } from './categories';
     import {
         CATEGORY_ORDER as EXPENSE_CATEGORY_ORDER,
@@ -319,7 +320,7 @@
 <Sheet
     bind:open
     side="right"
-    title={mode === 'create' ? 'Add activity' : 'Edit activity'}
+    title={mode === 'create' ? t('add_activity') : t('edit_expense')}
     description={mode === 'create' ? 'Plan something for your day.' : undefined}
 >
     <form
@@ -329,7 +330,7 @@
             save();
         }}
     >
-        <Field label="Title" for={fid('title')} required error={errors.title}>
+        <Field label={t('trip_name') || 'Title'} for={fid('title')} required error={errors.title}>
             <Input
                 id={fid('title')}
                 value={form.title}
@@ -339,7 +340,7 @@
             />
         </Field>
 
-        <Field label="Day" for={fid('date')} hint="Move it to the Ideas list to plan it later.">
+        <Field label={t('day') || 'Day'} for={fid('date')} hint="Move it to the Ideas list to plan it later.">
             <Select
                 id={fid('date')}
                 value={form.date}
@@ -364,7 +365,7 @@
 
         {#if !form.allDay}
             <div class="grid grid-cols-2 gap-3">
-                <Field label="Start" for={fid('start')}>
+                <Field label={t('start')} for={fid('start')}>
                     <Input
                         id={fid('start')}
                         type="time"
@@ -372,19 +373,18 @@
                         oninput={(e) => (form.startTime = e.currentTarget.value)}
                     />
                 </Field>
-                <Field label="End" for={fid('end')} error={errors.endTime}>
+                <Field label={t('end')} for={fid('end')} error={errors.endTime}>
                     <Input
                         id={fid('end')}
                         type="time"
                         value={form.endTime}
-                        invalid={!!errors.endTime}
                         oninput={(e) => (form.endTime = e.currentTarget.value)}
                     />
                 </Field>
             </div>
         {/if}
 
-        <Field label="Category" for={fid('cat')}>
+        <Field label={t('category')} for={fid('cat')}>
             <Select
                 id={fid('cat')}
                 value={form.category}
@@ -397,7 +397,7 @@
             </Select>
         </Field>
 
-        <Field label="Location" for={fid('locname')} hint="Where it happens (optional).">
+        <Field label={t('destination') || 'Location'} for={fid('locname')} hint="Where it happens (optional).">
             <Input
                 id={fid('locname')}
                 value={form.locName}
@@ -572,7 +572,7 @@
                 class="self-start"
             >
                 <Wallet class="size-3.5" />
-                Add as expense
+                {t('add_expense')}
             </Button>
         {/if}
 
@@ -584,7 +584,7 @@
                 class="mt-1 inline-flex items-center gap-2 self-start text-sm font-medium text-danger transition-colors hover:underline disabled:opacity-50 [&_svg]:size-4"
             >
                 <Trash2 />
-                Delete activity
+                {t('delete')}
             </button>
         {/if}
 
@@ -592,9 +592,9 @@
     </form>
 
     {#snippet footer()}
-        <Button variant="ghost" onclick={() => (open = false)} disabled={saving}>Cancel</Button>
+        <Button variant="ghost" onclick={() => (open = false)} disabled={saving}>{t('cancel')}</Button>
         <Button onclick={save} disabled={saving}>
-            {saving ? 'Saving...' : mode === 'create' ? 'Add activity' : 'Save changes'}
+            {saving ? t('saving') : mode === 'create' ? t('add_activity') : t('save_changes')}
         </Button>
     {/snippet}
 </Sheet>

@@ -3,6 +3,7 @@
 </script>
 
 <script lang="ts">
+    import { t } from '$lib/i18n.svelte';
     import { bareTripUid, trips } from '$lib/db';
     import type { Destination, Trip } from '$lib/db';
     import { Button, Field, Input, Select, Sheet, Textarea, toast } from '$lib/components/ui';
@@ -179,7 +180,7 @@
 <Sheet
     bind:open
     side="right"
-    title={mode === 'create' ? 'New trip' : 'Edit trip'}
+    title={mode === 'create' ? t('new_trip') : t('edit_trip')}
     description={mode === 'create'
         ? 'Just the essentials – you can add the rest later.'
         : undefined}
@@ -191,7 +192,7 @@
             save();
         }}
     >
-        <Field label="Trip name" for={fid('title')} required error={errors.title}>
+        <Field label={t('trip_name')} for={fid('title')} required error={errors.title}>
             <Input
                 id={fid('title')}
                 value={form.title}
@@ -202,7 +203,7 @@
         </Field>
 
         <div class="grid grid-cols-2 gap-3">
-            <Field label="Start" for={fid('start')} required error={errors.startDate}>
+            <Field label={t('start')} for={fid('start')} required error={errors.startDate}>
                 <Input
                     id={fid('start')}
                     type="date"
@@ -211,7 +212,7 @@
                     oninput={(e) => (form.startDate = e.currentTarget.value)}
                 />
             </Field>
-            <Field label="End" for={fid('end')} required error={errors.endDate}>
+            <Field label={t('end')} for={fid('end')} required error={errors.endDate}>
                 <Input
                     id={fid('end')}
                     type="date"
@@ -223,7 +224,7 @@
         </div>
 
         {#if mode === 'create'}
-            <Field label="Destination" for={fid('dest')} hint="Optional – you can add more later.">
+            <Field label={t('destination')} for={fid('dest')} hint="Optional – you can add more later.">
                 <Input
                     id={fid('dest')}
                     value={form.destination}
@@ -233,7 +234,7 @@
             </Field>
         {:else}
             <Field
-                label="Destinations"
+                label={t('destinations')}
                 for={fid('dests')}
                 hint="Separate multiple places with commas."
             >
@@ -246,7 +247,7 @@
             </Field>
         {/if}
 
-        <Field label="Home currency" for={fid('cur')}>
+        <Field label={t('home_currency')} for={fid('cur')}>
             <Select
                 id={fid('cur')}
                 value={form.homeCurrency}
@@ -258,7 +259,7 @@
             </Select>
         </Field>
 
-        <Field label="Travelers" for={fid('travelers')} error={errors.travelerCount} hint="Number of people traveling on this trip.">
+        <Field label={t('travelers')} for={fid('travelers')} error={errors.travelerCount} hint="Number of people traveling on this trip.">
             <Input
                 id={fid('travelers')}
                 type="number"
@@ -272,7 +273,7 @@
         </Field>
 
         {#if mode === 'edit' && trip}
-            <Field label="Cover photo">
+            <Field label={t('cover_photo')}>
                 <CoverImageField
                     tripId={bareTripUid(trip._id)}
                     attId={trip.coverImageAttId ?? null}
@@ -282,7 +283,7 @@
             </Field>
         {/if}
 
-        <Field label="Budget (total)" for={fid('budget')} error={errors.budgetTotal} hint={`In ${form.homeCurrency}. Leave blank for no budget.`}>
+        <Field label={t('budget_total')} for={fid('budget')} error={errors.budgetTotal} hint={`In ${form.homeCurrency}. Leave blank for no budget.`}>
             <Input
                 id={fid('budget')}
                 type="number"
@@ -295,7 +296,7 @@
             />
         </Field>
 
-        <Field label="Tags" for={fid('tags')} hint="Comma-separated.">
+        <Field label={t('tags')} for={fid('tags')} hint="Comma-separated.">
             <Input
                 id={fid('tags')}
                 value={form.tags}
@@ -304,7 +305,7 @@
             />
         </Field>
 
-        <Field label="Notes" for={fid('notes')} hint="Markdown supported.">
+        <Field label={t('notes')} for={fid('notes')} hint="Markdown supported.">
             <Textarea
                 id={fid('notes')}
                 rows={5}
@@ -319,9 +320,9 @@
     </form>
 
     {#snippet footer()}
-        <Button variant="ghost" onclick={() => { open = false }} disabled={saving}>Cancel</Button>
+        <Button variant="ghost" onclick={() => { open = false }} disabled={saving}>{t('cancel')}</Button>
         <Button onclick={save} disabled={saving}>
-            {saving ? 'Saving...' : mode === 'create' ? 'Create trip' : 'Save changes'}
+            {saving ? t('saving') : mode === 'create' ? t('create_trip') : t('save_changes')}
         </Button>
     {/snippet}
 </Sheet>

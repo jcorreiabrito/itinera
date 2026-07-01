@@ -8,6 +8,7 @@
     import type { ChecklistTemplate, Trip } from '$lib/db';
     import { ClipboardList, Copy, PenLine } from 'lucide-svelte';
     import { Button, Field, Input, Select, Sheet, toast } from '$lib/components/ui';
+    import { t } from '$lib/i18n.svelte';
 
     interface Props {
         open?: boolean;
@@ -160,18 +161,18 @@
 
     const choices = $derived(
         [
-            { id: 'blank', icon: PenLine, label: 'Blank trip', desc: 'Start fresh with the essentials.' },
+            { id: 'blank', icon: PenLine, label: t('blank_trip'), desc: 'Start fresh with the essentials.' },
             {
                 id: 'duplicate',
                 icon: Copy,
-                label: 'Duplicate a trip',
+                label: t('duplicate_trip'),
                 desc: hasSources ? 'Copy an existing trip and shift the dates.' : 'No trips to copy yet.',
                 disabled: !hasSources
             },
             {
                 id: 'template',
                 icon: ClipboardList,
-                label: 'From a template',
+                label: t('from_template'),
                 desc: hasTemplates ? 'Prefill the checklist from a saved template.' : 'No templates saved yet.',
                 disabled: !hasTemplates
             }
@@ -179,12 +180,12 @@
 
     const sheetTitle = $derived(
         step === 'choose'
-            ? 'New trip'
+            ? t('new_trip')
             : step === 'duplicate'
-              ? 'Duplicate a trip'
+              ? t('duplicate_trip')
               : step === 'template'
-                ? 'New trip from a template'
-                : 'New trip'
+                ? t('from_template')
+                : t('new_trip')
     );
 </script>
 
@@ -216,7 +217,7 @@
         </div>
     {:else if step === 'duplicate'}
         <div class="flex flex-col gap-4">
-            <Field label="Trip to copy" for={fid('source')}>
+            <Field label={t('trip_to_copy')} for={fid('source')}>
                 <Select id={fid('source')} value={sourceId} onchange={(e) => (sourceId = e.currentTarget.value)}>
                     {#each sources as t (t._id)}
                         <option value={t._id}>{t.title ?? 'Untitled'}</option>
@@ -235,7 +236,7 @@
                 create();
             }}
         >
-            <Field label="Trip name" for={fid('title')} required error={errors.title}>
+            <Field label={t('trip_name')} for={fid('title')} required error={errors.title}>
                 <Input
                     id={fid('title')}
                     value={form.title}
@@ -246,7 +247,7 @@
             </Field>
 
             <div class="grid grid-cols-2 gap-3">
-                <Field label="Start" for={fid('start')} required error={errors.startDate}>
+                <Field label={t('start')} for={fid('start')} required error={errors.startDate}>
                     <Input
                         id={fid('start')}
                         type="date"
@@ -255,7 +256,7 @@
                         oninput={(e) => (form.startDate = e.currentTarget.value)}
                     />
                 </Field>
-                <Field label="End" for={fid('end')} required error={errors.endDate}>
+                <Field label={t('end')} for={fid('end')} required error={errors.endDate}>
                     <Input
                         id={fid('end')}
                         type="date"
@@ -266,7 +267,7 @@
                 </Field>
             </div>
 
-            <Field label="Destination" for={fid('dest')} hint="Optional – you can add more later.">
+            <Field label={t('destination')} for={fid('dest')} hint="Optional – you can add more later.">
                 <Input
                     id={fid('dest')}
                     value={form.destination}
@@ -275,7 +276,7 @@
                 />
             </Field>
 
-            <Field label="Home currency" for={fid('cur')}>
+            <Field label={t('home_currency')} for={fid('cur')}>
                 <Select
                     id={fid('cur')}
                     value={form.homeCurrency}
@@ -287,7 +288,7 @@
                 </Select>
             </Field>
 
-            <Field label="Travelers" for={fid('travelers')} error={errors.travelerCount} hint="Number of people traveling on this trip.">
+            <Field label={t('travelers')} for={fid('travelers')} error={errors.travelerCount} hint="Number of people traveling on this trip.">
                 <Input
                     id={fid('travelers')}
                     type="number"
@@ -301,7 +302,7 @@
             </Field>
 
             {#if step === 'template'}
-                <Field label="Checklist template" for={fid('tpl')} hint="Its items are added to your new checklist.">
+                <Field label={t('checklist_templates')} for={fid('tpl')} hint="Its items are added to your new checklist.">
                     <Select id={fid('tpl')} value={templateId} onchange={(e) => (templateId = e.currentTarget.value)}>
                         {#each templates as t (t._id)}
                             <option value={t._id}>{t.name ?? 'Untitled'} ({t.items?.length ?? 0})</option>
@@ -316,14 +317,14 @@
 
     {#snippet footer()}
         {#if step === 'choose'}
-            <Button variant="ghost" onclick={() => (open = false)}>Cancel</Button>
+            <Button variant="ghost" onclick={() => (open = false)}>{t('cancel')}</Button>
         {:else if step === 'duplicate'}
-            <Button variant="ghost" onclick={() => (step = 'choose')}>Back</Button>
-            <Button onclick={continueDuplicate} disabled={!sourceId}>Continue</Button>
+            <Button variant="ghost" onclick={() => (step = 'choose')}>{t('back')}</Button>
+            <Button onclick={continueDuplicate} disabled={!sourceId}>{t('continue')}</Button>
         {:else}
-            <Button variant="ghost" onclick={() => (step = 'choose')} disabled={saving}>Back</Button>
+            <Button variant="ghost" onclick={() => (step = 'choose')} disabled={saving}>{t('back')}</Button>
             <Button onclick={create} disabled={saving}>
-                {saving ? 'Creating...' : 'Create trip'}
+                {saving ? t('saving') : t('create_trip')}
             </Button>
         {/if}
     {/snippet}

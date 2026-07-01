@@ -36,7 +36,7 @@
             </span>
         </div>
 
-        <h1 class="mt-2 font-serif text-2xl font-semibold drop-shadow-sm sm:text-3xl">{title}</h1>
+        <h1 class="mt-2 font-serif text-2xl font-semibold drop-shadow-sm sm:text-3xl text-white">{title}</h1>
 
         {#if destLabel}
             <p class="mt-1 text-sm text-white/90">{destLabel}</p>
