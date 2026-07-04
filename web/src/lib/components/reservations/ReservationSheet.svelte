@@ -145,7 +145,8 @@
 
     function timeOfStr(value: string | null | undefined): string {
         if (!value) return '';
-        const m = /^(\d{2}):(\d{2})/.exec(value);
+        const timePart = value.includes('T') ? value.split('T')[1] : value;
+        const m = /^(\d{2}):(\d{2})/.exec(timePart);
         return m ? `${m[1]}:${m[2]}` : '';
     }
 
