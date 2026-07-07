@@ -15,6 +15,9 @@ const config = {
       precompress: false,
       strict: false
     }),
+    paths: {
+      relative: false
+    },
     // We register `src/service-worker.ts` manually (see src/lib/pwa.ts) so we can
     // surface an "update available / ready offline" prompt.
     serviceWorker: {

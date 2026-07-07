@@ -44,7 +44,8 @@ function makeReservation(id: string, kind: string, start: string | null): Reserv
     deletedAt: null,
     details: {},
     attachmentIds: [],
-    order: 0
+    order: 0,
+    costType: 'total'
   } as Reservation;
 }
 
@@ -58,7 +59,8 @@ function makeFlight(id: string, departLocal: string): Flight {
     schemaVersion: 1,
     deletedAt: null,
     attachmentIds: [],
-    order: 0
+    order: 0,
+    costType: 'total'
   } as Flight;
 }
 

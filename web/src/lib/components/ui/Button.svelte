@@ -42,7 +42,7 @@
         lg: 'h-12 px-6 text-lg',
     };
 
-    const classes = cn(base, variants[variant], sizes[size], className);
+    const classes = $derived(cn(base, variants[variant], sizes[size], className));
 </script>
 
 {#if href}

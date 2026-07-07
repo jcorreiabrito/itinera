@@ -73,8 +73,13 @@ sw.addEventListener('fetch', (event) => {
       }
 
       // 2. Cache-first for our own precached, immutable build assets.
-      if (url.origin === location.origin && ASSET_SET.has(url.pathname)) {
-        const cached = await cache.match(url.pathname);
+      let pathname = url.pathname;
+      if (pathname.includes('/_app/')) {
+        pathname = pathname.substring(pathname.indexOf('/_app/'));
+      }
+
+      if (url.origin === location.origin && ASSET_SET.has(pathname)) {
+        const cached = await cache.match(pathname);
         if (cached) return cached;
       }
 

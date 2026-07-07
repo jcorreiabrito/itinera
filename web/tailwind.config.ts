@@ -78,15 +78,15 @@ export default {
         },
         'slide-up-fade': {
           from: { opacity: '0', transform: 'translateY(12px)' },
-          to: { opacity: '1', transform: 'translateY(0)' }
+          to: { opacity: '1', transform: 'none' }
         },
         'slide-down-fade': {
           from: { opacity: '0', transform: 'translateY(-8px)' },
-          to: { opacity: '1', transform: 'translateY(0)' }
+          to: { opacity: '1', transform: 'none' }
         },
         'slide-from-right': {
           from: { opacity: '0', transform: 'translateX(100%)' },
-          to: { opacity: '1', transform: 'translateX(0)' }
+          to: { opacity: '1', transform: 'none' }
         },
         'slide-to-right': {
           from: { opacity: '1', transform: 'translateX(0)' },
@@ -98,7 +98,7 @@ export default {
         },
         'pop-in': {
           from: { opacity: '0', transform: 'scale(0.92)' },
-          to: { opacity: '1', transform: 'scale(1)' }
+          to: { opacity: '1', transform: 'none' }
         },
         'pop-out': {
           from: { opacity: '1', transform: 'scale(1)' },

@@ -24,7 +24,10 @@
 
     const countsLabel = $derived(
         summary.counts
-            .map((c) => `${c.count} ${KIND_LABEL[c.kind]?.[c.count === 1 ? 0 : 1]}`)
+            .map((c) => {
+                const labels = KIND_LABEL[c.kind] ?? KIND_LABEL.other;
+                return `${c.count} ${labels[c.count === 1 ? 0 : 1]}`;
+            })
             .join(', ')
     );
 

@@ -13,6 +13,8 @@
   import ReloadPrompt from '$lib/components/ReloadPrompt.svelte';
   import OfflineBanner from '$lib/components/OfflineBanner.svelte';
 
+  import * as dbRepo from '$lib/db';
+
   let { children }: { children: Snippet } = $props();
 
   onMount(() => {
@@ -22,7 +24,12 @@
     initLanguage();
     // Creates the local db, requests persistent storage, ensures indexes, runs
     // migrations, and starts live sync. The UI reads/writes local data only.
-    initDb().catch((error) => {
+    initDb().then((db) => {
+      if (typeof window !== 'undefined') {
+        (window as any).db = db;
+        (window as any).dbRepo = dbRepo;
+      }
+    }).catch((error) => {
       console.error('initDb failed', error);
       toast.error('Could not open local storage. Some features may be unavailable.');
     });
