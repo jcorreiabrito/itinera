@@ -79,7 +79,7 @@
     };
   });
 
-  const online = $derived(navOnline && $syncStatus.state !== 'offline');
+  const online = $derived(navOnline && $syncStatus.state !== 'offline' && $syncStatus.state !== 'error');
 
   async function loadTemplates() {
     try {

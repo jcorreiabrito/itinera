@@ -121,27 +121,30 @@
 
         <div class="mt-3 border-t border-border px-1 pt-2">
             {#if conflictsLoaded}
-                <div class="flex items-center gap-1.5 text-xs text-ink-muted">
-                    <GitMerge class="size-3.5" /> {conflicts.length} conflicts
-                </div>
-                <p class="flex items-center gap-1.5 text-xs text-ink-muted">
-                    <GitMerge class="size-3.5" /> No conflicts – everything converged.
-                </p>
-            {:else}
-                <a
-                    href="/settings/conflicts"
-                    onclick={() => { open = false; }}
-                    class="flex items-center justify-between gap-2 rounded-md px-1.5 py-1.5 text-xs font-medium text-ink transition-colors hover:bg-surface-sunken"
-                >
-                    <span class="flex items-center gap-1.5">
-                        <GitMerge class="size-3.5 text-primary-700" /> Review changes
-                    </span>
-                    <span
-                        class="rounded-full bg-primary-100 px-1.5 py-0.5 text-[0.7rem] font-semibold text-primary-700"
+                {#if conflicts.length > 0}
+                    <a
+                        href="/settings/conflicts"
+                        onclick={() => { open = false; }}
+                        class="flex items-center justify-between gap-2 rounded-md px-1.5 py-1.5 text-xs font-medium text-ink transition-colors hover:bg-surface-sunken"
                     >
-                        {conflicts.length}
-                    </span>
-                </a>
+                        <span class="flex items-center gap-1.5">
+                            <GitMerge class="size-3.5 text-primary-700" /> Review changes
+                        </span>
+                        <span
+                            class="rounded-full bg-primary-100 px-1.5 py-0.5 text-[0.7rem] font-semibold text-primary-700"
+                        >
+                            {conflicts.length}
+                        </span>
+                    </a>
+                {:else}
+                    <p class="flex items-center gap-1.5 text-xs text-ink-muted">
+                        <GitMerge class="size-3.5" /> No conflicts – everything converged.
+                    </p>
+                {/if}
+            {:else}
+                <p class="flex items-center gap-1.5 text-xs text-ink-muted">
+                    <RefreshCw class="size-3.5 animate-spin" /> Checking conflicts...
+                </p>
             {/if}
         </div>
     </div>

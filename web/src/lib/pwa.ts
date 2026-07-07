@@ -25,7 +25,7 @@ export function registerServiceWorker(): void {
   });
 
   navigator.serviceWorker
-    .register('/service-worker.js', { type: 'module' })
+    .register('/service-worker.js')
     .then((registration) => {
       // A worker is already waiting (update found on a previous load).
       if (registration.waiting && navigator.serviceWorker.controller) {

@@ -66,13 +66,19 @@ sw.addEventListener('fetch', (event) => {
     (async () => {
       const cache = await caches.open(CACHE);
 
-      // Cache-first for our own precached, immutable build assets.
+      // 1. Navigation requests -> serve cached SPA shell (index.html) immediately.
+      if (request.mode === 'navigate') {
+        const shell = await cache.match(APP_SHELL);
+        if (shell) return shell;
+      }
+
+      // 2. Cache-first for our own precached, immutable build assets.
       if (url.origin === location.origin && ASSET_SET.has(url.pathname)) {
         const cached = await cache.match(url.pathname);
         if (cached) return cached;
       }
 
-      // Network-first for everything else, with an offline fallback to cache / shell.
+      // 3. Network-first for everything else, with an offline fallback to cache.
       try {
         const response = await fetch(request);
         if (response.ok && url.origin === location.origin) {
@@ -82,10 +88,6 @@ sw.addEventListener('fetch', (event) => {
       } catch (error) {
         const cached = await cache.match(request);
         if (cached) return cached;
-        if (request.mode === 'navigate') {
-          const shell = await cache.match(APP_SHELL);
-          if (shell) return shell;
-        }
         throw error;
       }
     })()

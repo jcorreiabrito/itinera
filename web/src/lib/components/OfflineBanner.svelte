@@ -4,7 +4,7 @@
 	import { fade } from 'svelte/transition';
 </script>
 
-{#if $syncStatus.state === 'offline'}
+{#if $syncStatus.state === 'offline' || $syncStatus.state === 'error'}
 	<div
 		role="status"
 		aria-live="polite"
@@ -12,6 +12,6 @@
 		class="flex items-center justify-center gap-2 bg-surface-sunken px-4 py-1.5 text-center text-xs font-medium text-ink-muted"
 	>
 		<CloudOff class="size-3.5 shrink-0" />
-		<span>Offline – showing your saved data</span>
+		<span>{$syncStatus.state === 'error' ? 'Disconnected from home server – showing your saved data' : 'Offline – showing your saved data'}</span>
 	</div>
 {/if}
