@@ -95,16 +95,29 @@ export async function createDoc<T extends AnyDoc>(
   return putDoc(doc, db);
 }
 
-/** Read-modify-write a document by id with a shallow patch (or updater fn). */
+/** Read-modify-write a document by id with a shallow patch (or updater fn). Retries on 409 conflicts. */
 export async function patchDoc<T extends AnyDoc>(
   id: string,
   patch: Partial<T> | ((doc: Stored<T>) => Partial<T>),
-  db: Database = getDb()
+  db: Database = getDb(),
+  retries = 3
 ): Promise<Stored<T>> {
-  const current = await getDoc<T>(id, db);
-  if (!current) throw new Error(`patchDoc: document not found: ${id}`);
-  const delta = typeof patch === 'function' ? patch(current) : patch;
-  return putDoc({ ...current, ...delta } as T, db);
+  for (let attempt = 0; attempt <= retries; attempt++) {
+    try {
+      const current = await getDoc<T>(id, db);
+      if (!current) throw new Error(`patchDoc: document not found: ${id}`);
+      const delta = typeof patch === 'function' ? patch(current) : patch;
+      return await putDoc({ ...current, ...delta } as T, db);
+    } catch (err) {
+      const status = (err as { status?: number })?.status;
+      if (status === 409 && attempt < retries) {
+        await new Promise((r) => setTimeout(r, 50 * (attempt + 1)));
+        continue;
+      }
+      throw err;
+    }
+  }
+  throw new Error(`patchDoc failed after ${retries} retries for ${id}`);
 }
 
 /** Soft-delete a document (sets `deletedAt` -> goes to Trash, hidden from reads. */

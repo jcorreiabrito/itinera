@@ -143,9 +143,29 @@ def shape_trip_pdf_context(docs: list[dict[str, Any]]) -> dict[str, Any]:
         "hasData": bool(expenses),
     }
 
-    destinations = ", ".join(
-        d.get("name", "") for d in trip.get("destinations", []) if d.get("name")
-    )
+    raw_dests = [d for d in trip.get("destinations", []) if isinstance(d, dict) and d.get("name")]
+    
+    def _find_dest(date_str: str | None) -> str | None:
+        if not date_str or not raw_dests:
+            return None
+        for d in raw_dests:
+            arr = d.get("arriveDate")
+            dep = d.get("departDate")
+            if arr and dep:
+                if arr <= date_str <= dep:
+                    return d.get("name")
+            elif arr and not dep:
+                if date_str >= arr:
+                    return d.get("name")
+            elif not arr and dep:
+                if date_str <= dep:
+                    return d.get("name")
+        return None
+
+    for block in day_blocks:
+        block["destination"] = _find_dest(block.get("date"))
+
+    destinations = " → ".join(d.get("name", "").strip() for d in raw_dests)
     done = sum(1 for c in checklist if c.get("done"))
 
     return {

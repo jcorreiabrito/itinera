@@ -7,6 +7,7 @@
   import {
     BudgetWidget,
     ChecklistWidget,
+    DestinationsWidget,
     FlightsWidget,
     HeroWidget,
     NextUpWidget,
@@ -131,6 +132,17 @@
     <div class="md:col-span-2">
       <HeroWidget trip={tripWD} />
     </div>
+
+    {#if (tripWD.destinations ?? []).length > 0}
+      <div class="md:col-span-2">
+        <DestinationsWidget
+          destinations={tripWD.destinations ?? []}
+          startDate={tripWD.startDate}
+          endDate={tripWD.endDate}
+          onedit={shell.openEditor}
+        />
+      </div>
+    {/if}
 
     <NextUpWidget {nextUp} href={links.itinerary} />
 

@@ -149,6 +149,14 @@ class CouchClient:
         resp.raise_for_status()
         return False
 
+    # --- Document writes ---
+
+    async def bulk_save(self, docs: list[dict[str, Any]]) -> list[dict[str, Any]]:
+        """Insert or update multiple documents in a single bulk operation."""
+        resp = await self._client.post(f"/{self._db}/_bulk_docs", json={"docs": docs})
+        resp.raise_for_status()
+        return resp.json()
+
     # --- Document reads ---
 
     async def get_doc(self, doc_id: str) -> dict[str, Any] | None:

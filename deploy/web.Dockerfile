@@ -1,22 +1,36 @@
-# web.Dockerfile — serve the pre-built SvelteKit PWA via a Caddy image.
+# web.Dockerfile — Multi-stage build that compiles the SvelteKit PWA and serves via Caddy.
 #
 # Build context MUST be the repo root `itinera/` (see docker-compose.yml) so the
-# build can COPY web/build/ (the pre-built PWA static files) and deploy/ (the Caddy config + entrypoint).
-#
-# Before building:
-#   cd web && pnpm install && pnpm build
+# build can COPY web/ and deploy/.
 
+# Stage 1: Build the SvelteKit static SPA
+FROM node:20-alpine AS builder
+
+WORKDIR /app
+
+# Copy package definitions first for Docker layer caching
+COPY web/package.json web/pnpm-lock.yaml* web/package-lock.json* ./
+
+# Install dependencies cleanly inside the container
+RUN npm install
+
+# Copy frontend source code (node_modules is ignored via .dockerignore)
+COPY web/ ./
+
+# Sync svelte-kit types and build static SPA via vite
+RUN npx svelte-kit sync && npx vite build
+
+# Stage 2: Bake built SPA into Caddy image
 FROM caddy:2-alpine
 
-# Copy the pre-built static SPA from the host
-COPY web/build /srv
+# Copy built static files from builder stage
+COPY --from=builder /app/build /srv
 
-# Caddy config + credential-injecting entrypoint (paths are relative to the build
-# context root = `itinera/`).
+# Caddy config + credential-injecting entrypoint
 COPY deploy/Caddyfile /etc/caddy/Caddyfile
 COPY deploy/caddy-entrypoint.sh /usr/local/bin/itinera-entrypoint.sh
 
-# Normalize possible CRLF (Windows checkouts) and make the entrypoint executable.
+# Normalize CRLF and set executable permissions
 RUN sed -i 's/\r$//' /usr/local/bin/itinera-entrypoint.sh \
     && chmod +x /usr/local/bin/itinera-entrypoint.sh
 

@@ -38,12 +38,13 @@
         'MXN', 'BRL', 'CLP', 'THB', 'SGD', 'INR', 'AED', 'ZAR',
     ].filter(c => c !== 'Ad hoc');
 
+    import DestinationListEditor from './DestinationListEditor.svelte';
+
     interface FormState {
         title: string;
         startDate: string;
         endDate: string;
-        destination: string;
-        destinations: string;
+        destinations: Destination[];
         homeCurrency: string;
         budgetTotal: string;
         notes: string;
@@ -61,8 +62,7 @@
             title: '',
             startDate: '',
             endDate: '',
-            destination: '',
-            destinations: '',
+            destinations: [],
             homeCurrency: defaultCurrency || 'EUR',
             budgetTotal: '',
             notes: '',
@@ -78,11 +78,7 @@
                 title: trip.title ?? '',
                 startDate: trip.startDate ?? '',
                 endDate: trip.endDate ?? '',
-                destination: '',
-                destinations: (trip.destinations ?? [])
-                    .map((d) => d.name)
-                    .filter(Boolean)
-                    .join(', '),
+                destinations: trip.destinations ? JSON.parse(JSON.stringify(trip.destinations)) : [],
                 homeCurrency: trip.homeCurrency ?? defaultCurrency ?? 'EUR',
                 budgetTotal: trip.budget?.total != null ? String(trip.budget.total) : '',
                 notes: trip.notes ?? '',
@@ -111,10 +107,6 @@
             .filter(Boolean);
     }
 
-    function parseDestinations(value: string): Destination[] {
-        return parseList(value).map((name) => ({ name }));
-    }
-
     function validate(): boolean {
         const e: Partial<Record<keyof FormState, string>> = {};
         if (!form.title.trim()) e.title = 'Give your trip a name.';
@@ -140,13 +132,14 @@
         if (!validate()) return;
         saving = true;
         try {
+            const cleanDestinations = (form.destinations ?? []).filter((d) => d.name && d.name.trim().length > 0);
             if (mode === 'create') {
                 const created = await trips.create({
                     title: form.title.trim(),
                     startDate: form.startDate,
                     endDate: form.endDate,
                     homeCurrency: form.homeCurrency,
-                    destinations: form.destination.trim() ? [{ name: form.destination.trim() }] : [],
+                    destinations: cleanDestinations,
                     travelerCount: form.travelerCount.trim() ? Number(form.travelerCount) : 1
                 });
                 open = false;
@@ -159,7 +152,7 @@
                     startDate: form.startDate,
                     endDate: form.endDate,
                     homeCurrency: form.homeCurrency,
-                    destinations: parseDestinations(form.destinations),
+                    destinations: cleanDestinations,
                     notes: form.notes.trim() ? form.notes : undefined,
                     tags: parseList(form.tags),
                     budget: hasBudget ? { ...(trip.budget ?? {}), total: budgetTotalNum } : undefined,
@@ -223,29 +216,11 @@
             </Field>
         </div>
 
-        {#if mode === 'create'}
-            <Field label={t('destination')} for={fid('dest')} hint="Optional – you can add more later.">
-                <Input
-                    id={fid('dest')}
-                    value={form.destination}
-                    placeholder="e.g. Rome"
-                    oninput={(e) => (form.destination = e.currentTarget.value)}
-                />
-            </Field>
-        {:else}
-            <Field
-                label={t('destinations')}
-                for={fid('dests')}
-                hint="Separate multiple places with commas."
-            >
-                <Input
-                    id={fid('dests')}
-                    value={form.destinations}
-                    placeholder="Rome, Florence"
-                    oninput={(e) => (form.destinations = e.currentTarget.value)}
-                />
-            </Field>
-        {/if}
+        <DestinationListEditor
+            bind:destinations={form.destinations}
+            tripStartDate={form.startDate}
+            tripEndDate={form.endDate}
+        />
 
         <Field label={t('home_currency')} for={fid('cur')}>
             <Select

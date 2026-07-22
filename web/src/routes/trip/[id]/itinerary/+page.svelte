@@ -243,6 +243,7 @@
               day={currentDay}
               tripId={id}
               {dates}
+              destinations={trip?.destinations ?? []}
               {homeCurrency}
               flightsById={flightsById}
               reservationsById={reservationsById}
@@ -257,6 +258,7 @@
           days={timeline.days}
           tripId={id}
           {dates}
+          destinations={trip?.destinations ?? []}
           {homeCurrency}
           flightsById={flightsById}
           reservationsById={reservationsById}

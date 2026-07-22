@@ -5,10 +5,13 @@
 <script lang="ts">
     import { onMount } from 'svelte';
     import { bareTripUlid, checklist, trips } from '$lib/db';
-    import type { ChecklistTemplate, Trip } from '$lib/db';
-    import { ClipboardList, Copy, PenLine } from 'lucide-svelte';
+    import type { ChecklistTemplate, Destination, Trip } from '$lib/db';
+    import { ClipboardList, Copy, PenLine, Upload } from 'lucide-svelte';
     import { Button, Field, Input, Select, Sheet, toast } from '$lib/components/ui';
     import { t } from '$lib/i18n.svelte';
+    import { importTripJson } from '$lib/api';
+    import { importTripToLocalDb } from '$lib/db/importer';
+    import DestinationListEditor from './DestinationListEditor.svelte';
 
     interface Props {
         open?: boolean;
@@ -16,7 +19,7 @@
         defaultCurrency?: string;
         /** Existing trips offered as duplicate sources. */
         sources?: Trip[];
-        /** Called with the created trip after a Blank / template create. */
+        /** Called with the created trip after a Blank / template create or import. */
         onsaved: (trip: Trip) => void;
         /** Called when the user chose "Duplicate a trip" and picked a source. */
         onduplicate: (source: Trip) => void;
@@ -38,21 +41,24 @@
         'MXN', 'BRL', 'CLP', 'THB', 'SGD', 'INR', 'AED', 'ZAR'
     ];
 
-    type Step = 'choose' | 'blank' | 'template' | 'duplicate';
+    type Step = 'choose' | 'blank' | 'template' | 'duplicate' | 'import';
 
     let step = $state<Step>('choose');
     let saving = $state(false);
+    let importing = $state(false);
     let wasOpen = false;
 
     let templates = $state<ChecklistTemplate[]>([]);
     let templateId = $state('');
     let sourceId = $state('');
+    let importFile = $state<File | null>(null);
+    let fileInputRef = $state<HTMLInputElement | null>(null);
 
     interface FormState {
         title: string;
         startDate: string;
         endDate: string;
-        destination: string;
+        destinations: Destination[];
         homeCurrency: string;
         travelerCount: string;
     }
@@ -65,7 +71,7 @@
             title: '',
             startDate: '',
             endDate: '',
-            destination: '',
+            destinations: [],
             homeCurrency: defaultCurrency || 'EUR',
             travelerCount: '1'
         };
@@ -86,6 +92,7 @@
         errors = {};
         form = blankForm();
         sourceId = sources[0]?._id ?? '';
+        importFile = null;
         void loadTemplates();
     }
 
@@ -123,17 +130,15 @@
         if (!validate()) return;
         saving = true;
         try {
+            const cleanDestinations = (form.destinations ?? []).filter((d) => d.name && d.name.trim().length > 0);
             const created = await trips.create({
                 title: form.title.trim(),
                 startDate: form.startDate,
                 endDate: form.endDate,
                 homeCurrency: form.homeCurrency,
-                destinations: form.destination.trim() ? [{ name: form.destination.trim() }] : [],
+                destinations: cleanDestinations,
                 travelerCount: form.travelerCount.trim() ? Number(form.travelerCount) : 1
             });
-            // Apply a checklist template (chosen one in template mode, otherwise the
-            // default). Idempotent and best-effort, so it stays offline-safe and a
-            // template hiccup never blocks the new trip.
             const tplId =
                 step === 'template' ? templateId : ((await checklist.templates.getDefault())?._id ?? '');
             if (tplId) {
@@ -159,24 +164,209 @@
         onduplicate?.(source);
     }
 
-    const choices = $derived(
-        [
-            { id: 'blank', icon: PenLine, label: t('blank_trip'), desc: 'Start fresh with the essentials.' },
-            {
-                id: 'duplicate',
-                icon: Copy,
-                label: t('duplicate_trip'),
-                desc: hasSources ? 'Copy an existing trip and shift the dates.' : 'No trips to copy yet.',
-                disabled: !hasSources
+    async function executeImport() {
+        if (!importFile) return;
+        importing = true;
+        try {
+            const text = await importFile.text();
+            const payload = JSON.parse(text);
+
+            // Write directly to local PouchDB. PouchDB's live sync automatically replicates to CouchDB
+            const res = await importTripToLocalDb(payload);
+
+            toast.success(t('import_success'));
+            open = false;
+            onsaved?.(res.trip);
+        } catch (err: any) {
+            toast.error(err?.message || t('import_invalid_file'));
+        } finally {
+            importing = false;
+        }
+    }
+
+    function downloadTemplate() {
+        const today = new Date();
+        const pad = (n: number) => String(n).padStart(2, '0');
+        const fmt = (d: Date) =>
+            `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}`;
+        const start = new Date(today);
+        start.setDate(today.getDate() + 30);
+        const end = new Date(start);
+        end.setDate(start.getDate() + 7);
+        const startStr = fmt(start);
+        const endStr = fmt(end);
+        const dayStr = fmt(new Date(start.getTime() + 86400000));
+
+        const template = {
+            schema: 'itinera.trip-export',
+            version: 1,
+            exportedAt: new Date().toISOString(),
+            db: 'itinera',
+            tripId: 'trip:TEMPLATE',
+            trip: {
+                _id: 'trip:TEMPLATE',
+                type: 'trip',
+                title: 'My Trip to Paris',
+                startDate: startStr,
+                endDate: endStr,
+                homeCurrency: defaultCurrency || 'EUR',
+                primaryTimezone: 'Europe/Paris',
+                destinations: [
+                    { name: 'Paris', country: 'France', lat: 48.8566, lng: 2.3522, arriveDate: startStr, departDate: endStr }
+                ],
+                budget: { total: 2000, byCategory: { transport: 400, lodging: 800, food: 400, activities: 300, other: 100 } },
+                tags: ['europe', 'city'],
+                notes: 'Fill in your trip details here.',
+                archived: false
             },
-            {
-                id: 'template',
-                icon: ClipboardList,
-                label: t('from_template'),
-                desc: hasTemplates ? 'Prefill the checklist from a saved template.' : 'No templates saved yet.',
-                disabled: !hasTemplates
-            }
-        ]);
+            documents: {
+                tripDay: [
+                    {
+                        _id: `day:TEMPLATE:${dayStr}`,
+                        type: 'tripDay',
+                        tripId: 'trip:TEMPLATE',
+                        date: dayStr,
+                        title: 'Explore the City',
+                        notes: 'Optional notes for this day.'
+                    }
+                ],
+                itineraryItem: [
+                    {
+                        _id: 'itin:TEMPLATE:ITEM1',
+                        type: 'itineraryItem',
+                        tripId: 'trip:TEMPLATE',
+                        date: dayStr,
+                        allDay: false,
+                        startTime: '10:00',
+                        endTime: '12:00',
+                        title: 'Visit the Eiffel Tower',
+                        category: 'sightseeing',
+                        location: { name: 'Eiffel Tower', address: 'Champ de Mars, 5 Av. Anatole France, 75007 Paris', lat: 48.8584, lng: 2.2945 },
+                        notes: 'Book tickets in advance.',
+                        estCost: 30,
+                        currency: 'EUR'
+                    }
+                ],
+                flight: [
+                    {
+                        _id: 'flt:TEMPLATE:FLT1',
+                        type: 'flight',
+                        tripId: 'trip:TEMPLATE',
+                        bookingRef: 'ABC123',
+                        checkInUrl: 'https://airline.com/checkin',
+                        segments: [
+                            {
+                                airline: 'Air France',
+                                flightNumber: 'AF1234',
+                                from: { code: 'LIS', name: 'Humberto Delgado Airport', city: 'Lisbon', tz: 'Europe/Lisbon' },
+                                to: { code: 'CDG', name: 'Charles de Gaulle Airport', city: 'Paris', tz: 'Europe/Paris' },
+                                departLocal: `${startStr}T08:00:00`,
+                                arriveLocal: `${startStr}T11:00:00`,
+                                seat: '14A',
+                                terminal: '2E'
+                            }
+                        ],
+                        cost: 180,
+                        currency: 'EUR',
+                        attachmentIds: []
+                    }
+                ],
+                reservation: [
+                    {
+                        _id: 'res:TEMPLATE:RES1',
+                        type: 'reservation',
+                        tripId: 'trip:TEMPLATE',
+                        kind: 'lodging',
+                        name: 'Hotel de la Paix',
+                        location: { name: 'Hotel de la Paix', address: '19 Rue de la Paix, 75002 Paris', lat: 48.8699, lng: 2.3318 },
+                        start: `${startStr}T14:00:00`,
+                        end: `${endStr}T12:00:00`,
+                        confirmation: 'CONF-XYZ-789',
+                        cost: 700,
+                        currency: 'EUR',
+                        contact: { phone: '+33 1 23 45 67 89', email: 'reception@hotel.com', url: 'https://hotel.com' },
+                        notes: 'Non-smoking room on a high floor.',
+                        attachmentIds: []
+                    }
+                ],
+                expense: [
+                    {
+                        _id: 'exp:TEMPLATE:EXP1',
+                        type: 'expense',
+                        tripId: 'trip:TEMPLATE',
+                        date: dayStr,
+                        category: 'food',
+                        description: 'Lunch at a bistro',
+                        amountEstimate: 25,
+                        amountActual: null,
+                        currency: 'EUR',
+                        paid: false
+                    }
+                ],
+                checklistItem: [
+                    {
+                        _id: 'chk:TEMPLATE:CHK1',
+                        type: 'checklistItem',
+                        tripId: 'trip:TEMPLATE',
+                        text: 'Pack passport',
+                        group: 'Documents',
+                        done: false,
+                        important: true
+                    },
+                    {
+                        _id: 'chk:TEMPLATE:CHK2',
+                        type: 'checklistItem',
+                        tripId: 'trip:TEMPLATE',
+                        text: 'Buy travel insurance',
+                        group: 'Documents',
+                        done: false,
+                        important: false
+                    }
+                ],
+                attachment: []
+            },
+            counts: {
+                tripDay: 1, itineraryItem: 1, flight: 1, reservation: 1,
+                expense: 1, checklistItem: 2, attachment: 0
+            },
+            attachments: []
+        };
+
+        const blob = new Blob([JSON.stringify(template, null, 2)], { type: 'application/json' });
+        const url = URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        a.href = url;
+        a.download = 'itinera-template.json';
+        a.rel = 'noopener';
+        document.body.appendChild(a);
+        a.click();
+        a.remove();
+        setTimeout(() => URL.revokeObjectURL(url), 0);
+    }
+
+    const choices = $derived([
+        { id: 'blank', icon: PenLine, label: t('blank_trip'), desc: 'Start fresh with the essentials.' },
+        {
+            id: 'duplicate',
+            icon: Copy,
+            label: t('duplicate_trip'),
+            desc: hasSources ? 'Copy an existing trip and shift the dates.' : 'No trips to copy yet.',
+            disabled: !hasSources
+        },
+        {
+            id: 'template',
+            icon: ClipboardList,
+            label: t('from_template'),
+            desc: hasTemplates ? 'Prefill the checklist from a saved template.' : 'No templates saved yet.',
+            disabled: !hasTemplates
+        },
+        {
+            id: 'import',
+            icon: Upload,
+            label: t('import_from_json'),
+            desc: t('import_trip_desc')
+        }
+    ]);
 
     const sheetTitle = $derived(
         step === 'choose'
@@ -185,7 +375,9 @@
               ? t('duplicate_trip')
               : step === 'template'
                 ? t('from_template')
-                : t('new_trip')
+                : step === 'import'
+                  ? t('import_from_json')
+                  : t('new_trip')
     );
 </script>
 
@@ -228,6 +420,52 @@
                 You'll choose exactly what to copy on the next step.
             </p>
         </div>
+    {:else if step === 'import'}
+        <div class="flex flex-col gap-4">
+            <input
+                type="file"
+                accept=".json,application/json"
+                class="hidden"
+                bind:this={fileInputRef}
+                onchange={(e) => {
+                    const file = e.currentTarget.files?.[0];
+                    if (file) importFile = file;
+                }}
+            />
+
+            <button
+                type="button"
+                onclick={() => fileInputRef?.click()}
+                ondragover={(e) => e.preventDefault()}
+                ondrop={(e) => {
+                    e.preventDefault();
+                    const file = e.dataTransfer?.files?.[0];
+                    if (file) importFile = file;
+                }}
+                class="flex flex-col items-center justify-center gap-2 rounded-lg border-2 border-dashed border-border bg-surface p-8 text-center transition-colors hover:border-primary-600 hover:bg-primary-100/30"
+            >
+                <Upload class="size-8 text-primary-600" />
+                <span class="text-sm font-medium text-ink">
+                    {importFile ? importFile.name : t('import_drop_hint')}
+                </span>
+                {#if importFile}
+                    <span class="text-xs text-ink-muted">
+                        {(importFile.size / 1024).toFixed(1)} KB
+                    </span>
+                {/if}
+            </button>
+
+            <p class="text-center text-xs text-ink-muted">
+                {t('import_no_json_yet')}
+                <button
+                    type="button"
+                    onclick={downloadTemplate}
+                    class="font-medium text-primary-600 underline-offset-2 hover:underline"
+                >
+                    {t('import_download_template')}
+                </button>
+            </p>
+        </div>
     {:else}
         <form
             class="flex flex-col gap-4"
@@ -267,14 +505,11 @@
                 </Field>
             </div>
 
-            <Field label={t('destination')} for={fid('dest')} hint="Optional – you can add more later.">
-                <Input
-                    id={fid('dest')}
-                    value={form.destination}
-                    placeholder="e.g. Rome"
-                    oninput={(e) => (form.destination = e.currentTarget.value)}
-                />
-            </Field>
+            <DestinationListEditor
+                bind:destinations={form.destinations}
+                tripStartDate={form.startDate}
+                tripEndDate={form.endDate}
+            />
 
             <Field label={t('home_currency')} for={fid('cur')}>
                 <Select
@@ -321,6 +556,11 @@
         {:else if step === 'duplicate'}
             <Button variant="ghost" onclick={() => (step = 'choose')}>{t('back')}</Button>
             <Button onclick={continueDuplicate} disabled={!sourceId}>{t('continue')}</Button>
+        {:else if step === 'import'}
+            <Button variant="ghost" onclick={() => (step = 'choose')} disabled={importing}>{t('back')}</Button>
+            <Button onclick={executeImport} disabled={!importFile || importing}>
+                {importing ? t('importing') : t('import_trip')}
+            </Button>
         {:else}
             <Button variant="ghost" onclick={() => (step = 'choose')} disabled={saving}>{t('back')}</Button>
             <Button onclick={create} disabled={saving}>

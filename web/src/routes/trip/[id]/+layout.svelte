@@ -182,7 +182,7 @@
         </div>
       </header>
 
-      <main class="mx-auto w-full max-w-5xl flex-1 px-4 pb-28 pt-5 sm:px-6 lg:pb-12">
+      <main class="mx-auto w-full max-w-5xl flex-1 px-4 pb-28 pt-5 sm:px-6 lg:pb-12 animate-slide-up">
         {#if loaded && !trip}
           <div class="flex min-h-[50dvh] flex-col items-center justify-center text-center">
             <MapPinned class="size-10 text-ink-muted" aria-hidden="true" />

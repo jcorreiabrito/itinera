@@ -14,6 +14,7 @@
     } from 'lucide-svelte';
     import { Card, MenuItem, Popover, ProgressBar, Skeleton } from '$lib/components/ui';
     import { flagEmoji, formatDateRange, formatMoney, formatNights } from '$lib/format';
+    import { formatDestinationRoute } from '$lib/destinations';
     import StatusBadge from './StatusBadge.svelte';
     import TripCover from './TripCover.svelte';
 
@@ -132,13 +133,9 @@
 
         <div class="absolute inset-x-3 bottom-2.5 text-white">
             <h3 class="truncate font-serif text-lg font-semibold drop-shadow-sm text-white">{title}</h3>
-            {#if firstDestination}
+            {#if destinations.length > 0}
                 <p class="truncate text-sm text-white/85">
-                    {#if flagEmoji(firstDestination.country)}<span aria-hidden="true">{flagEmoji(firstDestination.country)}</span>{/if}
-                    {firstDestination.name}
-                    {#if extraDestinations > 0}
-                        <span class="text-white/70">+{extraDestinations}</span>
-                    {/if}
+                    {formatDestinationRoute(destinations)}
                 </p>
             {/if}
         </div>

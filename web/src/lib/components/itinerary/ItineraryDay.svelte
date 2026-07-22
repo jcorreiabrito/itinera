@@ -1,10 +1,11 @@
 <script lang="ts">
     import { checklist, itinerary } from '$lib/db';
-    import type { ChecklistItem, Flight, ItineraryItem, Reservation } from '$lib/db';
-    import { ChevronDown, ListTodo, Pencil, Plus, Sparkles, Star } from 'lucide-svelte';
+    import type { ChecklistItem, Destination, Flight, ItineraryItem, Reservation } from '$lib/db';
+    import { ChevronDown, ListTodo, MapPin, Pencil, Plus, Sparkles, Star } from 'lucide-svelte';
     import { DateTime } from 'luxon';
     import { Button, Dialog, Field, Input, Select, Textarea, toast } from '$lib/components/ui';
-    import { formatMoney } from '$lib/format';
+    import { flagEmoji, formatMoney } from '$lib/format';
+    import { getDestinationForDate } from '$lib/destinations';
     import { renderMarkdown } from '$lib/markdown';
     import { cn } from '$lib/utils';
     import { CATEGORY_META, CATEGORY_ORDER } from './categories';
@@ -17,6 +18,7 @@
         tripId: string;
         /** Trip days (ISO) for move-to-day. */
         dates: string[];
+        destinations?: Destination[];
         homeCurrency?: string;
         flightsById?: Map<string, Flight>;
         reservationsById?: Map<string, Reservation>;
@@ -31,6 +33,7 @@
         day,
         tripId,
         dates,
+        destinations = [],
         homeCurrency = 'EUR',
         flightsById,
         reservationsById,
@@ -45,6 +48,10 @@
         const dt = DateTime.fromISO(day.date);
         return dt.isValid ? dt.toFormat('ccc d LLL') : day.date;
     });
+
+    const activeDestination = $derived(
+        day.date && destinations.length > 0 ? getDestinationForDate(day.date, destinations) : null
+    );
 
     const todosDone = $derived(day.todos.filter((t) => t.done).length);
     let todosOpen = $state(true);
@@ -228,9 +235,16 @@
     <!-- Day header -->
     <header class="flex items-start justify-between gap-3">
         <div class="min-w-0">
-            <div class="flex items-center gap-2">
+            <div class="flex items-center gap-2 flex-wrap">
                 {#if isIdeas}<Sparkles class="size-5 text-accent-terracotta" aria-hidden="true" />{/if}
                 <h2 class="font-serif text-xl font-semibold text-ink">{heading}</h2>
+                {#if activeDestination}
+                    <span class="inline-flex items-center gap-1 rounded-full border border-primary-300 bg-primary-50 px-2.5 py-0.5 text-xs font-semibold text-primary-800">
+                        <MapPin class="size-3 text-primary-600" />
+                        {#if flagEmoji(activeDestination.country)}<span aria-hidden="true">{flagEmoji(activeDestination.country)}</span>{/if}
+                        {activeDestination.name}
+                    </span>
+                {/if}
             </div>
             {#if !isIdeas}
                 {#if day.day?.title}

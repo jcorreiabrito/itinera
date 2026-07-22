@@ -45,9 +45,7 @@
   </div>
 
   <OfflineBanner />
-  <div class="animate-slide-up">
-    {@render children()}
-  </div>
+  {@render children()}
 </div>
 
 <Toaster />

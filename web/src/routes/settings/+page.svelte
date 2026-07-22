@@ -278,7 +278,7 @@
   </div>
 </header>
 
-<main class="mx-auto w-full max-w-3xl flex-1 px-4 pb-28 pt-6 sm:px-6 lg:pb-12">
+<main class="mx-auto w-full max-w-3xl flex-1 px-4 pb-28 pt-6 sm:px-6 lg:pb-12 animate-slide-up">
   <section class="rounded-lg border border-border bg-surface p-5">
     <h2 class="text-base font-semibold">{t('settings_title')}</h2>
     <p class="mt-1 text-sm text-ink-muted">{t('home_currency_desc')}</p>

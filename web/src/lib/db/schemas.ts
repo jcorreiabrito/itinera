@@ -77,6 +77,7 @@ const baseShape = {
 
 export const destinationSchema = z
   .object({
+    id: z.string().optional(),
     name: z.string(),
     country: z.string().optional(),
     lat: z.number().optional(),

@@ -1,4 +1,5 @@
 export { default as CoverImageField } from './CoverImageField.svelte';
+export { default as DestinationListEditor } from './DestinationListEditor.svelte';
 export { default as DuplicateTripSheet } from './DuplicateTripSheet.svelte';
 export { default as NewTripSheet } from './NewTripSheet.svelte';
 export { default as StatusBadge } from './StatusBadge.svelte';

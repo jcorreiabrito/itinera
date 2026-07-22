@@ -180,7 +180,10 @@
         {% if days %}
             {% for day in days %}
             <div class="day">
-                <div class="day-date">{{ day.label }}</div>
+                <div class="day-date">
+                    {{ day.label }}
+                    {% if day.destination %}<span style="color: var(--primary-700); font-weight: 500; font-size: 9.5pt;"> • {{ day.destination }}</span>{% endif %}
+                </div>
                 {% if day['items'] %}
                     {% for it in day['items'] %}
                     <div class="item">

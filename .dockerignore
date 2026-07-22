@@ -1,0 +1,14 @@
+node_modules
+**/node_modules
+.svelte-kit
+**/.svelte-kit
+build
+**/build
+.venv
+**/.venv
+__pycache__
+**/__pycache__
+.pytest_cache
+**/.pytest_cache
+.git
+.env

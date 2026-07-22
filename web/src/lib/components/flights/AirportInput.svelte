@@ -240,6 +240,7 @@
                         onmousedown={(e) => e.preventDefault()}
                         onclick={() => pick(rec)}
                         onmouseover={() => (activeIndex = i)}
+                        onfocus={() => (activeIndex = i)}
                         class={cn(
                             'flex cursor-pointer items-center gap-2 rounded-md px-2.5 py-2 text-sm',
                             activeIndex === i

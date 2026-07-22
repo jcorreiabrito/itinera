@@ -216,14 +216,33 @@ export function unarchive(id: string): Promise<Trip> {
   return patchDoc<Trip>(fullTripid(id), { archived: false, archivedAt: null });
 }
 
-/** Soft-delete a trip (children remain; Trash can restore the trip). */
-export function softDelete(id: string): Promise<Trip> {
-  return softDeleteDoc<Trip>(fullTripid(id));
+/** Soft-delete a trip and all its child documents (Trash can restore the trip). */
+export async function softDelete(id: string): Promise<Trip> {
+  const fullId = fullTripid(id);
+  const deletedTrip = await softDeleteDoc<Trip>(fullId);
+  const now = nowIso();
+  for (const type of TRIP_CHILD_TYPES) {
+    const docs = await listTripDocs<AnyDoc>(type, fullId);
+    if (docs.length) {
+      await bulkPut(docs.map((d) => ({ ...d, deletedAt: now, updatedAt: now })));
+    }
+  }
+  return deletedTrip;
 }
 
-/** Restore a soft-deleted trip. */
-export function restore(id: string): Promise<Trip> {
-  return restoreDoc<Trip>(fullTripid(id));
+/** Restore a soft-deleted trip and all its child documents. */
+export async function restore(id: string): Promise<Trip> {
+  const fullId = fullTripid(id);
+  const restoredTrip = await restoreDoc<Trip>(fullId);
+  const now = nowIso();
+  for (const type of TRIP_CHILD_TYPES) {
+    const docs = await listTripDocs<AnyDoc>(type, fullId, { includeDeleted: true });
+    const toRestore = docs.filter((d) => d.deletedAt != null);
+    if (toRestore.length) {
+      await bulkPut(toRestore.map((d) => ({ ...d, deletedAt: null, updatedAt: now })));
+    }
+  }
+  return restoredTrip;
 }
 
 /** Set (or clear) the cover image attachment reference. */

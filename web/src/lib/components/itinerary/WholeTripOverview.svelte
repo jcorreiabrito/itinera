@@ -2,7 +2,7 @@
   import { onMount } from 'svelte';
   import { DateTime } from 'luxon';
   import { checklist, itinerary } from '$lib/db';
-  import type { ChecklistItem, Flight, ItineraryItem, Reservation } from '$lib/db';
+  import type { ChecklistItem, Destination, Flight, ItineraryItem, Reservation } from '$lib/db';
   import {
     BedDouble,
     Bus,
@@ -18,7 +18,8 @@
     Wallet
   } from 'lucide-svelte';
   import type { IconComponent } from '$lib/types';
-  import { formatMoney, formatTime } from '$lib/format';
+  import { flagEmoji, formatMoney, formatTime } from '$lib/format';
+  import { getDestinationForDate } from '$lib/destinations';
   import { minutesOfDay } from '$lib/db/datetime';
   import { categoryMeta } from './categories';
   import { cn } from '$lib/utils';
@@ -27,6 +28,7 @@
     days: itinerary.DayTimeline[];
     tripId: string;
     dates: string[];
+    destinations?: Destination[];
     homeCurrency?: string;
     flightsById?: Map<string, Flight>;
     reservationsById?: Map<string, Reservation>;
@@ -40,6 +42,7 @@
     days,
     tripId,
     dates,
+    destinations = [],
     homeCurrency = 'EUR',
     flightsById,
     reservationsById,
@@ -293,6 +296,18 @@
                 </button>
               {/if}
             </div>
+
+            <!-- Destination Badge -->
+            {#if day.date && destinations.length > 0}
+              {@const activeDest = getDestinationForDate(day.date, destinations)}
+              {#if activeDest}
+                <div class="text-[10px] font-semibold text-primary-800 truncate flex items-center gap-1 mt-0.5" title={activeDest.name}>
+                  <span class="size-1.5 rounded-full bg-primary-600 shrink-0"></span>
+                  {#if flagEmoji(activeDest.country)}<span>{flagEmoji(activeDest.country)}</span>{/if}
+                  <span class="truncate">{activeDest.name}</span>
+                </div>
+              {/if}
+            {/if}
 
             <!-- Day Metadata Title -->
             {#if day.day?.title}

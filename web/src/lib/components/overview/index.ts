@@ -1,5 +1,6 @@
 export { default as BudgetWidget } from './BudgetWidget.svelte';
 export { default as ChecklistWidget } from './ChecklistWidget.svelte';
+export { default as DestinationsWidget } from './DestinationsWidget.svelte';
 export { default as FlightsWidget } from './FlightsWidget.svelte';
 export { default as HeroWidget } from './HeroWidget.svelte';
 export { default as NextUpWidget } from './NextUpWidget.svelte';

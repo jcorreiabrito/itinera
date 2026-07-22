@@ -137,16 +137,16 @@
                 {#if i < segs.length - 1}
                     {@const lay = computed.layovers[i]}
                     {@const tight = lay ? (lay.minutes != null && lay.minutes < 60) : false}
-                    <li
+                    <div
                         aria-label={`Layover at ${endpointCode(seg.to)}: ${lay?.text}`}
-                        class="flex flex-wrap items-center gap-x-2 gap-y-0.5 pt-2.5 text-xs {tight ? 'text-warning' : 'text-ink-muted'}"
+                        class="mt-2.5 flex flex-wrap items-center gap-x-2 gap-y-0.5 border-t border-border/50 pt-2 text-xs {tight ? 'text-warning font-medium' : 'text-ink-muted'}"
                     >
                         {#if tight}<TriangleAlert class="size-3.5" aria-hidden="true" />{/if}
                         <span>
                             Layover {endpointCode(seg.to)}{lay?.text ? ` · ${lay.text}` : ''}{tight ? ` · tight` : ''}
                         </span>
                         {#if lay?.changeAirport}<span>🔄 change airport</span>{/if}
-                    </li>
+                    </div>
                 {/if}
             </li>
         {/each}

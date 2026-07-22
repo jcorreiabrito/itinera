@@ -23,7 +23,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from . import __version__
 from .config import Settings, get_settings
 from .couch import CouchClient
-from .routers import backups, exports, health, pdf
+from .routers import backups, exports, health, imports, pdf
 from .scheduler import build_scheduler
 
 logging.basicConfig(level=logging.INFO, format="%(asctime)s %(levelname)s %(name)s: %(message)s")
@@ -109,7 +109,7 @@ def create_app(settings: Settings | None = None, couch: CouchClient | None = Non
             allow_credentials=False,
         )
 
-    for module in (health, exports, pdf, backups):
+    for module in (health, exports, pdf, backups, imports):
         app.include_router(module.router, prefix="/api")
 
     return app

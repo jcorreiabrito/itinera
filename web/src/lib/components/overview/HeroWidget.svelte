@@ -9,13 +9,10 @@
 
     let { trip }: Props = $props();
 
+    import { formatDestinationRoute } from '$lib/destinations';
+
     const title = $derived(trip.title?.trim() || 'Untitled trip');
-    const destLabel = $derived(
-        (trip.destinations ?? [])
-            .map((d) => `${flagEmoji(d.country)} ${d.name}`.trim())
-            .filter(Boolean)
-            .join(', ')
-    );
+    const destLabel = $derived(formatDestinationRoute(trip.destinations ?? []));
     const statusLabel = $derived(trip.derived.status);
 </script>
 

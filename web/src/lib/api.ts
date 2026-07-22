@@ -152,3 +152,19 @@ export function runBackup(): Promise<BackupRunResult> {
 export function listBackups(): Promise<BackupList> {
   return getJson<BackupList>('/backups');
 }
+
+/** Result of `POST /api/trips/import.json`. */
+export interface ImportTripResult {
+  tripId: string;
+  docCount: number;
+}
+
+/** Import a trip JSON export (`POST /api/trips/import.json`). */
+export function importTripJson(payload: Record<string, unknown>): Promise<ImportTripResult> {
+  return getJson<ImportTripResult>('/trips/import.json', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(payload)
+  });
+}
+
