@@ -251,7 +251,7 @@
                     <p class="mt-0.5 text-sm font-medium text-primary-700">{day.day.title}</p>
                 {/if}
                 {#if day.day?.notes}
-                    <!-- svelte-ignore a11y-no-static-element-interactions -->
+                    <!-- svelte-ignore a11y_no_static_element_interactions -->
                     <div class="mt-1.5 space-y-1.5 text-sm text-ink-muted">{@html renderMarkdown(day.day.notes)}</div>
                 {/if}
             {:else}

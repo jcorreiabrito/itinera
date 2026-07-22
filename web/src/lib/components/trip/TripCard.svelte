@@ -7,11 +7,14 @@
         Copy,
         ListChecks,
         MoreVertical,
+        Map,
         Pencil,
         SquareArrowOutUpRight,
         Trash2,
+        CheckCircle2,
         Wallet
     } from 'lucide-svelte';
+    import { t } from '$lib/i18n.svelte';
     import { Card, MenuItem, Popover, ProgressBar, Skeleton } from '$lib/components/ui';
     import { flagEmoji, formatDateRange, formatMoney, formatNights } from '$lib/format';
     import { formatDestinationRoute } from '$lib/destinations';
@@ -29,9 +32,10 @@
         onarchive?: () => void;
         onunarchive?: () => void;
         ondelete?: () => void;
+        onstagechange?: (stage: 'planning' | 'confirmed') => void;
     }
 
-    let { trip, reloadKey = 0, animationDelay = 0, onedit, onduplicate, onarchive, onunarchive, ondelete }: Props = $props();
+    let { trip, reloadKey = 0, animationDelay = 0, onedit, onduplicate, onarchive, onunarchive, ondelete, onstagechange }: Props = $props();
 
     const today = todayIso();
 
@@ -110,7 +114,7 @@
 
 <div bind:this={cardEl}>
 <Card
-    class="group relative flex flex-col glass-panel hover-lift animate-slide-up"
+    class="group relative flex flex-col glass-panel hover-lift animate-slide-up {trip.stage === 'planning' ? 'border-dashed border-amber-400/50 dark:border-amber-500/30 ring-1 ring-inset ring-amber-400/20' : ''}"
     style="animation-delay: {animationDelay}ms"
 >
     <div class="relative aspect-[3/2] w-full overflow-hidden rounded-t-lg">
@@ -218,20 +222,29 @@
                     <MoreVertical class="size-4" />
                 </button>
             {/snippet}
-            <MenuItem icon={SquareArrowOutUpRight} {href}>Open</MenuItem>
-            <MenuItem icon={Pencil} onclick={() => { menuOpen = false; onedit?.(); }}>Edit</MenuItem>
-            <MenuItem icon={Copy} onclick={() => { menuOpen = false; onduplicate?.(); }}>Duplicate</MenuItem>
+            <MenuItem icon={SquareArrowOutUpRight} {href}>{t('open')}</MenuItem>
+            <MenuItem icon={Pencil} onclick={() => { menuOpen = false; onedit?.(); }}>{t('edit')}</MenuItem>
+            <MenuItem icon={Copy} onclick={() => { menuOpen = false; onduplicate?.(); }}>{t('duplicate')}</MenuItem>
+            {#if trip.stage === 'planning'}
+                <MenuItem icon={CheckCircle2} onclick={() => { menuOpen = false; onstagechange?.('confirmed'); }}>
+                    {t('mark_as_confirmed')}
+                </MenuItem>
+            {:else}
+                <MenuItem icon={Map} onclick={() => { menuOpen = false; onstagechange?.('planning'); }}>
+                    {t('mark_as_planning')}
+                </MenuItem>
+            {/if}
             {#if trip.archived}
                 <MenuItem icon={ArchiveRestore} onclick={() => { menuOpen = false; onunarchive?.(); }}>
-                    Unarchive
+                    {t('unarchive')}
                 </MenuItem>
             {:else}
                 <MenuItem icon={Archive} onclick={() => { menuOpen = false; onarchive?.(); }}>
-                    Archive
+                    {t('archive')}
                 </MenuItem>
             {/if}
             <MenuItem icon={Trash2} tone="danger" onclick={() => { menuOpen = false; ondelete?.(); }}>
-                Delete
+                {t('delete')}
             </MenuItem>
         </Popover>
     </div>

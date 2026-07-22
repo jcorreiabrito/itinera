@@ -12,6 +12,7 @@
   let sectionsData = $state<trips.TripSections | null>(null);
   let loading = $state(true);
   let search = $state('');
+  let filterTab = $state<'all' | 'confirmed' | 'planning'>('all');
   let reloadKey = $state(0);
   let defaultCurrency = $state('EUR');
   let archiveOpen = $state(false);
@@ -67,6 +68,7 @@
     return {
       active: f(sectionsData.active),
       upcoming: f(sectionsData.upcoming),
+      planning: f(sectionsData.planning),
       past: f(sectionsData.past),
       archived: f(sectionsData.archived)
     };
@@ -76,13 +78,14 @@
     sectionsData
       ? sectionsData.active.length +
         sectionsData.upcoming.length +
+        sectionsData.planning.length +
         sectionsData.past.length +
         sectionsData.archived.length
       : 0
   );
 
   const visibleNonArchived = $derived(
-    filtered ? filtered.active.length + filtered.upcoming.length + filtered.past.length : 0
+    filtered ? filtered.active.length + filtered.upcoming.length + filtered.planning.length + filtered.past.length : 0
   );
 
   // Every trip, offered as a duplicate source in the new-trip flow.
@@ -91,6 +94,7 @@
       ? [
           ...sectionsData.active,
           ...sectionsData.upcoming,
+          ...sectionsData.planning,
           ...sectionsData.past,
           ...sectionsData.archived
         ]
@@ -137,6 +141,15 @@
       reload();
     } catch {
       toast.error('Could not unarchive the trip.');
+    }
+  }
+
+  async function changeStage(trip: Trip, stage: 'planning' | 'confirmed') {
+    try {
+      await trips.setStage(bareTripUid(trip._id), stage);
+      reload();
+    } catch {
+      toast.error('Could not change trip stage.');
     }
   }
 
@@ -204,18 +217,39 @@
       </div>
     </div>
 
-    <div class="relative">
-      <Search
-        class="pointer-events-none absolute left-3 top-1/2 size-4 -translate-y-1/2 text-ink-muted"
-      />
-      <input
-        type="search"
-        value={search}
-        oninput={(e) => (search = e.currentTarget.value)}
-        placeholder={t('search_placeholder')}
-        aria-label={t('search_placeholder')}
-        class="w-1/2 w-full rounded-md glass-input pl-9 pr-3 text-base text-ink placeholder:text-ink-muted/60 focus:border-primary-600 focus:outline-none focus:ring-2 focus:ring-primary-600/30 transition-[box-shadow] duration-150"
-      />
+    <div class="flex items-center justify-between gap-4">
+      <div class="relative w-full max-w-sm">
+        <Search class="pointer-events-none absolute left-3 top-1/2 size-4 -translate-y-1/2 text-ink-muted" />
+        <input
+          type="search"
+          value={search}
+          oninput={(e) => (search = e.currentTarget.value)}
+          placeholder={t('search_placeholder')}
+          aria-label={t('search_placeholder')}
+          class="w-full rounded-md glass-input pl-9 pr-3 text-base text-ink placeholder:text-ink-muted/60 focus:border-primary-600 focus:outline-none focus:ring-2 focus:ring-primary-600/30 transition-[box-shadow] duration-150"
+        />
+      </div>
+
+      <div class="flex items-center gap-1 rounded-md bg-surface p-1 shadow-sm border border-border">
+        <button
+          class="rounded px-3 py-1 text-sm font-medium transition-colors {filterTab === 'all' ? 'bg-primary-100 text-primary-700' : 'text-ink-muted hover:text-ink'}"
+          onclick={() => filterTab = 'all'}
+        >
+          {t('filter_all')}
+        </button>
+        <button
+          class="rounded px-3 py-1 text-sm font-medium transition-colors {filterTab === 'confirmed' ? 'bg-primary-100 text-primary-700' : 'text-ink-muted hover:text-ink'}"
+          onclick={() => filterTab = 'confirmed'}
+        >
+          {t('filter_confirmed')}
+        </button>
+        <button
+          class="rounded px-3 py-1 text-sm font-medium transition-colors {filterTab === 'planning' ? 'bg-primary-100 text-primary-700' : 'text-ink-muted hover:text-ink'}"
+          onclick={() => filterTab = 'planning'}
+        >
+          {t('filter_planning')}
+        </button>
+      </div>
     </div>
   </div>
 </header>
@@ -250,17 +284,26 @@
   {:else}
     <div class="space-y-8">
       {#if filtered}
-        {#if filtered.active.length}
-          {@render section('active_now', filtered.active, true, 0)}
-        {/if}
-        {#if filtered.upcoming.length}
-          {@render section('upcoming', filtered.upcoming, false, filtered.active.length ? 80 : 0)}
-        {/if}
-        {#if filtered.past.length}
-          {@render section('past', filtered.past, false, (filtered.active.length ? 80 : 0) + (filtered.upcoming.length ? 80 : 0))}
+        {#if filterTab === 'all' || filterTab === 'planning'}
+          {#if filtered.planning.length}
+            {@render section('planning_section', filtered.planning, false, 0)}
+          {/if}
         {/if}
 
-        {#if filtered.archived.length}
+        {#if filterTab === 'all' || filterTab === 'confirmed'}
+          {#if filtered.active.length}
+            {@render section('active_now', filtered.active, true, filtered.planning.length ? 80 : 0)}
+          {/if}
+          {#if filtered.upcoming.length}
+            {@render section('upcoming', filtered.upcoming, false, (filtered.planning.length ? 80 : 0) + (filtered.active.length ? 80 : 0))}
+          {/if}
+          {#if filtered.past.length}
+            {@render section('past', filtered.past, false, (filtered.planning.length ? 80 : 0) + (filtered.active.length ? 80 : 0) + (filtered.upcoming.length ? 80 : 0))}
+          {/if}
+        {/if}
+
+        {#if filterTab === 'all'}
+          {#if filtered.archived.length}
           <section aria-labelledby="section-archived">
             <button
               type="button"
@@ -282,11 +325,13 @@
                     onarchive={() => archive(trip)}
                     onunarchive={() => unarchive(trip)}
                     ondelete={() => askDelete(trip)}
+                    onstagechange={(s) => changeStage(trip, s)}
                   />
                 {/each}
               </div>
             {/if}
           </section>
+          {/if}
         {/if}
       {/if}
 
@@ -325,6 +370,7 @@
           onarchive={() => archive(trip)}
           onunarchive={() => unarchive(trip)}
           ondelete={() => askDelete(trip)}
+          onstagechange={(s) => changeStage(trip, s)}
         />
       {/each}
     </div>

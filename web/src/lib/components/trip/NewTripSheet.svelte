@@ -60,6 +60,7 @@
         endDate: string;
         destinations: Destination[];
         homeCurrency: string;
+        stage: 'planning' | 'confirmed';
         travelerCount: string;
     }
 
@@ -73,6 +74,7 @@
             endDate: '',
             destinations: [],
             homeCurrency: defaultCurrency || 'EUR',
+            stage: 'planning',
             travelerCount: '1'
         };
     }
@@ -136,6 +138,7 @@
                 startDate: form.startDate,
                 endDate: form.endDate,
                 homeCurrency: form.homeCurrency,
+                stage: form.stage,
                 destinations: cleanDestinations,
                 travelerCount: form.travelerCount.trim() ? Number(form.travelerCount) : 1
             });
@@ -520,6 +523,17 @@
                     {#each currencyOptions as code (code)}
                         <option value={code}>{code}</option>
                     {/each}
+                </Select>
+            </Field>
+
+            <Field label={t('stage')} for={fid('stage')} hint={t('stage_hint')}>
+                <Select
+                    id={fid('stage')}
+                    value={form.stage}
+                    onchange={(e) => (form.stage = e.currentTarget.value as 'planning' | 'confirmed')}
+                >
+                    <option value="planning">{t('planning')}</option>
+                    <option value="confirmed">{t('confirmed')}</option>
                 </Select>
             </Field>
 

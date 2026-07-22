@@ -176,7 +176,7 @@
                 {/if}
             </div>
             {#if noteOpen && item.notes}
-                <!-- svelte-ignore a11y-no-static-element-interactions -->
+                <!-- svelte-ignore a11y_no_static_element_interactions -->
                 <div class="mt-2 space-y-1.5 border-t border-border pt-2 text-sm text-ink-muted">
                     {@html renderMarkdown(item.notes)}
                 </div>

@@ -213,6 +213,7 @@ export const tripSchema = z
     archivedAt: z.string().nullable().optional(),
     homeCurrency: z.string().optional(),
     budget: budgetSchema.optional(),
+    stage: z.enum(['planning', 'confirmed']).default('confirmed'),
     coverImageAttId: z.string().nullable().optional(),
     notes: z.string().optional(),
     tags: z.array(z.string()).default([]),

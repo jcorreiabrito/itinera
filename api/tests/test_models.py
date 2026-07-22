@@ -58,6 +58,12 @@ class TestTripModel:
         assert trip.title == "Paris"
         assert trip.archived is False
         assert trip.destinations == []
+        assert trip.stage == "confirmed"
+
+    def test_custom_stage(self):
+        raw = {**BASE, "type": "trip", "title": "Paris", "stage": "planning"}
+        trip = Trip.model_validate(raw)
+        assert trip.stage == "planning"
 
     def test_camel_alias_startDate(self):
         raw = {**BASE, "type": "trip", "startDate": "2026-06-01"}

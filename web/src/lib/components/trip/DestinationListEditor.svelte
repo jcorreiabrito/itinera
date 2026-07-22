@@ -86,7 +86,7 @@
   {#if items.length === 0}
     <div class="rounded-lg border border-dashed border-border bg-surface-sunken p-4 text-center">
       <p class="text-sm text-ink-muted">No destinations added yet.</p>
-      <Button type="button" variant="outline" size="sm" class="mt-2" onclick={addDestination}>
+      <Button type="button" variant="ghost" size="sm" class="mt-2" onclick={addDestination}>
         <Plus class="size-4" /> Add first destination
       </Button>
     </div>

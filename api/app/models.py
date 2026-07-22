@@ -129,6 +129,7 @@ class Trip(CouchDoc):
     archived_at: str | None = Field(default=None, alias="archivedAt")
     home_currency: str | None = Field(default=None, alias="homeCurrency")
     budget: Budget | None = None
+    stage: Literal["planning", "confirmed"] = "confirmed"
     cover_image_att_id: str | None = Field(default=None, alias="coverImageAttId")
     notes: str | None = None
     tags: list[str] = Field(default_factory=list)

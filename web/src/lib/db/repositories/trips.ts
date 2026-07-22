@@ -42,7 +42,7 @@ import type {
 } from '../schemas';
 
 /** Display status including the manual Archived state. */
-export type TripStatus = TripDateStatus | 'Archived';
+export type TripStatus = TripDateStatus | 'Archived' | 'Planning';
 
 /** Values computed from a trip's dates (never stored). */
 export interface TripDerived {
@@ -68,6 +68,7 @@ export interface NewTripInput {
   tags?: string[];
   coverImageAttId?: string | null;
   travelerCount?: number;
+  stage?: 'planning' | 'confirmed';
 }
 
 /** Mutable trip fields. */
@@ -87,6 +88,7 @@ export interface TripListOptions {
 export interface TripSections {
   active: TripWithDerived[];
   upcoming: TripWithDerived[];
+  planning: TripWithDerived[];
   past: TripWithDerived[];
   archived: TripWithDerived[];
 }
@@ -94,6 +96,7 @@ export interface TripSections {
 /** Derive a trip's display status from its archived flag + dates. */
 export function deriveStatus(trip: Trip, today: string = todayIso()): TripStatus {
   if (trip.archived) return 'Archived';
+  if (trip.stage === 'planning') return 'Planning';
   if (!trip.startDate || !trip.endDate) return 'Upcoming';
   return tripDateStatus(trip.startDate, trip.endDate, today);
 }
@@ -137,7 +140,9 @@ export async function list(opts: TripListOptions = {}): Promise<TripWithDerived[
           ? 'Active'
           : opts.filter === 'past'
             ? 'Past'
-            : 'Archived';
+            : opts.filter === 'archived'
+              ? 'Archived'
+              : 'Planning';
     trips = trips.filter((t) => t.derived.status === wanted);
   }
   const search = opts.search?.trim();
@@ -160,6 +165,7 @@ export async function sections(today: string = todayIso()): Promise<TripSections
   return {
     active: all.filter((t) => t.derived.status === 'Active').sort(byEndAsc),
     upcoming: all.filter((t) => t.derived.status === 'Upcoming').sort(byStartAsc),
+    planning: all.filter((t) => t.derived.status === 'Planning').sort(byStartAsc),
     past: all.filter((t) => t.derived.status === 'Past').sort(byEndDesc),
     archived: all.filter((t) => t.derived.status === 'Archived').sort(byEndDesc)
   };
@@ -195,6 +201,7 @@ export async function create(input: NewTripInput): Promise<Trip> {
     budget: input.budget,
     notes: input.notes,
     tags: input.tags ?? [],
+    stage: input.stage ?? 'confirmed',
     coverImageAttId: input.coverImageAttId ?? null,
     travelerCount: input.travelerCount ?? 1
   };
@@ -214,6 +221,11 @@ export function archive(id: string): Promise<Trip> {
 /** Unarchive a trip. */
 export function unarchive(id: string): Promise<Trip> {
   return patchDoc<Trip>(fullTripid(id), { archived: false, archivedAt: null });
+}
+
+/** Set the stage of a trip (planning or confirmed). */
+export function setStage(id: string, stage: 'planning' | 'confirmed'): Promise<Trip> {
+  return patchDoc<Trip>(fullTripid(id), { stage });
 }
 
 /** Soft-delete a trip and all its child documents (Trash can restore the trip). */
@@ -322,6 +334,7 @@ export async function duplicate(sourceId: string, opts: DuplicateOptions = {}): 
     homeCurrency: source.homeCurrency ?? 'EUR',
     destinations: source.destinations,
     primaryTimezone: source.primaryTimezone,
+    stage: source.stage ?? 'confirmed',
     budget: (opts.budgetTargets ?? true) ? source.budget : undefined,
     notes: source.notes,
     tags: source.tags

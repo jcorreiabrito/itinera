@@ -1,10 +1,11 @@
 <script lang="ts" module>
-    export type TripStatusValue = 'Upcoming' | 'Active' | 'Past' | 'Archived';
+    export type TripStatusValue = 'Upcoming' | 'Active' | 'Past' | 'Archived' | 'Planning';
 </script>
 
 <script lang="ts">
     import Badge from '$lib/components/ui/Badge.svelte';
     import type { BadgeVariant } from '$lib/components/ui/Badge.svelte';
+    import { t } from '$lib/i18n.svelte';
 
     interface Props {
         status: TripStatusValue;
@@ -14,10 +15,11 @@
     let { status, class: className }: Props = $props();
 
     const map: Record<TripStatusValue, { variant: BadgeVariant; label: string }> = {
-        Active: { variant: 'success', label: 'Active' },
-        Upcoming: { variant: 'primary', label: 'Upcoming' },
-        Past: { variant: 'neutral', label: 'Past' },
-        Archived: { variant: 'neutral', label: 'Archived' }
+        Active: { variant: 'success', label: t('active_now') },
+        Upcoming: { variant: 'primary', label: t('upcoming') },
+        Past: { variant: 'neutral', label: t('past') },
+        Archived: { variant: 'neutral', label: t('archived') },
+        Planning: { variant: 'warning', label: t('planning') }
     };
 
     const current = $derived(map[status] ?? map.Upcoming);
