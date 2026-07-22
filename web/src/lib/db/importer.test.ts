@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { parseAndPrepareTripImport } from './importer';
+import { parseAndPrepareTripImport, parseAndPrepareTripUpdateDocs } from './importer';
 
 describe('parseAndPrepareTripImport', () => {
   it('successfully parses and re-IDs the user provided Mexico 2027 trip JSON', () => {
@@ -237,5 +237,45 @@ describe('parseAndPrepareTripImport', () => {
     expect(newTripId).toMatch(/^trip:[0-9A-Z]{26}$/);
     expect(tripDoc.title).toBe('Simple Trip');
     expect(preparedDocs.length).toBe(2);
+  });
+});
+
+describe('parseAndPrepareTripUpdateDocs', () => {
+  it('preserves existing document IDs and remaps trip IDs to targetTripId', () => {
+    const payload = {
+      schema: 'itinera.trip-export',
+      version: 1,
+      exportedAt: '2026-07-22T10:00:00.000Z',
+      db: 'itinera',
+      tripId: 'trip:ORIGINAL',
+      trip: {
+        _id: 'trip:ORIGINAL',
+        type: 'trip',
+        title: 'Original Title Updated',
+        startDate: '2027-03-13',
+        endDate: '2027-03-21'
+      },
+      documents: {
+        itineraryItem: [
+          {
+            _id: 'itin:ORIGINAL:ITEM1',
+            type: 'itineraryItem',
+            tripId: 'trip:ORIGINAL',
+            title: 'Updated Item Title'
+          }
+        ]
+      }
+    };
+
+    const targetTripId = 'trip:TARGET123';
+    const { tripDoc, preparedDocs } = parseAndPrepareTripUpdateDocs(payload, targetTripId);
+
+    expect(tripDoc._id).toBe('trip:TARGET123');
+    expect(tripDoc.title).toBe('Original Title Updated');
+
+    const itinItem = preparedDocs.find((d) => d.type === 'itineraryItem');
+    expect(itinItem).toBeDefined();
+    expect(itinItem?._id).toBe('itin:TARGET123:ITEM1');
+    expect(itinItem?.tripId).toBe('trip:TARGET123');
   });
 });

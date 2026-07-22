@@ -1,20 +1,26 @@
 <script lang="ts">
     import { syncStatus } from '$lib/db';
-    import { Download, FileDown, FileText, MoreVertical, WifiOff } from 'lucide-svelte';
+    import { Download, FileDown, FileText, FileUp, MoreVertical, WifiOff } from 'lucide-svelte';
     import { Popover, toast } from '$lib/components/ui';
     import { downloadTripExport, downloadTripPdf } from '$lib/api';
+    import { prepareTripUpdateDiff, executeTripUpdate, type TripUpdateDiff } from '$lib/db/importer';
     import { cn } from '$lib/utils';
+    import UpdateDiffSheet from './UpdateDiffSheet.svelte';
 
     interface Props {
-        /** Bare trip UUID. */
+        /** Bare trip UUID or full trip ID. */
         tripid: string;
         title?: string;
     }
 
-    let { tripid, title } = $props();
+    let { tripid, title }: Props = $props();
 
     let open = $state(false);
-    let busy = $state<'json' | 'pdf' | null>(null);
+    let busy = $state<'json' | 'pdf' | 'update' | null>(null);
+
+    let fileInputRef = $state<HTMLInputElement | null>(null);
+    let diffSheetOpen = $state(false);
+    let currentDiff = $state<TripUpdateDiff | null>(null);
 
     // `navigator.online` is not reactive, so mirror it via the online/offline
     // events; combine with the sync store (doc 85) for the gentle gate.
@@ -64,9 +70,61 @@
         }
     }
 
+    function triggerUpdateFile() {
+        fileInputRef?.click();
+    }
+
+    async function handleFileSelect(e: Event) {
+        const input = e.currentTarget as HTMLInputElement;
+        const file = input.files?.[0];
+        if (!file) return;
+
+        busy = 'update';
+        try {
+            const text = await file.text();
+            const payload = JSON.parse(text);
+            const diff = await prepareTripUpdateDiff(tripid, payload);
+            currentDiff = diff;
+            open = false;
+            diffSheetOpen = true;
+        } catch (err: any) {
+            toast.error(err?.message || 'Invalid JSON file for trip update.');
+        } finally {
+            busy = null;
+            if (input) input.value = '';
+        }
+    }
+
+    async function confirmUpdate() {
+        if (!currentDiff) return;
+        try {
+            await executeTripUpdate(currentDiff.readyToSaveDocs);
+            toast.success('Trip updated successfully from JSON.');
+            setTimeout(() => {
+                window.location.reload();
+            }, 300);
+        } catch (err: any) {
+            toast.error(err?.message || 'Could not update trip.');
+        }
+    }
+
     const itemClass =
         'flex w-full items-center gap-2.5 rounded-md px-2.5 py-2 text-left text-sm font-medium text-ink transition-colors hover:bg-surface-sunken disabled:opacity-40';
 </script>
+
+<input
+    type="file"
+    accept=".json,application/json"
+    class="hidden"
+    bind:this={fileInputRef}
+    onchange={handleFileSelect}
+/>
+
+<UpdateDiffSheet
+    bind:open={diffSheetOpen}
+    diff={currentDiff}
+    onconfirm={confirmUpdate}
+/>
 
 <Popover bind:open align="end" label="Trip data and exports">
     {#snippet trigger({ toggle, open: isOpen })}
@@ -96,15 +154,26 @@
             {busy === 'pdf' ? 'Preparing...' : 'Printable PDF'}
         </button>
 
+        <div class="my-1 border-t border-border"></div>
+
+        <p class="px-2.5 py-1.5 text-xs font-semibold uppercase tracking-wide text-ink-muted/80">
+            Update
+        </p>
+
+        <button type="button" class={itemClass} onclick={triggerUpdateFile} disabled={!!busy}>
+            <FileUp />
+            {busy === 'update' ? 'Parsing JSON...' : 'Update from JSON'}
+        </button>
+
         {#if !online}
             <p
                 class={cn(
                     'mt-1 flex items-start gap-1.5 rounded-md bg-surface-sunken px-2.5 py-2 text-xs text-ink-muted',
-                    '& svg}:mt-0.5 [&_svg]:size-3.5 [&_svg]:shrink-0',
+                    '&_svg]:mt-0.5 [&_svg]:size-3.5 [&_svg]:shrink-0',
                 )}
             >
                 <WifiOff />
-                <span>Needs connection – these run on your home server.</span>
+                <span>Exports need server connection. JSON Update works offline.</span>
             </p>
         {:else}
             <p class="mt-1 flex items-center gap-1.5 px-2.5 py-1 text-[0.7rem] text-ink-muted">

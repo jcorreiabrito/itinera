@@ -212,15 +212,35 @@
                 title: 'My Trip to Paris',
                 startDate: startStr,
                 endDate: endStr,
+                stage: 'planning',
+                travelerCount: 2,
                 homeCurrency: defaultCurrency || 'EUR',
                 primaryTimezone: 'Europe/Paris',
                 destinations: [
-                    { name: 'Paris', country: 'France', lat: 48.8566, lng: 2.3522, arriveDate: startStr, departDate: endStr }
+                    {
+                        name: 'Paris',
+                        country: 'France',
+                        lat: 48.8566,
+                        lng: 2.3522,
+                        arriveDate: startStr,
+                        departDate: endStr
+                    }
                 ],
-                budget: { total: 2000, byCategory: { transport: 400, lodging: 800, food: 400, activities: 300, other: 100 } },
-                tags: ['europe', 'city'],
-                notes: 'Fill in your trip details here.',
-                archived: false
+                budget: {
+                    total: 2000,
+                    perDay: 250,
+                    byCategory: {
+                        transport: 400,
+                        lodging: 800,
+                        food: 400,
+                        activities: 300,
+                        other: 100
+                    }
+                },
+                tags: ['europe', 'city', 'culture'],
+                notes: 'Fill in your trip details here or import from an offline plan.',
+                archived: false,
+                coverImageAttId: null
             },
             documents: {
                 tripDay: [
@@ -229,8 +249,8 @@
                         type: 'tripDay',
                         tripId: 'trip:TEMPLATE',
                         date: dayStr,
-                        title: 'Explore the City',
-                        notes: 'Optional notes for this day.'
+                        title: 'Explore the City & Museums',
+                        notes: 'Optional notes for this specific day.'
                     }
                 ],
                 itineraryItem: [
@@ -242,12 +262,28 @@
                         allDay: false,
                         startTime: '10:00',
                         endTime: '12:00',
+                        order: 0,
                         title: 'Visit the Eiffel Tower',
                         category: 'sightseeing',
-                        location: { name: 'Eiffel Tower', address: 'Champ de Mars, 5 Av. Anatole France, 75007 Paris', lat: 48.8584, lng: 2.2945 },
-                        notes: 'Book tickets in advance.',
+                        location: {
+                            name: 'Eiffel Tower',
+                            address: 'Champ de Mars, 5 Av. Anatole France, 75007 Paris',
+                            lat: 48.8584,
+                            lng: 2.2945
+                        },
+                        notes: 'Book tickets online in advance to skip lines.',
                         estCost: 30,
-                        currency: 'EUR'
+                        currency: 'EUR',
+                        costs: [
+                            {
+                                id: 'cost1',
+                                label: 'Entry Ticket',
+                                category: 'activities',
+                                amount: 30
+                            }
+                        ],
+                        linkedFlightId: null,
+                        linkedReservationId: 'res:TEMPLATE:RES1'
                     }
                 ],
                 flight: [
@@ -257,20 +293,36 @@
                         tripId: 'trip:TEMPLATE',
                         bookingRef: 'ABC123',
                         checkInUrl: 'https://airline.com/checkin',
+                        order: 0,
+                        costType: 'total',
+                        cost: 180,
+                        currency: 'EUR',
                         segments: [
                             {
                                 airline: 'Air France',
                                 flightNumber: 'AF1234',
-                                from: { code: 'LIS', name: 'Humberto Delgado Airport', city: 'Lisbon', tz: 'Europe/Lisbon' },
-                                to: { code: 'CDG', name: 'Charles de Gaulle Airport', city: 'Paris', tz: 'Europe/Paris' },
+                                from: {
+                                    code: 'LIS',
+                                    name: 'Humberto Delgado Airport',
+                                    city: 'Lisbon',
+                                    tz: 'Europe/Lisbon'
+                                },
+                                to: {
+                                    code: 'CDG',
+                                    name: 'Charles de Gaulle Airport',
+                                    city: 'Paris',
+                                    tz: 'Europe/Paris'
+                                },
                                 departLocal: `${startStr}T08:00:00`,
                                 arriveLocal: `${startStr}T11:00:00`,
                                 seat: '14A',
-                                terminal: '2E'
+                                terminal: '2E',
+                                gate: 'D12',
+                                baggage: '1 checked bag (23kg), 1 carry-on',
+                                checkInOpensAt: `${startStr}T08:00:00`,
+                                notes: 'Arrive 2 hours prior to departure.'
                             }
                         ],
-                        cost: 180,
-                        currency: 'EUR',
                         attachmentIds: []
                     }
                 ],
@@ -281,13 +333,28 @@
                         tripId: 'trip:TEMPLATE',
                         kind: 'lodging',
                         name: 'Hotel de la Paix',
-                        location: { name: 'Hotel de la Paix', address: '19 Rue de la Paix, 75002 Paris', lat: 48.8699, lng: 2.3318 },
+                        location: {
+                            name: 'Hotel de la Paix',
+                            address: '19 Rue de la Paix, 75002 Paris',
+                            lat: 48.8699,
+                            lng: 2.3318
+                        },
                         start: `${startStr}T14:00:00`,
                         end: `${endStr}T12:00:00`,
                         confirmation: 'CONF-XYZ-789',
+                        order: 0,
+                        costType: 'total',
                         cost: 700,
                         currency: 'EUR',
-                        contact: { phone: '+33 1 23 45 67 89', email: 'reception@hotel.com', url: 'https://hotel.com' },
+                        contact: {
+                            phone: '+33 1 23 45 67 89',
+                            email: 'reception@hotel.com',
+                            url: 'https://hotel.com'
+                        },
+                        details: {
+                            roomType: 'Double Standard Room',
+                            nights: 7
+                        },
                         notes: 'Non-smoking room on a high floor.',
                         attachmentIds: []
                     }
@@ -299,11 +366,15 @@
                         tripId: 'trip:TEMPLATE',
                         date: dayStr,
                         category: 'food',
-                        description: 'Lunch at a bistro',
+                        description: 'Lunch at a traditional bistro',
                         amountEstimate: 25,
                         amountActual: null,
                         currency: 'EUR',
-                        paid: false
+                        fxRate: 1.0,
+                        costType: 'total',
+                        paid: false,
+                        linkedType: 'itineraryItem',
+                        linkedId: 'itin:TEMPLATE:ITEM1'
                     }
                 ],
                 checklistItem: [
@@ -311,8 +382,12 @@
                         _id: 'chk:TEMPLATE:CHK1',
                         type: 'checklistItem',
                         tripId: 'trip:TEMPLATE',
-                        text: 'Pack passport',
+                        text: 'Pack passport & ID cards',
                         group: 'Documents',
+                        order: 0,
+                        quantity: 1,
+                        note: 'Check validity before flying',
+                        dueDate: startStr,
                         done: false,
                         important: true
                     },
@@ -322,6 +397,8 @@
                         tripId: 'trip:TEMPLATE',
                         text: 'Buy travel insurance',
                         group: 'Documents',
+                        order: 1,
+                        quantity: 1,
                         done: false,
                         important: false
                     }
@@ -329,8 +406,13 @@
                 attachment: []
             },
             counts: {
-                tripDay: 1, itineraryItem: 1, flight: 1, reservation: 1,
-                expense: 1, checklistItem: 2, attachment: 0
+                tripDay: 1,
+                itineraryItem: 1,
+                flight: 1,
+                reservation: 1,
+                expense: 1,
+                checklistItem: 2,
+                attachment: 0
             },
             attachments: []
         };
