@@ -1,5 +1,6 @@
 <script lang="ts">
 	import { onMount } from 'svelte';
+	import { t } from '$lib/i18n.svelte';
 	import { RefreshCw, X } from 'lucide-svelte';
 	import Button from '$lib/components/ui/Button.svelte';
 	import { applyUpdate, needRefresh, offlineReady, registerServiceWorker } from '$lib/pwa';
@@ -27,22 +28,22 @@
 
 		<div class="flex-1 text-sm">
 			{#if $needRefresh}
-				<p class="font-medium text-ink">Update available</p>
-				<p class="text-ink-muted">Reload to get the latest version of Itinera.</p>
+				<p class="font-medium text-ink">{t('update_available')}</p>
+				<p class="text-ink-muted">{t('reload_latest_version')}</p>
 			{:else}
-				<p class="font-medium text-ink">Ready to work offline</p>
-				<p class="text-ink-muted">Itinera will keep working without a connection.</p>
+				<p class="font-medium text-ink">{t('ready_work_offline')}</p>
+				<p class="text-ink-muted">{t('working_without_connection')}</p>
 			{/if}
 		</div>
 
 		{#if $needRefresh}
-			<Button size="sm" onclick={applyUpdate}>Reload</Button>
+			<Button size="sm" onclick={applyUpdate}>{t('reload')}</Button>
 		{/if}
 
 		<button
 			type="button"
 			onclick={close}
-			aria-label="Dismiss"
+			aria-label={t('dismiss')}
 			class="-mr-1 grid size-6 shrink-0 place-items-center rounded text-ink-muted transition-colors hover:text-ink"
 		>
 			<X class="size-4" />

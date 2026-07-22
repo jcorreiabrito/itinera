@@ -1,6 +1,7 @@
 <script lang="ts">
   import { onMount } from 'svelte';
   import { listConflicts, markConflictReviewed, trips } from '$lib/db';
+  import { t } from '$lib/i18n.svelte';
   import { ArrowLeft, GitMerge, Check } from 'lucide-svelte';
   import { Badge, Button, EmptyState, Skeleton, SyncStatusPill, toast } from '$lib/components/ui';
   import { relativeTime } from '$lib/format';
@@ -103,7 +104,7 @@
     try {
       await markConflictReviewed(report.id);
       reports = reports.filter((r) => r.id !== report.id);
-      toast.success('Marked as reviewed.');
+      toast.success(t('marked_as_reviewed'));
     } catch {
       toast.error('Could not update. Try again.');
     } finally {
@@ -113,7 +114,7 @@
 </script>
 
 <svelte:head>
-  <title>Review changes – Itinera</title>
+  <title>{t('review_changes_title')}</title>
 </svelte:head>
 
 <header class="sticky top-0 z-30 border-b border-border bg-bg/85 backdrop-blur-md">
@@ -121,12 +122,12 @@
     <div class="flex items-center gap-2">
       <a
         href="/settings"
-        aria-label="Back to settings"
+        aria-label={t('settings')}
         class="grid size-9 place-items-center rounded-md text-ink-muted transition-colors hover:bg-surface-sunken hover:text-ink [&_svg]:size-5"
       >
         <ArrowLeft />
       </a>
-      <h1 class="font-serif text-xl font-semibold">Review changes</h1>
+      <h1 class="font-serif text-xl font-semibold">{t('review_changes')}</h1>
     </div>
     <SyncStatusPill />
   </div>
@@ -136,8 +137,7 @@
   <p class="flex items-start gap-2 rounded-lg border border-border bg-surface px-4 py-3 text-sm text-ink-muted [&_svg]:mt-0.5 [&_svg]:size-4 [&_svg]:shrink-0 [&_svg]:text-primary-700">
     <Check />
     <span>
-      When the same thing is edited on two devices offline, Itinera automatically keeps the most
-      recent version. The replaced versions are saved here so nothing is ever lost.
+      {t('conflicts_help_text')}
     </span>
   </p>
 
@@ -149,8 +149,8 @@
   {:else if reports.length === 0}
     <EmptyState
       icon={GitMerge}
-      title="No conflicts – everything's in sync."
-      description="If two devices ever disagree after editing offline, the replaced versions will show up here for you to review."
+      title={t('no_conflicts_title')}
+      description={t('no_conflicts_desc')}
     />
   {:else}
     <ul class="space-y-4">
@@ -168,7 +168,7 @@
                 <p class="mt-1 text-xs text-ink-muted">{context}</p>
               {/if}
               <p class="mt-1.5 text-sm text-ink">
-                Kept the version saved {relativeTime(report.winner.updatedAt) || 'most recently'}.
+                {t('kept_version_saved', { time: relativeTime(report.winner.updatedAt) || t('most_recently') })}
               </p>
             </div>
             <Button
@@ -177,7 +177,7 @@
               onclick={() => dismiss(report)}
               disabled={busy === report.id}
             >
-              {busy === report.id ? 'Saving…' : 'Mark reviewed'}
+              {busy === report.id ? t('saving') : t('mark_reviewed')}
             </Button>
           </div>
 
@@ -185,12 +185,12 @@
             {#each report.losers as loser (loser._rev)}
               {@const fields = changedFields(report.winner, loser)}
               <div class="text-xs text-ink-muted">
-                <span class="font-medium text-ink">Set aside</span>
-                · edited {relativeTime(loser.updatedAt) || 'at an unknown time'}
+                <span class="font-medium text-ink">{t('set_aside')}</span>
+                · {t('edited_at', { time: relativeTime(loser.updatedAt) || '' })}
                 {#if fields.length}
-                  · differs in <span class="text-ink">{fields.join(', ')}</span>
+                  · {t('differs_in', { fields: fields.join(', ') })}
                 {:else}
-                  · identical content
+                  · {t('identical_content')}
                 {/if}
               </div>
             {/each}

@@ -1,6 +1,7 @@
 <script lang="ts">
   import { onMount } from 'svelte';
   import { trash } from '$lib/db';
+  import { t } from '$lib/i18n.svelte';
   import { ArrowLeft, RotateCcw, Trash2 } from 'lucide-svelte';
   import {
     Badge,
@@ -46,21 +47,22 @@
   });
 
   const TYPE_LABELS: Record<string, string> = {
-    trip: 'Trips',
-    tripDay: 'Itinerary days',
-    itineraryItem: 'Itinerary items',
-    checklistItem: 'Checklist items',
-    checklistTemplate: 'Checklist templates',
-    flight: 'Flight bookings',
-    reservation: 'Reservations',
-    expense: 'Expenses',
-    attachment: 'Attachments'
+    trip: 'trips',
+    tripDay: 'itinerary',
+    itineraryItem: 'itinerary',
+    checklistItem: 'checklist',
+    checklistTemplate: 'checklist_templates',
+    flight: 'flights',
+    reservation: 'reservations',
+    expense: 'costs',
+    attachment: 'attachments'
   };
 
   const TYPE_ORDER = Object.keys(TYPE_LABELS);
 
   function groupLabel(type: string): string {
-    return TYPE_LABELS[type ?? ''] ?? 'Other';
+    const key = TYPE_LABELS[type ?? ''];
+    return key ? t(key) : 'Other';
   }
 
   const groups = $derived.by(() => {
@@ -88,7 +90,7 @@
     working = true;
     try {
       await trash.restoreMany(ids);
-      toast.success(ids.length === 1 ? 'Restored.' : `Restored ${ids.length} items.`);
+      toast.success(ids.length === 1 ? t('restored_single') : t('restored_plural', { n: String(ids.length) }));
       selected = {};
       await load();
     } catch {
@@ -110,10 +112,10 @@
     try {
       if (kind === 'all') {
         const n = await trash.empty();
-        toast.success(n ? `Permanently deleted ${n} items.` : 'Trash is already empty.');
+        toast.success(n ? t('deleted_permanently_plural', { n: String(n) }) : t('trash_already_empty'));
       } else {
         await trash.purgeMany(ids);
-        toast.success(ids.length === 1 ? 'Permanently deleted.' : `Permanently deleted ${ids.length} items.`);
+        toast.success(ids.length === 1 ? t('deleted_permanently_single') : t('deleted_permanently_plural', { n: String(ids.length) }));
       }
       selected = {};
       await load();
@@ -126,15 +128,15 @@
 
   const confirmTitle = $derived(
     confirm?.kind === 'all'
-      ? 'Empty Trash'
+      ? t('empty_trash')
       : confirm?.kind === 'many'
-        ? `Delete ${confirm.ids.length} items forever?`
-        : 'Delete forever?'
+        ? t('delete_many_forever_title', { n: String(confirm.ids.length) })
+        : t('delete_forever_confirm_title')
   );
 </script>
 
 <svelte:head>
-  <title>Trash – Itinera</title>
+  <title>{t('trash_title')}</title>
 </svelte:head>
 
 <header class="sticky top-0 z-30 border-b border-border bg-bg/85 backdrop-blur-md">
@@ -142,12 +144,12 @@
     <div class="flex items-center gap-2">
       <a
         href="/settings"
-        aria-label="Back to settings"
+        aria-label={t('settings')}
         class="grid size-9 place-items-center rounded-md text-ink-muted transition-colors hover:bg-surface-sunken hover:text-ink [&_svg]:size-5"
       >
         <ArrowLeft />
       </a>
-      <h1 class="font-serif text-xl font-semibold">Trash</h1>
+      <h1 class="font-serif text-xl font-semibold">{t('trash')}</h1>
     </div>
     <SyncStatusPill />
   </div>
@@ -156,8 +158,7 @@
 <main class="mx-auto w-full max-w-3xl flex-1 px-4 pb-28 pt-6 sm:px-6 lg:pb-12">
   <div class="mb-5 flex flex-wrap items-center justify-between gap-3">
     <p class="text-sm text-ink-muted">
-      Deleted items wait here. Restore them, or purge to remove permanently. Purging syncs to all
-      your devices.
+      {t('trash_help_text')}
     </p>
     {#if entries.length > 0}
       <Button
@@ -167,7 +168,7 @@
         onclick={() => askPurge('all', entries.map((e) => e.id))}
         disabled={working}
       >
-        <Trash2 class="size-4" /> Empty Trash
+        <Trash2 class="size-4" /> {t('empty_trash')}
       </Button>
     {/if}
   </div>
@@ -181,8 +182,8 @@
   {:else if entries.length === 0}
     <EmptyState
       icon={Trash2}
-      title="Trash is empty."
-      description="When you delete a trip or items, it lands here so you can undo. Nothing's waiting right now."
+      title={t('trash_is_empty')}
+      description={t('trash_empty_desc')}
     />
   {:else}
     <div class="space-y-6">
@@ -198,18 +199,18 @@
                 <Checkbox
                   class="min-w-0 flex-1"
                   label={entry.label}
-                  description={entry.deletedAt ? `Deleted ${relativeTime(entry.deletedAt)}` : 'Deleted'}
+                  description={entry.deletedAt ? `${t('delete')} ${relativeTime(entry.deletedAt)}` : t('delete')}
                   checked={selected[entry.id]}
                   onchange={(e) => toggle(entry.id, e.currentTarget.checked)}
                 />
                 <Button variant="ghost" size="sm" onclick={() => restore([entry.id])} disabled={working}>
-                  <RotateCcw class="size-4" /> Restore
+                  <RotateCcw class="size-4" /> {t('restore')}
                 </Button>
                 <Button
                   type="button"
                   onclick={() => askPurge('one', [entry.id], entry.label)}
                   disabled={working}
-                  aria-label="Delete {entry.label} forever"
+                  aria-label={`${t('delete')} ${entry.label}`}
                 >
                   <Trash2 class="size-9 shrink-0 place-items-center rounded-md text-ink-muted transition-colors hover:bg-danger/10 hover:text-darker disabled:opacity-40 [&_svg]:size-4" />
                 </Button>
@@ -225,10 +226,10 @@
     <!-- Sticky selection action bar -->
     <div class="pb-safe fixed inset-x-0 bottom-0 z-40 border-t border-border bg-surface/95 backdrop-blur-md">
       <div class="mx-auto flex max-w-3xl items-center justify-between gap-3 px-4 py-3 sm:px-6">
-        <span class="text-sm font-medium text-ink">{selectedCount} selected</span>
+        <span class="text-sm font-medium text-ink">{t('selected_count', { n: String(selectedCount) })}</span>
         <div class="flex items-center gap-2">
           <Button variant="secondary" size="sm" onclick={() => restore(selectedIds)} disabled={working}>
-            <RotateCcw class="size-4" /> Restore
+            <RotateCcw class="size-4" /> {t('restore')}
           </Button>
           <Button
             variant="destructive"
@@ -236,7 +237,7 @@
             onclick={() => askPurge('many', selectedIds)}
             disabled={working}
           >
-            <Trash2 class="size-4" /> Delete forever
+            <Trash2 class="size-4" /> {t('delete_forever')}
           </Button>
         </div>
       </div>
@@ -246,17 +247,17 @@
   <Dialog
     open={confirm != null}
     title={confirmTitle}
-    description="This permanently removes the data and can't be undone."
+    description={t('delete_permanently_warning')}
     onclose={() => (confirm = null)}
   >
     {#if confirm?.kind === 'one' && confirm.label}
-      <p class="text-sm text-ink-muted">"{confirm.label}" will be gone for good.</p>
+      <p class="text-sm text-ink-muted">{t('item_gone_for_good', { label: confirm.label })}</p>
     {:else}
-      <p class="text-sm text-ink-muted">The selected items will be gone for good on every device.</p>
+      <p class="text-sm text-ink-muted">{t('items_gone_for_good')}</p>
     {/if}
     {#snippet footer()}
-      <Button variant="ghost" onclick={() => (confirm = null)}>Cancel</Button>
-      <Button variant="destructive" onclick={doPurge}>Delete forever</Button>
+      <Button variant="ghost" onclick={() => (confirm = null)}>{t('cancel')}</Button>
+      <Button variant="destructive" onclick={doPurge}>{t('delete_forever')}</Button>
     {/snippet}
   </Dialog>
 </main>

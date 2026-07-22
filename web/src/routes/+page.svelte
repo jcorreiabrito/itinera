@@ -29,7 +29,7 @@
     try {
       sectionsData = await trips.sections();
     } catch {
-      toast.error('Could not load your trips.');
+      toast.error(t('could_not_load_trips'));
     } finally {
       loading = false;
     }
@@ -122,7 +122,7 @@
   }
 
   function onDuplicated(trip: Trip) {
-    toast.success('Trip duplicated.');
+    toast.success(t('trip_duplicated'));
     goto(`/trip/${bareTripUid(trip._id)}/overview`);
   }
 
@@ -131,7 +131,7 @@
       await trips.archive(bareTripUid(trip._id));
       reload();
     } catch {
-      toast.error('Could not archive the trip.');
+      toast.error(t('could_not_archive_trip'));
     }
   }
 
@@ -140,7 +140,7 @@
       await trips.unarchive(bareTripUid(trip._id));
       reload();
     } catch {
-      toast.error('Could not unarchive the trip.');
+      toast.error(t('could_not_unarchive_trip'));
     }
   }
 
@@ -149,7 +149,7 @@
       await trips.setStage(bareTripUid(trip._id), stage);
       reload();
     } catch {
-      toast.error('Could not change trip stage.');
+      toast.error(t('could_not_change_stage'));
     }
   }
 
@@ -163,22 +163,22 @@
     const id = bareTripUid(deleteTrip._id);
     try {
       await trips.softDelete(id);
-      toast.success('Trip moved to Trash.', {
+      toast.success(t('trip_moved_to_trash'), {
         action: {
-          label: 'Undo',
+          label: t('undo'),
           onClick: async () => {
             try {
               await trips.restore(id);
               reload();
             } catch {
-              toast.error('Could not undo. Try restoring from Trash.');
+              toast.error(t('could_not_undo'));
             }
           }
         }
       });
       reload();
     } catch {
-      toast.error('Could not delete the trip.');
+      toast.error(t('could_not_delete_trip'));
     } finally {
       deleteOpen = false;
       deleteTrip = null;

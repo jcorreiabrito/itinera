@@ -13,7 +13,12 @@ describe('deriveStatus', () => {
     destinations: [],
     archived: false,
     stage: 'confirmed',
-    tags: []
+    tags: [],
+    createdAt: '2026-07-01T00:00:00.000Z',
+    updatedAt: '2026-07-01T00:00:00.000Z',
+    deletedAt: null,
+    schemaVersion: 1,
+    travelerCount: 1
   };
 
   const today = '2026-07-22';
@@ -78,7 +83,7 @@ describe('deriveStatus', () => {
   it('defaults to confirmed behavior if stage is omitted', () => {
     const trip: Trip = {
       ...baseTrip,
-      stage: undefined,
+      stage: undefined as any,
       startDate: '2026-08-01',
       endDate: '2026-08-10'
     };

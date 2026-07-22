@@ -14,15 +14,18 @@
 
     let { status, class: className }: Props = $props();
 
-    const map: Record<TripStatusValue, { variant: BadgeVariant; label: string }> = {
-        Active: { variant: 'success', label: t('active_now') },
-        Upcoming: { variant: 'primary', label: t('upcoming') },
-        Past: { variant: 'neutral', label: t('past') },
-        Archived: { variant: 'neutral', label: t('archived') },
-        Planning: { variant: 'warning', label: t('planning') }
+    const map: Record<TripStatusValue, { variant: BadgeVariant; labelKey: string }> = {
+        Active: { variant: 'success', labelKey: 'active_now' },
+        Upcoming: { variant: 'primary', labelKey: 'upcoming' },
+        Past: { variant: 'neutral', labelKey: 'past' },
+        Archived: { variant: 'neutral', labelKey: 'archived' },
+        Planning: { variant: 'warning', labelKey: 'planning' }
     };
 
-    const current = $derived(map[status] ?? map.Upcoming);
+    const current = $derived({
+        variant: (map[status] ?? map.Upcoming).variant,
+        label: t((map[status] ?? map.Upcoming).labelKey)
+    });
 </script>
 
 <Badge variant={current.variant} class={className}>{current.label}</Badge>

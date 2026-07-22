@@ -1,5 +1,6 @@
 <script lang="ts">
     import { listConflicts, syncNow, syncStatus } from '$lib/db';
+    import { t } from '$lib/i18n.svelte';
     import { Check, CloudOff, GitMerge, RefreshCw, TriangleAlert, UploadCloud } from 'lucide-svelte';
     import { cn } from '$lib/utils';
     import { relativeTime } from '$lib/format';
@@ -19,15 +20,18 @@
 
     type State = 'synced' | 'syncing' | 'offline' | 'pending' | 'error';
 
-    const config: Record<State, { label: string; tone: string }> = {
-        synced: { label: 'Synced', tone: 'border-primary-100 bg-primary-100 text-success' },
-        syncing: { label: 'Syncing...', tone: 'border-info/20 bg-info/10 text-info' },
-        pending: { label: 'Pending', tone: 'border-warning/20 bg-warning/10 text-warning' },
-        offline: { label: 'Offline', tone: 'border-border bg-surface-sunken text-ink-muted' },
-        error: { label: 'Sync error', tone: 'border-danger/20 bg-danger/10 text-danger' },
+    const config: Record<State, { labelKey: string; tone: string }> = {
+        synced: { labelKey: 'synced', tone: 'border-primary-100 bg-primary-100 text-success' },
+        syncing: { labelKey: 'syncing', tone: 'border-info/20 bg-info/10 text-info' },
+        pending: { labelKey: 'pending', tone: 'border-warning/20 bg-warning/10 text-warning' },
+        offline: { labelKey: 'offline', tone: 'border-border bg-surface-sunken text-ink-muted' },
+        error: { labelKey: 'sync_error', tone: 'border-danger/20 bg-danger/10 text-danger' },
     };
 
-    const current = $derived(config[$syncStatus.state]);
+    const current = $derived({
+        tone: config[$syncStatus.state]?.tone ?? config.offline.tone,
+        label: t(config[$syncStatus.state]?.labelKey ?? 'offline')
+    });
 
     async function refreshConflicts() {
         try {
@@ -56,14 +60,14 @@
     }
 </script>
 
-<Popover bind:open align="end" label="Sync status and options" class={className}>
+<Popover bind:open align="end" label={t('sync_status_options')} class={className}>
     {#snippet trigger({ toggle, open: isOpen })}
         <button
             type="button"
             onclick={toggle}
             aria-haspopup="true"
             aria-expanded={isOpen}
-            aria-label="Sync status: {$syncStatus.state}. Show details."
+            aria-label={`${current.label}.`}
             class="relative inline-flex items-center gap-1.5 rounded-full glass-panel px-2.5 py-1 text-xs font-medium transition-colors hover:brightness-90 focus:visible:outline-none focus:visible:ring-2 focus:visible:ring-primary-600 focus:visible:ring-offset-2 focus:visible:ring-offset-bg"
         >
             {#if $syncStatus.state === 'synced'}
@@ -88,15 +92,15 @@
         <div class="flex items-center justify-between gap-2 px-1">
             <span class="text-sm font-semibold text-ink">{current.label}</span>
             {#if $syncStatus.pendingChanges}
-                <span class="text-xs text-warning">Unsynced changes</span>
+                <span class="text-xs text-warning">{t('unsynced_changes')}</span>
             {/if}
         </div>
 
         <p class="mt-0.5 px-1 text-xs text-ink-muted">
             {#if $syncStatus.lastSyncedAt}
-                Last synced {relativeTime($syncStatus.lastSyncedAt)}
+                {t('last_synced', { time: relativeTime($syncStatus.lastSyncedAt) })}
             {:else}
-                Not yet synced
+                {t('not_yet_synced')}
             {/if}
         </p>
 
@@ -115,7 +119,7 @@
                 disabled={syncing || $syncStatus.state === 'syncing'}
             >
                 <RefreshCw class={cn('size-4', (syncing || $syncStatus.state === 'syncing') && 'animate-spin')} />
-                {syncing || $syncStatus.state === 'syncing' ? 'Syncing...' : 'Sync now'}
+                {syncing || $syncStatus.state === 'syncing' ? t('syncing') : t('sync_now')}
             </Button>
         </div>
 
@@ -128,7 +132,7 @@
                         class="flex items-center justify-between gap-2 rounded-md px-1.5 py-1.5 text-xs font-medium text-ink transition-colors hover:bg-surface-sunken"
                     >
                         <span class="flex items-center gap-1.5">
-                            <GitMerge class="size-3.5 text-primary-700" /> Review changes
+                            <GitMerge class="size-3.5 text-primary-700" /> {t('review_changes')}
                         </span>
                         <span
                             class="rounded-full bg-primary-100 px-1.5 py-0.5 text-[0.7rem] font-semibold text-primary-700"
@@ -138,12 +142,12 @@
                     </a>
                 {:else}
                     <p class="flex items-center gap-1.5 text-xs text-ink-muted">
-                        <GitMerge class="size-3.5" /> No conflicts – everything converged.
+                        <GitMerge class="size-3.5" /> {t('no_conflicts')}
                     </p>
                 {/if}
             {:else}
                 <p class="flex items-center gap-1.5 text-xs text-ink-muted">
-                    <RefreshCw class="size-3.5 animate-spin" /> Checking conflicts...
+                    <RefreshCw class="size-3.5 animate-spin" /> {t('checking_conflicts')}
                 </p>
             {/if}
         </div>

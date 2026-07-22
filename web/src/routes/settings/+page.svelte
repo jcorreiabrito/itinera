@@ -342,18 +342,18 @@
         class="mt-4 flex items-start gap-2 rounded-md bg-surface-sunken px-3 py-2.5 text-sm text-ink-muted [&_svg]:mt-0.5 [&_svg]:size-4 [&_svg]:shrink-0"
       >
         <WifiOff />
-        <span>You're online – these run on your home server.</span>
+        <span>{t('online_server_hint')}</span>
       </div>
     {/if}
 
     <div class="mt-4 flex flex-wrap gap-2">
       <Button variant="secondary" onclick={exportAll} disabled={!online || exporting}>
         <Download class="size-4" />
-        {exporting ? 'Exporting…' : t('export_everything')}
+        {exporting ? t('exporting') : t('export_everything')}
       </Button>
       <Button variant="secondary" onclick={backupNow} disabled={!online || backingUp}>
         <Database class="size-4" />
-        {backingUp ? 'Backing up…' : t('backup_now')}
+        {backingUp ? t('backing_up') : t('backup_now')}
       </Button>
     </div>
 
@@ -372,12 +372,12 @@
         {/if}
       </div>
       {#if !online}
-        <p class="mt-2 text-sm text-ink-muted">Connect to see your server backups.</p>
+        <p class="mt-2 text-sm text-ink-muted">{t('connect_see_backups')}</p>
       {:else if loadingBackups && !backupsLoaded}
-        <p class="mt-2 text-sm text-ink-muted">Loading…</p>
+        <p class="mt-2 text-sm text-ink-muted">{t('syncing')}</p>
       {:else if backups.length === 0}
         <p class="mt-2 text-sm text-ink-muted">
-          No backups yet – run "Back up now" to create your first.
+          {t('no_backups_yet')}
         </p>
       {:else}
         <ul class="mt-2 divide-y divide-border rounded-md border border-border">
@@ -388,7 +388,7 @@
                   {b.createdAt ? relativeTime(b.createdAt) : b.name}
                 </p>
                 <p class="truncate text-xs text-ink-muted">
-                  {b.docCount ?? 0} records · {formatBytes(b.sizeBytes ?? null)}
+                  {t('records_count', { n: String(b.docCount ?? 0) })} · {formatBytes(b.sizeBytes ?? null)}
                 </p>
               </div>
               <span class="shrink-0 font-mono text-[0.7rem] text-ink-muted">{b.name}</span>
@@ -405,12 +405,12 @@
       <h2 class="text-base font-semibold">{t('storage_durability')}</h2>
     </div>
     <p class="mt-1 text-sm text-ink-muted">
-      Itinera keeps everything on this device so it works offline.
+      {t('storage_device_desc')}
     </p>
 
     <div class="mt-4">
       <div class="flex items-center justify-between text-sm">
-        <span class="flex text-ink-muted">On this device</span>
+        <span class="flex text-ink-muted">{t('on_this_device')}</span>
         <span class="font-mono text-xs text-ink-muted">
           {formatBytes(usage)} / {formatBytes(quota)}
         </span>
@@ -425,13 +425,13 @@
     <div class="mt-4 flex items-center gap-2">
       {#if persisted}
         <Badge variant="primary">
-          <ShieldCheck class="size-3" /> Persistent storage on
+          <ShieldCheck class="size-3" /> {t('persistent_storage_on')}
         </Badge>
-        <span class="text-xs text-ink-muted">The browser won't evict your data.</span>
+        <span class="text-xs text-ink-muted">{t('browser_wont_evict')}</span>
       {:else}
         <Button variant="secondary" size="sm" onclick={makePersistent} disabled={persisting}>
           <ShieldCheck class="size-4" />
-          {persisting ? 'Requesting…' : t('persistent_storage')}
+          {persisting ? t('requesting') : t('persistent_storage')}
         </Button>
       {/if}
     </div>
@@ -445,8 +445,8 @@
     >
       <GitMerge class="text-primary-700" />
       <span class="min-w-0 flex-1">
-        <span class="block font-medium text-ink">Review changes</span>
-        <span class="block text-sm text-ink-muted">See versions kept after offline edits.</span>
+        <span class="block font-medium text-ink">{t('review_changes')}</span>
+        <span class="block text-sm text-ink-muted">{t('review_changes_desc')}</span>
       </span>
     </a>
     <a
@@ -455,55 +455,54 @@
     >
       <Trash2 class="text-ink-muted" />
       <span class="min-w-0 flex-1">
-        <span class="block font-medium text-ink">Trash</span>
-        <span class="block text-sm text-ink-muted">Restore deleted trips and items, or purge them.</span>
+        <span class="block font-medium text-ink">{t('trash')}</span>
+        <span class="block text-sm text-ink-muted">{t('trash_desc')}</span>
       </span>
     </a>
   </section>
 
   <section class="mt-4 rounded-lg border border-border bg-surface p-5">
-    <h2 class="text-base font-semibold">Checklist templates</h2>
+    <h2 class="text-base font-semibold">{t('checklist_templates')}</h2>
     <p class="mt-1 text-sm text-ink-muted">
-      Reusable packing lists, to-do lists. The default is offered when you create a new trip. Save a
-      template from any trip's checklist.
+      {t('checklist_templates_desc')}
     </p>
 
     {#if templates.length === 0}
       <p class="mt-4 text-sm text-ink-muted">
-        No templates yet – open a trip's checklist and choose "Save as template".
+        {t('no_templates_yet')}
       </p>
     {:else}
       <ul class="mt-4 divide-y divide-border">
-        {#each templates as t (t._id)}
+        {#each templates as tItem (tItem._id)}
           <li class="flex items-center gap-3 py-2.5">
             <div class="min-w-0 flex-1">
               <div class="flex flex-wrap items-center gap-2">
-                <span class="truncate font-medium text-ink">{t.name ?? '(untitled)'}</span>
-                {#if t.isDefault}
-                  <Badge variant="primary">Default</Badge>
+                <span class="truncate font-medium text-ink">{tItem.name ?? '(untitled)'}</span>
+                {#if tItem.isDefault}
+                  <Badge variant="primary">{t('default')}</Badge>
                 {/if}
               </div>
               <p class="text-xs text-ink-muted">
-                {t.items?.length ?? 0} item{t.items?.length !== 1 ? 's' : ''}
+                {tItem.items?.length === 1 ? t('items_count', { n: '1' }) : t('items_count_plural', { n: String(tItem.items?.length ?? 0) })}
               </p>
             </div>
-            {#if !t.isDefault}
-              <Button variant="ghost" size="sm" onclick={() => setDefaultTemplate(t._id)}>
-                <Star class="size-3.5" /> Set default
+            {#if !tItem.isDefault}
+              <Button variant="ghost" size="sm" onclick={() => setDefaultTemplate(tItem._id)}>
+                <Star class="size-3.5" /> {t('set_default')}
               </Button>
             {/if}
             <button
               type="button"
-              onclick={() => openRename(t)}
-              aria-label={`Rename ${t.name ?? 'template'}`}
+              onclick={() => openRename(tItem)}
+              aria-label={`${t('rename_template')} ${tItem.name ?? ''}`}
               class="grid size-9 place-items-center rounded-md text-ink-muted transition-colors hover:bg-surface-sunken hover:text-ink [&_svg]:size-4"
             >
               <Pencil />
             </button>
             <button
               type="button"
-              onclick={() => removeTemplate(t)}
-              aria-label={`Delete ${t.name ?? 'template'}`}
+              onclick={() => removeTemplate(tItem)}
+              aria-label={`${t('delete')} ${tItem.name ?? ''}`}
               class="grid size-9 place-items-center rounded-md text-ink-muted transition-colors hover:bg-danger/10 hover:text-danger [&_svg]:size-4"
             >
               <Trash2 />
@@ -515,8 +514,8 @@
   </section>
 </main>
 
-<Dialog bind:open={renameOpen} title="Rename template">
-  <Field label="Template name" for="rename-template">
+<Dialog bind:open={renameOpen} title={t('rename_template')}>
+  <Field label={t('template_name')} for="rename-template">
     <Input
       id="rename-template"
       value={renameName}
@@ -526,10 +525,10 @@
   </Field>
   {#snippet footer()}
     <Button variant="ghost" onclick={() => (renameOpen = false)} disabled={renameSaving}>
-      Cancel
+      {t('cancel')}
     </Button>
     <Button onclick={saveRename} disabled={renameSaving || !renameName.trim()}>
-      {renameSaving ? 'Saving…' : 'Save'}
+      {renameSaving ? t('saving') : t('save')}
     </Button>
   {/snippet}
 </Dialog>
