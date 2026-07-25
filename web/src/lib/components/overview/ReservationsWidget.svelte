@@ -49,8 +49,8 @@
         {/if}
         <ul class="mt-3 space-y-1.5">
             {#each shown as res (res._id)}
-                <li class="flex items-center justify-between gap-2 text-sm">
-                    <span class="truncate text-ink">{res.name ?? 'Reservation'}</span>
+                <li class="flex min-w-0 items-center justify-between gap-2 text-sm">
+                    <span class="min-w-0 flex-1 truncate text-ink">{res.name ?? 'Reservation'}</span>
                     <span class="shrink-0 text-xs text-ink-muted">
                         {res.start ? formatDate(res.start) : ''}
                     </span>

@@ -146,7 +146,7 @@
     <!-- Content column -->
     <div class="flex min-h-dvh flex-col lg:pl-60">
       <header
-        class="sticky top-0 z-30 flex h-16 items-center justify-between gap-3 border-b border-border bg-bg/85 px-4 backdrop-blur-md sm:px-6"
+        class="pt-safe sticky top-0 z-30 flex min-h-[4rem] py-2 items-center justify-between gap-3 border-b border-border bg-bg/85 px-4 backdrop-blur-md sm:px-6"
       >
         <div class="flex min-w-0 items-center gap-2">
           <a
@@ -165,7 +165,7 @@
           {/if}
         </div>
 
-        <div class="flex items-center gap-1.5">
+        <div class="flex items-center gap-1.5 shrink-0">
           <SyncStatusPill />
           <button
             type="button"

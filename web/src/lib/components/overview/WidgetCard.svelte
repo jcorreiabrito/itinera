@@ -27,15 +27,15 @@
 
 <section
     aria-labelledby={headingId}
-    class={cn('rounded-lg border border-border bg-surface p-4 sm:p-5', className)}
+    class={cn('min-w-0 overflow-hidden rounded-lg border border-border bg-surface p-4 sm:p-5', className)}
 >
     <div class="mb-3 flex items-center justify-between gap-2">
         <h2
             id={headingId}
-            class="flex items-center gap-2 text-sm font-semibold text-ink-muted [&_svg]:size-4"
+            class="flex min-w-0 items-center gap-2 truncate text-sm font-semibold text-ink-muted [&_svg]:size-4"
         >
             {#if icon}{@const Icon = icon}<Icon />{/if}
-            {title}
+            <span class="truncate">{title}</span>
         </h2>
         {#if href}
             <a

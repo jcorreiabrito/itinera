@@ -27,13 +27,13 @@
             {#each shown as flight, i (flight._id)}
                 <li
                     class={cn(
-                        'flex items-center justify-between gap-2 rounded-md px-2 py-1.5',
+                        'flex min-w-0 items-center justify-between gap-2 rounded-md px-2 py-1.5',
                         i === nextIndex && 'bg-primary-100/60'
                     )}
                 >
-                    <span class="flex items-center gap-2 text-sm font-medium text-ink">
+                    <span class="flex min-w-0 flex-1 items-center gap-2 text-sm font-medium text-ink truncate">
                         <Plane class="size-3.5 shrink-0 text-primary-700" />
-                        {flightsRepo.route(flight) || 'Flight'}
+                        <span class="truncate">{flightsRepo.route(flight) || 'Flight'}</span>
                     </span>
                     <span class="shrink-0 text-xs text-ink-muted">
                         {formatDate(flight.segments?.[0]?.departLocal ?? null)}{#if i === nextIndex} · Next{/if}

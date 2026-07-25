@@ -23,7 +23,7 @@
   }
 </script>
 
-<Card class="flex flex-col p-4 glass-panel">
+<Card class="min-w-0 overflow-hidden flex flex-col p-4 glass-panel">
   <div class="mb-3 flex items-center justify-between">
     <div class="flex items-center gap-2">
       <span class="grid size-7 place-items-center rounded-md bg-primary-100 text-primary-700">
@@ -64,7 +64,7 @@
 
           <div class="flex-1 min-w-0 rounded-lg border border-border/60 bg-surface p-2.5">
             <div class="flex items-center justify-between gap-2">
-              <span class="font-medium text-ink truncate">
+              <span class="min-w-0 flex-1 truncate font-medium text-ink">
                 {#if flag}<span aria-hidden="true">{flag}</span>{/if}
                 {dest.name}
               </span>

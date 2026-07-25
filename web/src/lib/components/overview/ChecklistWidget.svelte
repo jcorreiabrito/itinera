@@ -24,9 +24,9 @@
         {#if top.length}
             <ul class="mt-3 space-y-1.5">
                 {#each top as item (item._id)}
-                    <li class="flex items-center gap-2 text-sm text-ink-muted">
+                    <li class="flex min-w-0 items-center gap-2 text-sm text-ink-muted">
                         <Circle class="size-3.5 shrink-0" />
-                        <span class="truncate">{item.text ?? 'Untitled'}</span>
+                        <span class="min-w-0 flex-1 truncate">{item.text ?? 'Untitled'}</span>
                     </li>
                 {/each}
             </ul>

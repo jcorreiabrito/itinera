@@ -22,24 +22,24 @@
 <WidgetCard title="Next up" icon={CalendarClock} {href} linkLabel="Itinerary">
     {#if nextUp}
         {@const Icon = Icons[nextUp.kind]}
-        <div class="flex items-start gap-3">
+        <div class="flex min-w-0 items-start gap-3">
             <div
                 class="grid size-9 shrink-0 place-items-center rounded-full bg-primary-100 text-primary-700 [&_svg]:size-4"
                 aria-hidden="true"
             >
                 <Icon />
             </div>
-            <div class="min-w-0">
+            <div class="min-w-0 flex-1">
                 <p class="truncate font-medium text-ink">{nextUp.title}</p>
-                <p class="text-sm text-ink-muted">
+                <p class="truncate text-sm text-ink-muted">
                     {relativeTime(nextUp.whenIso)} · {formatWeekdayDate(nextUp.date)}{#if formatTime(nextUp.whenIso)}
                         {formatTime(nextUp.whenIso)}
                     {/if}
                 </p>
                 {#if nextUp.location}
-                    <p class="mt-0.5 flex items-center gap-1 text-sm text-ink-muted">
+                    <p class="mt-0.5 flex min-w-0 items-center gap-1 text-sm text-ink-muted">
                         <MapPin class="size-3.5 shrink-0" />
-                        <span class="truncate">{nextUp.location}</span>
+                        <span class="min-w-0 flex-1 truncate">{nextUp.location}</span>
                     </p>
                 {/if}
             </div>

@@ -65,7 +65,7 @@
 
     const sideClasses: Record<SheetSide, string> = {
         bottom: 'm-auto mb-0 mt-auto w-full max-w-2xl rounded-t-xl rounded-b-none',
-        right: 'my-auto ml-auto mr-0 h-[100dvh] max-h-[100dvh] w-[min(92vw,28rem)] rounded-l-xl rounded-r-none'
+        right: 'my-auto ml-auto mr-0 h-[100dvh] max-h-[100dvh] w-full sm:w-[28rem] rounded-none sm:rounded-l-xl'
     };
 
     const openAnimation: Record<SheetSide, string> = {

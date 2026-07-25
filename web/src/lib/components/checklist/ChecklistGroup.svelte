@@ -101,7 +101,7 @@
     const panelId = $derived(`group-panel-${group.group.replace(/\s+/g, '-')}`);
 </script>
 
-<section class="overflow-hidden rounded-lg border border-border bg-surface">
+<section class="rounded-lg border border-border bg-surface">
     <div class="flex items-center gap-2 px-2 pr-3">
         <button
             type="button"

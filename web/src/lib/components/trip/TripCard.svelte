@@ -112,9 +112,9 @@
     });
 </script>
 
-<div bind:this={cardEl}>
+<div bind:this={cardEl} class="min-w-0">
 <Card
-    class="group relative flex flex-col glass-panel hover-lift animate-slide-up {trip.stage === 'planning' ? 'border-dashed border-amber-400/50 dark:border-amber-500/30 ring-1 ring-inset ring-amber-400/20' : ''}"
+    class="group relative flex flex-col min-w-0 overflow-hidden glass-panel hover-lift animate-slide-up {trip.stage === 'planning' ? 'border-dashed border-amber-400/50 dark:border-amber-500/30 ring-1 ring-inset ring-amber-400/20' : ''}"
     style="animation-delay: {animationDelay}ms"
 >
     <div class="relative aspect-[3/2] w-full overflow-hidden rounded-t-lg">

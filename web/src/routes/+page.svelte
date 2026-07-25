@@ -191,7 +191,7 @@
   <meta name="description" content="Plan and organize your trips, fully offline." />
 </svelte:head>
 
-<header class="sticky top-0 z-30 glass-header animate-slide-down">
+<header class="pt-safe sticky top-0 z-30 glass-header animate-slide-down">
   <div class="mx-auto flex max-w-6xl flex-col gap-3 px-4 py-3 sm:px-6">
     <div class="flex items-center justify-between gap-3">
       <div class="flex items-center gap-2">
@@ -217,8 +217,8 @@
       </div>
     </div>
 
-    <div class="flex items-center justify-between gap-4">
-      <div class="relative w-full max-w-sm">
+    <div class="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+      <div class="relative w-full sm:max-w-sm">
         <Search class="pointer-events-none absolute left-3 top-1/2 size-4 -translate-y-1/2 text-ink-muted" />
         <input
           type="search"
@@ -230,21 +230,21 @@
         />
       </div>
 
-      <div class="flex items-center gap-1 rounded-md bg-surface p-1 shadow-sm border border-border">
+      <div class="flex w-full items-center justify-center gap-1 rounded-md bg-surface p-1 shadow-sm border border-border sm:w-auto">
         <button
-          class="rounded px-3 py-1 text-sm font-medium transition-colors {filterTab === 'all' ? 'bg-primary-100 text-primary-700' : 'text-ink-muted hover:text-ink'}"
+          class="flex-1 sm:flex-initial rounded px-3 py-1.5 text-center text-sm font-medium transition-colors {filterTab === 'all' ? 'bg-primary-100 text-primary-700' : 'text-ink-muted hover:text-ink'}"
           onclick={() => filterTab = 'all'}
         >
           {t('filter_all')}
         </button>
         <button
-          class="rounded px-3 py-1 text-sm font-medium transition-colors {filterTab === 'confirmed' ? 'bg-primary-100 text-primary-700' : 'text-ink-muted hover:text-ink'}"
+          class="flex-1 sm:flex-initial rounded px-3 py-1.5 text-center text-sm font-medium transition-colors {filterTab === 'confirmed' ? 'bg-primary-100 text-primary-700' : 'text-ink-muted hover:text-ink'}"
           onclick={() => filterTab = 'confirmed'}
         >
           {t('filter_confirmed')}
         </button>
         <button
-          class="rounded px-3 py-1 text-sm font-medium transition-colors {filterTab === 'planning' ? 'bg-primary-100 text-primary-700' : 'text-ink-muted hover:text-ink'}"
+          class="flex-1 sm:flex-initial rounded px-3 py-1.5 text-center text-sm font-medium transition-colors {filterTab === 'planning' ? 'bg-primary-100 text-primary-700' : 'text-ink-muted hover:text-ink'}"
           onclick={() => filterTab = 'planning'}
         >
           {t('filter_planning')}

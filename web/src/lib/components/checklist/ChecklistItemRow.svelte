@@ -141,7 +141,7 @@
             {/if}
         </div>
 
-        <Popover bind:open={menuOpen} label="Item actions">
+        <Popover bind:open={menuOpen} label="Item actions" align="end">
             {#snippet trigger({ toggle, open })}
                 <button
                     type="button"

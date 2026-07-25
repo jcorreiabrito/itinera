@@ -33,13 +33,13 @@
             </span>
         </div>
 
-        <h1 class="mt-2 font-serif text-2xl font-semibold drop-shadow-sm sm:text-3xl text-white">{title}</h1>
+        <h1 class="mt-2 min-w-0 truncate font-serif text-2xl font-semibold drop-shadow-sm sm:text-3xl text-white">{title}</h1>
 
         {#if destLabel}
-            <p class="mt-1 text-sm text-white/90">{destLabel}</p>
+            <p class="mt-1 min-w-0 truncate text-sm text-white/90">{destLabel}</p>
         {/if}
 
-        <p class="mt-1 text-sm text-white/80">
+        <p class="mt-1 min-w-0 truncate text-sm text-white/80">
             {formatDateRange(trip.startDate, trip.endDate)}
             <span class="text-white/60">·</span>
             {formatNights(trip.derived.nights)}

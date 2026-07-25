@@ -129,12 +129,12 @@
   <ErrorState title="Couldn't load this trip" onretry={retry} />
 {:else if tripWD && budget && timeline}
   <div class="grid gap-5 md:grid-cols-2">
-    <div class="md:col-span-2">
+    <div class="min-w-0 md:col-span-2">
       <HeroWidget trip={tripWD} />
     </div>
 
     {#if (tripWD.destinations ?? []).length > 0}
-      <div class="md:col-span-2">
+      <div class="min-w-0 md:col-span-2">
         <DestinationsWidget
           destinations={tripWD.destinations ?? []}
           startDate={tripWD.startDate}
@@ -164,7 +164,7 @@
 
     <ReservationsWidget summary={resSummary} reservations={resList} href={links.reservations} />
 
-    <div class="md:col-span-2">
+    <div class="min-w-0 md:col-span-2">
       <NotesWidget notes={tripWD.notes} onedit={shell.openEditor} />
     </div>
   </div>
