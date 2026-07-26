@@ -232,17 +232,25 @@ export interface NewTemplateInput {
   isDefault?: boolean;
 }
 
+import { BUILTIN_TEMPLATES } from '../builtin-templates';
+
 /** How template items combine with an existing checklist. */
 export type ApplyTemplateMode = 'merge' | 'replace';
 
 export const templates = {
-  /** All checklist templates (trip-independent). */
-  list(): Promise<ChecklistTemplate[]> {
-    return prefixScan<ChecklistTemplate>('tpl:');
+  /** All checklist templates (both custom user templates and built-in ones). */
+  async list(): Promise<ChecklistTemplate[]> {
+    const userTemplates = await prefixScan<ChecklistTemplate>('tpl:');
+    // Exclude any user template that might conflict with builtin ids
+    const userIds = new Set(userTemplates.map((t) => t._id));
+    const builtins = BUILTIN_TEMPLATES.filter((b) => !userIds.has(b._id));
+    return [...userTemplates, ...builtins];
   },
 
-  /** Fetch one template. */
-  get(id: string): Promise<ChecklistTemplate | null> {
+  /** Fetch one template (custom or built-in). */
+  async get(id: string): Promise<ChecklistTemplate | null> {
+    const builtin = BUILTIN_TEMPLATES.find((b) => b._id === id);
+    if (builtin) return builtin;
     return getDoc<ChecklistTemplate>(id);
   },
 
@@ -269,7 +277,7 @@ export const templates = {
 
   /** Mark one template the default (clearing the flag on the others). */
   async setDefault(id: string): Promise<void> {
-    const all = await templates.list();
+    const all = await prefixScan<ChecklistTemplate>('tpl:');
     const now = nowIso();
     const updated = all
       .filter((t) => !!t.isDefault !== (t._id === id))
@@ -278,7 +286,7 @@ export const templates = {
     await settings.update({ defaultChecklistTemplateId: id });
   },
 
-  /** The default template (from the flag, falling back to settings). */
+  /** The default template (from the flag, falling back to settings or built-in default). */
   async getDefault(): Promise<ChecklistTemplate | null> {
     const all = await templates.list();
     const flagged = all.find((t) => t.isDefault);
@@ -287,7 +295,7 @@ export const templates = {
     if (cfg.defaultChecklistTemplateId) {
       return all.find((t) => t._id === cfg.defaultChecklistTemplateId) ?? null;
     }
-    return null;
+    return BUILTIN_TEMPLATES.find((b) => b.isDefault) ?? BUILTIN_TEMPLATES[0] ?? null;
   }
 };
 
