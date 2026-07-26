@@ -49,6 +49,9 @@ jobs:
           BASE_PATH: /itinera
         run: pnpm run build:pages
 
+      - name: Setup Pages
+        uses: actions/configure-pages@v5
+
       - name: Upload artifact
         uses: actions/upload-pages-artifact@v3
         with:
