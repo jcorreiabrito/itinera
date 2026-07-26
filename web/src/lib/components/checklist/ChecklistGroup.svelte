@@ -1,7 +1,21 @@
 <script lang="ts">
     import { checklist } from '$lib/db';
     import type { ChecklistItem } from '$lib/db';
-    import { CheckCheck, ChevronDown, Plus } from 'lucide-svelte';
+    import {
+        CalendarClock,
+        CheckCheck,
+        ChevronDown,
+        Coins,
+        FileText,
+        Folder,
+        Gamepad2,
+        HeartPulse,
+        Luggage,
+        Plug,
+        Plus,
+        Shirt,
+        ShoppingCart
+    } from 'lucide-svelte';
     import { Button, Input, ProgressBar, toast } from '$lib/components/ui';
     import { cn } from '$lib/utils';
     import ChecklistItemRow from './ChecklistItemRow.svelte';
@@ -25,6 +39,20 @@
 
     const fraction = $derived(group.total ? group.done / group.total : 0);
     const allDone = $derived(group.total > 0 && group.done === group.total);
+
+    const GroupIcon = $derived.by(() => {
+        const lower = group.group.toLowerCase();
+        if (lower.includes('doc')) return FileText;
+        if (lower.includes('pre-trip') || lower.includes('daily')) return CalendarClock;
+        if (lower.includes('pack')) return Luggage;
+        if (lower.includes('clot') || lower.includes('gear')) return Shirt;
+        if (lower.includes('health') || lower.includes('toil')) return HeartPulse;
+        if (lower.includes('electr') || lower.includes('cable')) return Plug;
+        if (lower.includes('money') || lower.includes('card')) return Coins;
+        if (lower.includes('enter') || lower.includes('book')) return Gamepad2;
+        if (lower.includes('buy') || lower.includes('shop')) return ShoppingCart;
+        return Folder;
+    });
 
     async function toggle(item: ChecklistItem) {
         try {
@@ -111,8 +139,9 @@
             class="flex min-h-touch flex-1 items-center gap-2.5 rounded-md px-1.5 py-2 text-left"
         >
             <ChevronDown class={cn('size-4 shrink-0 text-ink-muted transition-transform', !open && '-rotate-90')} />
+            <GroupIcon class="size-4 shrink-0 text-primary-600 dark:text-primary-400" />
             <span class="font-serif text-base font-semibold text-ink">{group.group}</span>
-            <span class="text-sm tabular-nums text-ink-muted">{group.done}/{group.total}</span>
+            <span class="text-xs font-mono text-ink-muted bg-surface-sunken px-2 py-0.5 rounded-full">{group.done}/{group.total}</span>
             <span class="ml-auto flex w-16 sm:w-24">
                 <ProgressBar
                     value={fraction}

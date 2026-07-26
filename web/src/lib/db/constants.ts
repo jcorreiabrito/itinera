@@ -88,7 +88,17 @@ export const TRIP_CHILD_TYPES = [
 export type TripChildType = (typeof TRIP_CHILD_TYPES)[number];
 
 /** Preset checklist groups (custom groups are also allowed). */
-export const CHECKLIST_PRESET_GROUPS = ['Packing', 'Documents', 'Pre-trip', 'To buy'] as const;
+export const CHECKLIST_PRESET_GROUPS = [
+  'Documents',
+  'Pre-trip',
+  'Packing',
+  'Clothes & Gear',
+  'Health & Toiletries',
+  'Electronics & Cables',
+  'Money',
+  'Entertainment',
+  'To buy'
+] as const;
 
 /**
  * Maps a reservation `kind` to the expense `category` used for its linked

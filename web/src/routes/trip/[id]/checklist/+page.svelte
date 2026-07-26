@@ -4,21 +4,46 @@
   import { checklist, trips } from '$lib/db';
   import type { ChecklistItem, Trip } from '$lib/db';
   import { eachDateInRange } from '$lib/db/datetime';
-  import {
-    CalendarDays,
-    CheckCircle2,
-    EyeOff,
-    LayoutList,
-    ListChecks,
-    MoreVertical,
-    Plus,
-    RotateCcw,
-    ShoppingCart,
-    SquarePlus,
-    Trash2,
-    Upload
-  } from 'lucide-svelte';
-  import { Button, EmptyState, ErrorState, MenuItem, Popover, ProgressBar, Skeleton, toast } from '$lib/components/ui';
+    import { BUILTIN_TEMPLATES } from '$lib/db/builtin-templates';
+    import {
+      Briefcase,
+      CalendarDays,
+      CheckCircle2,
+      Compass,
+      EyeOff,
+      LayoutList,
+      ListChecks,
+      Luggage,
+      MoreVertical,
+      Plus,
+      RotateCcw,
+      ShoppingCart,
+      Snowflake,
+      Sparkles,
+      SquarePlus,
+      Sun,
+      Trash2,
+      Upload
+    } from 'lucide-svelte';
+
+    function getTemplateIcon(iconName?: string) {
+      if (iconName === 'Sun') return Sun;
+      if (iconName === 'Snowflake') return Snowflake;
+      if (iconName === 'Compass') return Compass;
+      if (iconName === 'Briefcase') return Briefcase;
+      return Luggage;
+    }
+
+    async function quickApplyBuiltin(templateId: string) {
+      try {
+        const added = await checklist.applyTemplate(id, templateId, 'merge');
+        toast.success(`Template applied (${added} items added).`);
+        loadAll(id);
+      } catch {
+        toast.error('Could not apply template.');
+      }
+    }
+  import { Badge, Button, EmptyState, ErrorState, MenuItem, Popover, ProgressBar, Skeleton, toast } from '$lib/components/ui';
   import {
     ApplyTemplateDialog,
     ChecklistGroup,
@@ -290,13 +315,62 @@
           {/each}
         </div>
       {:else}
-        <EmptyState
-          title="Your checklist is empty"
-          description="Add items manually, or start from a reusable checklist template."
-        >
-          <Button onclick={() => handleAdd()}>Add an item</Button>
-          <Button variant="secondary" onclick={() => applyDialogOpen = true}>Apply a template</Button>
-        </EmptyState>
+        <div class="flex flex-col gap-6">
+          <div class="rounded-xl border border-border bg-surface p-6 text-center shadow-xs">
+            <div class="mx-auto grid size-12 place-items-center rounded-full bg-primary-100 dark:bg-primary-950/60 text-primary-600 dark:text-primary-400">
+              <ListChecks class="size-6" />
+            </div>
+            <h2 class="mt-3 font-serif text-xl font-semibold text-ink">Start your checklist</h2>
+            <p class="mt-1 text-sm text-ink-muted max-w-md mx-auto">
+              Choose a starter template tailored for your trip style, or add items one by one.
+            </p>
+            <div class="mt-4 flex flex-wrap items-center justify-center gap-3">
+              <Button onclick={() => handleAdd()}>
+                <Plus class="size-4" /> Add custom item
+              </Button>
+              <Button variant="secondary" onclick={() => (applyDialogOpen = true)}>
+                Browse all templates...
+              </Button>
+            </div>
+          </div>
+
+          <!-- Quick Templates Grid -->
+          <div>
+            <div class="flex items-center justify-between mb-3 px-1">
+              <h3 class="text-sm font-semibold text-ink uppercase tracking-wider">Recommended Templates</h3>
+              <span class="text-xs text-ink-muted">1-click setup</span>
+            </div>
+            <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
+              {#each BUILTIN_TEMPLATES as tpl (tpl._id)}
+                {@const IconComponent = getTemplateIcon(tpl.iconName)}
+                <div class="flex flex-col justify-between rounded-lg border border-border bg-surface p-4 transition-all hover:border-primary-500/50 hover:shadow-sm">
+                  <div>
+                    <div class="flex items-center justify-between gap-2">
+                      <div class="flex items-center gap-2">
+                        <div class="grid size-8 place-items-center rounded-md bg-surface-sunken text-primary-600 dark:text-primary-400">
+                          <IconComponent class="size-4" />
+                        </div>
+                        <h4 class="font-medium text-ink text-sm">{tpl.name}</h4>
+                      </div>
+                      {#if tpl.isDefault}
+                        <Badge variant="primary" class="text-[10px]">Popular</Badge>
+                      {/if}
+                    </div>
+                    <p class="mt-2 text-xs text-ink-muted line-clamp-2 leading-relaxed">
+                      {tpl.description}
+                    </p>
+                  </div>
+                  <div class="mt-4 pt-3 border-t border-border/50 flex items-center justify-between">
+                    <span class="text-xs text-ink-muted font-mono">{tpl.items?.length ?? 0} items</span>
+                    <Button variant="secondary" size="sm" onclick={() => quickApplyBuiltin(tpl._id!)}>
+                      Use template
+                    </Button>
+                  </div>
+                </div>
+              {/each}
+            </div>
+          </div>
+        </div>
       {/if}
     {:else if view === 'day'}
       {#if dayView.length > 0}

@@ -12,6 +12,7 @@
     Pencil,
     RefreshCw,
     ShieldCheck,
+    Sparkles,
     Star,
     Trash2,
     WifiOff
@@ -474,12 +475,18 @@
     {:else}
       <ul class="mt-4 divide-y divide-border">
         {#each templates as tItem (tItem._id)}
+          {@const isBuiltin = tItem._id.startsWith('tpl:builtin:')}
           <li class="flex items-center gap-3 py-2.5">
             <div class="min-w-0 flex-1">
               <div class="flex flex-wrap items-center gap-2">
                 <span class="truncate font-medium text-ink">{tItem.name ?? '(untitled)'}</span>
+                {#if isBuiltin}
+                  <Badge variant="primary" class="gap-1 text-[10px]">
+                    <Sparkles class="size-3" /> Built-in
+                  </Badge>
+                {/if}
                 {#if tItem.isDefault}
-                  <Badge variant="primary">{t('default')}</Badge>
+                  <Badge variant="warning" class="text-[10px]">{t('default')}</Badge>
                 {/if}
               </div>
               <p class="text-xs text-ink-muted">
@@ -491,22 +498,24 @@
                 <Star class="size-3.5" /> {t('set_default')}
               </Button>
             {/if}
-            <button
-              type="button"
-              onclick={() => openRename(tItem)}
-              aria-label={`${t('rename_template')} ${tItem.name ?? ''}`}
-              class="grid size-9 place-items-center rounded-md text-ink-muted transition-colors hover:bg-surface-sunken hover:text-ink [&_svg]:size-4"
-            >
-              <Pencil />
-            </button>
-            <button
-              type="button"
-              onclick={() => removeTemplate(tItem)}
-              aria-label={`${t('delete')} ${tItem.name ?? ''}`}
-              class="grid size-9 place-items-center rounded-md text-ink-muted transition-colors hover:bg-danger/10 hover:text-danger [&_svg]:size-4"
-            >
-              <Trash2 />
-            </button>
+            {#if !isBuiltin}
+              <button
+                type="button"
+                onclick={() => openRename(tItem)}
+                aria-label={`${t('rename_template')} ${tItem.name ?? ''}`}
+                class="grid size-9 place-items-center rounded-md text-ink-muted transition-colors hover:bg-surface-sunken hover:text-ink [&_svg]:size-4"
+              >
+                <Pencil />
+              </button>
+              <button
+                type="button"
+                onclick={() => removeTemplate(tItem)}
+                aria-label={`${t('delete')} ${tItem.name ?? ''}`}
+                class="grid size-9 place-items-center rounded-md text-ink-muted transition-colors hover:bg-danger/10 hover:text-danger [&_svg]:size-4"
+              >
+                <Trash2 />
+              </button>
+            {/if}
           </li>
         {/each}
       </ul>
