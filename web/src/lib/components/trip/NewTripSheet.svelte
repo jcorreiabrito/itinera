@@ -53,6 +53,8 @@
     let sourceId = $state('');
     let importFile = $state<File | null>(null);
     let fileInputRef = $state<HTMLInputElement | null>(null);
+    let importTab = $state<'file' | 'paste'>('file');
+    let pasteText = $state('');
 
     interface FormState {
         title: string;
@@ -95,6 +97,8 @@
         form = blankForm();
         sourceId = sources[0]?._id ?? '';
         importFile = null;
+        importTab = 'file';
+        pasteText = '';
         void loadTemplates();
     }
 
@@ -167,12 +171,40 @@
         onduplicate?.(source);
     }
 
+    // Live JSON validation for the paste tab
+    const pasteJsonError = $derived.by(() => {
+        const text = pasteText.trim();
+        if (!text) return null;
+        try {
+            JSON.parse(text);
+            return null;
+        } catch (e: any) {
+            return e?.message as string;
+        }
+    });
+
+    async function pasteFromClipboard() {
+        try {
+            const text = await navigator.clipboard.readText();
+            pasteText = text;
+        } catch {
+            // clipboard access denied – user can paste manually
+        }
+    }
+
     async function executeImport() {
-        if (!importFile) return;
         importing = true;
         try {
-            const text = await importFile.text();
-            const payload = JSON.parse(text);
+            let payload: unknown;
+            if (importTab === 'paste') {
+                const text = pasteText.trim();
+                if (!text) throw new Error(t('import_invalid_file'));
+                payload = JSON.parse(text);
+            } else {
+                if (!importFile) return;
+                const text = await importFile.text();
+                payload = JSON.parse(text);
+            }
 
             // Write directly to local PouchDB. PouchDB's live sync automatically replicates to CouchDB
             const res = await importTripToLocalDb(payload);
@@ -518,27 +550,78 @@
                 }}
             />
 
-            <button
-                type="button"
-                onclick={() => fileInputRef?.click()}
-                ondragover={(e) => e.preventDefault()}
-                ondrop={(e) => {
-                    e.preventDefault();
-                    const file = e.dataTransfer?.files?.[0];
-                    if (file) importFile = file;
-                }}
-                class="flex flex-col items-center justify-center gap-2 rounded-lg border-2 border-dashed border-border bg-surface p-8 text-center transition-colors hover:border-primary-600 hover:bg-primary-100/30"
-            >
-                <Upload class="size-8 text-primary-600" />
-                <span class="text-sm font-medium text-ink">
-                    {importFile ? importFile.name : t('import_drop_hint')}
-                </span>
-                {#if importFile}
-                    <span class="text-xs text-ink-muted">
-                        {(importFile.size / 1024).toFixed(1)} KB
+            <!-- Tab toggle -->
+            <div class="flex gap-1 rounded-lg bg-surface-sunken p-1">
+                <button
+                    type="button"
+                    onclick={() => (importTab = 'file')}
+                    class="flex-1 rounded-md px-3 py-1.5 text-sm font-medium transition-colors {importTab === 'file' ? 'bg-surface shadow-sm text-ink' : 'text-ink-muted hover:text-ink'}"
+                >
+                    {t('import_tab_file')}
+                </button>
+                <button
+                    type="button"
+                    onclick={() => (importTab = 'paste')}
+                    class="flex-1 rounded-md px-3 py-1.5 text-sm font-medium transition-colors {importTab === 'paste' ? 'bg-surface shadow-sm text-ink' : 'text-ink-muted hover:text-ink'}"
+                >
+                    {t('import_tab_paste')}
+                </button>
+            </div>
+
+            {#if importTab === 'file'}
+                <!-- Drag-drop / click zone -->
+                <button
+                    type="button"
+                    onclick={() => fileInputRef?.click()}
+                    ondragover={(e) => e.preventDefault()}
+                    ondrop={(e) => {
+                        e.preventDefault();
+                        const file = e.dataTransfer?.files?.[0];
+                        if (file) importFile = file;
+                    }}
+                    class="flex flex-col items-center justify-center gap-2 rounded-lg border-2 border-dashed border-border bg-surface p-8 text-center transition-colors hover:border-primary-600 hover:bg-primary-100/30"
+                >
+                    <Upload class="size-8 text-primary-600" />
+                    <span class="text-sm font-medium text-ink">
+                        {importFile ? importFile.name : t('import_drop_hint')}
                     </span>
-                {/if}
-            </button>
+                    {#if importFile}
+                        <span class="text-xs text-ink-muted">
+                            {(importFile.size / 1024).toFixed(1)} KB
+                        </span>
+                    {/if}
+                </button>
+            {:else}
+                <!-- Paste textarea -->
+                <div class="relative flex flex-col gap-2">
+                    <div class="flex items-center justify-between">
+                        {#if pasteText.trim()}
+                            <span class="text-xs font-medium {pasteJsonError ? 'text-destructive' : 'text-success'}">
+                                {pasteJsonError ? t('import_json_invalid') : t('import_json_valid')}
+                            </span>
+                        {:else}
+                            <span></span>
+                        {/if}
+                        <button
+                            type="button"
+                            onclick={pasteFromClipboard}
+                            class="text-xs font-medium text-primary-600 underline-offset-2 hover:underline"
+                        >
+                            {t('import_paste_from_clipboard')}
+                        </button>
+                    </div>
+                    <textarea
+                        id={fid('paste')}
+                        value={pasteText}
+                        oninput={(e) => (pasteText = e.currentTarget.value)}
+                        placeholder={t('import_paste_placeholder')}
+                        rows="10"
+                        spellcheck="false"
+                        autocomplete="off"
+                        class="w-full rounded-md border border-border bg-surface font-mono text-xs text-ink placeholder:text-ink-muted/60 focus:border-primary-600 focus:outline-none focus:ring-2 focus:ring-primary-600/30 transition-[box-shadow] p-3 resize-none {pasteText.trim() && pasteJsonError ? 'border-destructive ring-1 ring-destructive/30' : ''}"
+                    ></textarea>
+                </div>
+            {/if}
 
             <p class="text-center text-xs text-ink-muted">
                 {t('import_no_json_yet')}
@@ -654,7 +737,7 @@
             <Button onclick={continueDuplicate} disabled={!sourceId}>{t('continue')}</Button>
         {:else if step === 'import'}
             <Button variant="ghost" onclick={() => (step = 'choose')} disabled={importing}>{t('back')}</Button>
-            <Button onclick={executeImport} disabled={!importFile || importing}>
+            <Button onclick={executeImport} disabled={(importTab === 'file' ? !importFile : !pasteText.trim() || !!pasteJsonError) || importing}>
                 {importing ? t('importing') : t('import_trip')}
             </Button>
         {:else}
