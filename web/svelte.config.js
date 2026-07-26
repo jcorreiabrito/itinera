@@ -37,7 +37,7 @@ const config = {
         'style-src': ['self', 'unsafe-inline'],
         'img-src': ['self', 'blob:', 'data:'],
         'font-src': ['self'],
-        'connect-src': ['self'],
+        'connect-src': ['self', 'https:', 'http:'],
         'worker-src': ['self', 'blob:'],
         'frame-src': ['self', 'blob:'],
         'child-src': ['self', 'blob:'],
