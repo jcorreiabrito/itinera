@@ -1,16 +1,28 @@
 <script lang="ts">
   import { onMount } from 'svelte';
-  import { checklist, requestPersistentStorage, settings, storageEstimate, syncStatus } from '$lib/db';
+  import {
+    checklist,
+    requestPersistentStorage,
+    settings,
+    storageEstimate,
+    syncStatus,
+    getCustomRemoteSyncUrl,
+    setRemoteSyncUrl,
+    resetRemoteSyncUrl,
+    syncNow
+  } from '$lib/db';
   import { downloadAllExport, listBackups, runBackup, type BackupSummary } from '$lib/api';
   import { t, setLanguage, getLanguage, type Language } from '$lib/i18n.svelte';
   import {
     ArrowLeft,
+    Cloud,
     Database,
     Download,
     GitMerge,
     HardDrive,
     Pencil,
     RefreshCw,
+    Server,
     ShieldCheck,
     Star,
     Trash2,
@@ -57,6 +69,10 @@
   let quota = $state<number | null>(null);
   let persisted = $state(false);
   let persisting = $state(false);
+
+  // Custom Remote Sync Server URL (Option 2)
+  let customSyncUrl = $state('');
+  let testingSync = $state(false);
 
   // Data & backups (server-backed; require connectivity).
   let backups = $state<BackupSummary[]>([]);
@@ -125,7 +141,27 @@
     }
   }
 
+  async function saveSyncUrl() {
+    testingSync = true;
+    try {
+      setRemoteSyncUrl(customSyncUrl);
+      await syncNow();
+      toast.success('Sync URL saved and connected successfully!');
+    } catch {
+      toast.error('Could not connect to remote sync server. Check the URL and CORS headers.');
+    } finally {
+      testingSync = false;
+    }
+  }
+
+  function resetSyncUrl() {
+    resetRemoteSyncUrl();
+    customSyncUrl = '';
+    toast.success('Reset to default sync URL.');
+  }
+
   onMount(async () => {
+    customSyncUrl = getCustomRemoteSyncUrl();
     try {
       const s = await settings.get();
       current = s;
@@ -324,6 +360,43 @@
       <Button onclick={save} disabled={saving || !current}>
         {saving ? t('saving') : t('save')}
       </Button>
+    </div>
+  </section>
+
+  <!-- Remote Sync Server Configuration (Option 2: GitHub Pages + Remote Sync) -->
+  <section class="mt-4 rounded-lg border border-border bg-surface p-5">
+    <div class="flex items-center gap-2">
+      <Cloud class="size-4 text-primary-700" />
+      <h2 class="text-base font-semibold">Remote Sync Server</h2>
+    </div>
+    <p class="mt-1 text-sm text-ink-muted">
+      Configure a custom CouchDB endpoint to sync trip data across devices when hosting on GitHub Pages or custom domains.
+    </p>
+
+    <div class="mt-4 space-y-3">
+      <Field label="CouchDB Sync URL" for="settings-sync-url">
+        <Input
+          id="settings-sync-url"
+          value={customSyncUrl}
+          placeholder="e.g. https://itinera.yourdomain.com/db/itinera"
+          oninput={(e) => (customSyncUrl = e.currentTarget.value)}
+        />
+      </Field>
+      <p class="text-xs text-ink-muted">
+        Leave empty to use default same-origin sync (<code class="rounded bg-surface-sunken px-1">/db/itinera</code>). Include credentials if required (<code class="rounded bg-surface-sunken px-1">https://user:pass@domain/db/itinera</code>).
+      </p>
+    </div>
+
+    <div class="mt-4 flex flex-wrap gap-2">
+      <Button onclick={saveSyncUrl} disabled={testingSync}>
+        <Server class="size-4" />
+        {testingSync ? 'Connecting...' : 'Save & Connect'}
+      </Button>
+      {#if customSyncUrl}
+        <Button variant="ghost" onclick={resetSyncUrl} disabled={testingSync}>
+          Reset to Default
+        </Button>
+      {/if}
     </div>
   </section>
 

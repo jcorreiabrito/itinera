@@ -37,10 +37,22 @@
         X-Frame-Options "DENY"
     }
 
-    # --- CouchDB: PouchDB syncs against /db/itinera (same-origin) ---
+    # --- CORS support for cross-origin sync (e.g. from GitHub Pages) ---
+    @cors_preflight method OPTIONS
+    handle @cors_preflight {
+        header Access-Control-Allow-Origin "*"
+        header Access-Control-Allow-Methods "GET, POST, PUT, DELETE, OPTIONS, HEAD"
+        header Access-Control-Allow-Headers "Authorization, Content-Type, X-Requested-With, Accept"
+        header Access-Control-Max-Age "86400"
+        respond 204
+    }
+
+    # --- CouchDB: PouchDB syncs against /db/itinera ---
     # handle_path strips the /db prefix, so CouchDB receives clean paths
     # (e.g. /db/itinera/_changes -> /itinera/_changes).
     handle_path /db/* {
+        header Access-Control-Allow-Origin "*"
+        header Access-Control-Allow-Headers "Authorization, Content-Type, X-Requested-With, Accept"
         reverse_proxy couchdb:5984 {
             header_up Authorization "Basic {env.COUCHDB_BASIC_AUTH}"
         }
@@ -51,6 +63,8 @@
     # every route under /api (e.g. browser GET /api/health -> FastAPI GET
     # /api/health; POST /api/backups/run -> POST /api/backups/run).
     handle /api/* {
+        header Access-Control-Allow-Origin "*"
+        header Access-Control-Allow-Headers "Authorization, Content-Type, X-Requested-With, Accept"
         reverse_proxy fastapi:8000
     }
 

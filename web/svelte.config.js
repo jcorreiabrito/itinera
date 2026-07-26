@@ -16,6 +16,7 @@ const config = {
       strict: false
     }),
     paths: {
+      base: process.env.BASE_PATH || '',
       relative: false
     },
     // We register `src/service-worker.ts` manually (see src/lib/pwa.ts) so we can

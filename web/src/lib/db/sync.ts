@@ -20,7 +20,7 @@
 import { get, writable, type Readable } from 'svelte/store';
 
 import { planConflictResolution, type ConflictReport } from './conflicts';
-import { getDb, createRemoteDb, type Database } from './pouch';
+import { getDb, createRemoteDb, CUSTOM_SYNC_URL_KEY, getRemoteUrl, type Database } from './pouch';
 import type { AnyDoc } from './schemas';
 
 /** The discrete states surfaced in the header pill. */
@@ -382,4 +382,31 @@ export async function syncNow(db: Database = getDb()): Promise<void> {
 /** Current status snapshot (non-reactive convenience). */
 export function currentSyncStatus(): SyncStatus {
   return get(store);
+}
+
+/** Get custom remote sync URL stored in localStorage, if set. */
+export function getCustomRemoteSyncUrl(): string {
+  if (typeof localStorage === 'undefined') return '';
+  return localStorage.getItem(CUSTOM_SYNC_URL_KEY) || '';
+}
+
+/** Update the custom remote sync URL and restart replication feed. */
+export function setRemoteSyncUrl(url: string): void {
+  if (typeof localStorage === 'undefined') return;
+  const trimmed = url.trim();
+  if (trimmed) {
+    localStorage.setItem(CUSTOM_SYNC_URL_KEY, trimmed);
+  } else {
+    localStorage.removeItem(CUSTOM_SYNC_URL_KEY);
+  }
+  stopSync();
+  startSync();
+}
+
+/** Clear custom remote sync URL and revert to default same-origin /db/itinera. */
+export function resetRemoteSyncUrl(): void {
+  if (typeof localStorage === 'undefined') return;
+  localStorage.removeItem(CUSTOM_SYNC_URL_KEY);
+  stopSync();
+  startSync();
 }

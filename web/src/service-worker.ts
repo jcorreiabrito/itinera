@@ -3,7 +3,7 @@
 /// <reference lib="esnext" />
 /// <reference lib="webworker" />
 
-import { build, files, version } from '$service-worker';
+import { build, files, base, version } from '$service-worker';
 
 const sw = self as unknown as ServiceWorkerGlobalScope;
 
@@ -15,7 +15,7 @@ const ASSETS = [...build, ...files];
 const ASSET_SET = new Set(ASSETS);
 
 // The SPA fallback document served for offline navigations.
-const APP_SHELL = '/';
+const APP_SHELL = base ? `${base}/` : '/';
 
 sw.addEventListener('install', (event) => {
   event.waitUntil(
@@ -55,9 +55,11 @@ sw.addEventListener('fetch', (event) => {
   // API (/api/): serving stale `_changes`, `_local` checkpoints, docs, or
   // attachments would hand PouchDB outdated data and break sync convergence
   // (doc 0%). Bypass the SW entirely so these always hit the network.
+  const dbPrefix = base ? `${base}/db/` : '/db/';
+  const apiPrefix = base ? `${base}/api/` : '/api/';
   if (
     url.origin === location.origin &&
-    (url.pathname.startsWith('/db/') || url.pathname.startsWith('/api/'))
+    (url.pathname.startsWith(dbPrefix) || url.pathname.startsWith(apiPrefix) || url.pathname.startsWith('/db/') || url.pathname.startsWith('/api/'))
   ) {
     return;
   }

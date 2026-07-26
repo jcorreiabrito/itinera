@@ -69,15 +69,24 @@ export function getDb(): Database {
   return local ?? createLocalDb();
 }
 
+export const CUSTOM_SYNC_URL_KEY = 'itinera:remoteSyncUrl';
+
 function resolveRemoteUrl(url: string): string {
-  if (url.startsWith('http://') || url.startsWith('https://') || typeof window === 'undefined') {
-    return url;
+  let target = url;
+  if (typeof localStorage !== 'undefined') {
+    const custom = localStorage.getItem(CUSTOM_SYNC_URL_KEY);
+    if (custom && custom.trim()) {
+      target = custom.trim();
+    }
   }
-  return `${window.location.origin}${url}`;
+  if (target.startsWith('http://') || target.startsWith('https://') || typeof window === 'undefined') {
+    return target;
+  }
+  return `${window.location.origin}${target}`;
 }
 
 /**
- * Build a handle to the remote CouchDB (same-origin, via Caddy). `skip_setup`
+ * Build a handle to the remote CouchDB. `skip_setup`
  * avoids the client attempting to create the database – the server owns that.
  */
 export function createRemoteDb(): Database {

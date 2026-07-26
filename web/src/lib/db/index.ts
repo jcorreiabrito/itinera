@@ -103,7 +103,10 @@ export {
   markConflictReviewed,
   resolveAllConflicts,
   resolveDocConflicts,
-  currentSyncStatus
+  currentSyncStatus,
+  getCustomRemoteSyncUrl,
+  setRemoteSyncUrl,
+  resetRemoteSyncUrl
 } from './sync';
 export type { SyncState, SyncStatus } from './sync';
 

@@ -1,4 +1,5 @@
 import { writable } from 'svelte/store';
+import { base } from '$app/paths';
 
 /** A newer service worker is installed and waiting to take over. */
 export const needRefresh = writable(false);
@@ -24,8 +25,10 @@ export function registerServiceWorker(): void {
     location.reload();
   });
 
+  const swPath = base ? `${base}/service-worker.js` : '/service-worker.js';
+
   navigator.serviceWorker
-    .register('/service-worker.js')
+    .register(swPath)
     .then((registration) => {
       // A worker is already waiting (update found on a previous load).
       if (registration.waiting && navigator.serviceWorker.controller) {
