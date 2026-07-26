@@ -1,5 +1,6 @@
 <script lang="ts">
   import { onMount } from 'svelte';
+  import { base } from '$app/paths';
   import {
     checklist,
     requestPersistentStorage,
@@ -302,7 +303,7 @@
   <div class="mx-auto flex h-16 max-w-3xl items-center justify-between gap-3 px-4 sm:px-6">
     <div class="flex items-center gap-2">
       <a
-        href="/"
+        href={`${base}/`}
         aria-label={t('back_to_trips')}
         class="grid size-9 place-items-center rounded-md text-ink-muted transition-colors hover:bg-surface-sunken hover:text-ink active:scale-95 [&_svg]:size-5"
       >
@@ -513,7 +514,7 @@
   <!-- Quick links to the data-ownership screens. -->
   <section class="mt-4 overflow-hidden rounded-lg border border-border bg-surface">
     <a
-      href="/settings/conflicts"
+      href={`${base}/settings/conflicts`}
       class="flex items-center gap-3 px-5 py-4 transition-colors hover:bg-surface-sunken [&_svg]:size-5"
     >
       <GitMerge class="text-primary-700" />
@@ -523,7 +524,7 @@
       </span>
     </a>
     <a
-      href="/settings/trash"
+      href={`${base}/settings/trash`}
       class="flex items-center gap-3 border-t border-border px-5 py-4 transition-colors hover:bg-surface-sunken [&_svg]:size-5"
     >
       <Trash2 class="text-ink-muted" />

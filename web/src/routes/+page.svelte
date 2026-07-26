@@ -1,6 +1,7 @@
 <script lang="ts">
   import { onMount } from 'svelte';
   import { goto } from '$app/navigation';
+  import { base } from '$app/paths';
   import { bareTripUid, settings, trips } from '$lib/db';
   import type { Trip } from '$lib/db';
   import { t } from '$lib/i18n.svelte';
@@ -108,7 +109,7 @@
   }
 
   function onCreated(trip: Trip) {
-    goto(`/trip/${bareTripUid(trip._id)}/overview`);
+    goto(`${base}/trip/${bareTripUid(trip._id)}/overview`);
   }
 
   function openEdit(trip: Trip) {
@@ -123,7 +124,7 @@
 
   function onDuplicated(trip: Trip) {
     toast.success(t('trip_duplicated'));
-    goto(`/trip/${bareTripUid(trip._id)}/overview`);
+    goto(`${base}/trip/${bareTripUid(trip._id)}/overview`);
   }
 
   async function archive(trip: Trip) {
@@ -205,7 +206,7 @@
       <div class="flex items-center gap-2">
         <SyncStatusPill />
         <a
-          href="/settings"
+          href={`${base}/settings`}
           aria-label={t('settings')}
           class="grid size-9 place-items-center rounded-md text-ink-muted transition-colors hover:bg-surface-sunken hover:text-ink active:scale-95 [&_svg]:size-5"
         >

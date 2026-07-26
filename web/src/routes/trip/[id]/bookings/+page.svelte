@@ -1,5 +1,6 @@
 <script lang="ts">
   import { page } from '$app/state';
+  import { base } from '$app/paths';
   import { FlightsPane } from '$lib/components/flights';
   import { ReservationsPane } from '$lib/components/reservations';
   import { cn } from '$lib/utils';
@@ -29,14 +30,14 @@
     aria-label="Bookings type"
   >
     <a
-      href={`/trip/${id}/bookings?tab=flights`}
+      href={`${base}/trip/${id}/bookings?tab=flights`}
       aria-current={tab === 'flights' ? 'page' : undefined}
       class={cn(segClass(tab === 'flights'), 'flex-1 justify-center text-center')}
     >
       Flights
     </a>
     <a
-      href={`/trip/${id}/bookings?tab=reservations`}
+      href={`${base}/trip/${id}/bookings?tab=reservations`}
       aria-current={tab === 'reservations' ? 'page' : undefined}
       class={cn(segClass(tab === 'reservations'), 'flex-1 justify-center text-center')}
     >

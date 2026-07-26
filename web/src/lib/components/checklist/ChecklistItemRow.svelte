@@ -1,4 +1,5 @@
 <script lang="ts">
+    import { base } from '$app/paths';
     import type { ChecklistItem } from '$lib/db';
     import { dayDelta, todayIso } from '$lib/db/datetime';
     import {
@@ -119,7 +120,7 @@
                     </Badge>
                 {/if}
                 {#if item.date}
-                    <a href={`/trip/${tripId}/itinerary?date=${item.date}`} class="inline-flex">
+                    <a href={`${base}/trip/${tripId}/itinerary?date=${item.date}`} class="inline-flex">
                         <Badge variant="primary"><CalendarDays class="size-3" /> {dayChipLabel(item.date)}</Badge>
                     </a>
                 {/if}

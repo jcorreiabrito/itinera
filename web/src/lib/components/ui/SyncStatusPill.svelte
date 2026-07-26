@@ -1,4 +1,5 @@
 <script lang="ts">
+    import { base } from '$app/paths';
     import { listConflicts, syncNow, syncStatus } from '$lib/db';
     import { t } from '$lib/i18n.svelte';
     import { Check, CloudOff, GitMerge, RefreshCw, TriangleAlert, UploadCloud } from 'lucide-svelte';
@@ -127,7 +128,7 @@
             {#if conflictsLoaded}
                 {#if conflicts.length > 0}
                     <a
-                        href="/settings/conflicts"
+                        href={`${base}/settings/conflicts`}
                         onclick={() => { open = false; }}
                         class="flex items-center justify-between gap-2 rounded-md px-1.5 py-1.5 text-xs font-medium text-ink transition-colors hover:bg-surface-sunken"
                     >

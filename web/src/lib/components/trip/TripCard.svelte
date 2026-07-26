@@ -1,5 +1,6 @@
 <script lang="ts">
     import { onMount } from 'svelte';
+    import { base } from '$app/paths';
     import { bareTripUlid, checklist, expenses, todayIso, trips } from '$lib/db';
     import {
         Archive,
@@ -45,7 +46,7 @@
     let cardEl = $state<HTMLDivElement | null>(null);
     let visible = $state(false);
 
-    const href = $derived(`/trip/${bareTripUlid(trip._id)}/overview`);
+    const href = $derived(`${base}/trip/${bareTripUlid(trip._id)}/overview`);
     const title = $derived(trip.title?.trim() || 'Untitled trip');
     const destinations = $derived(trip.destinations ?? []);
     const firstDestination = $derived(destinations[0]);

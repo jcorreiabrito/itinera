@@ -98,17 +98,19 @@
       .slice(0, 3)
   );
 
+  import { base } from '$app/paths';
+
   const nextUp = $derived(timeline ? computeNextUp(timeline.days, Date.now()) : null);
   const todayPlan = $derived(timeline ? (timeline.days.find((d) => d.date === today) ?? null) : null);
   const resSummary = $derived(summarizeReservations(resList, Date.now()));
   const flightNext = $derived(nextFlightIndex(flightList, Date.now()));
 
   const links = $derived({
-    itinerary: `/trip/${id}/itinerary`,
-    checklist: `/trip/${id}/checklist`,
-    costs: `/trip/${id}/costs`,
-    flights: `/trip/${id}/bookings?tab=flights`,
-    reservations: `/trip/${id}/bookings?tab=reservations`
+    itinerary: `${base}/trip/${id}/itinerary`,
+    checklist: `${base}/trip/${id}/checklist`,
+    costs: `${base}/trip/${id}/costs`,
+    flights: `${base}/trip/${id}/bookings?tab=flights`,
+    reservations: `${base}/trip/${id}/bookings?tab=reservations`
   });
 </script>
 

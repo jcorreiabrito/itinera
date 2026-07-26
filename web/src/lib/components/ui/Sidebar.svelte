@@ -1,4 +1,5 @@
 <script lang="ts">
+    import { base } from '$app/paths';
     import type { NavItem } from '$lib/types';
     import { Compass } from 'lucide-svelte';
     import { cn } from '$lib/utils';
@@ -14,7 +15,7 @@
 <aside
     class="fixed inset-y-0 left-0 z-40 hidden w-64 flex-col border-r border-border bg-surface lg:flex"
 >
-    <a href="/" class="flex h-16 items-center gap-2 border-b border-border px-5">
+    <a href={`${base}/`} class="flex h-16 items-center gap-2 border-b border-border px-5">
         <span
             class="grid size-9 place-items-center rounded-md bg-primary-600 text-white [&_svg]:size-5"
         >

@@ -3,6 +3,7 @@
   import { onMount } from 'svelte';
   import { writable } from 'svelte/store';
   import { page } from '$app/state';
+  import { base } from '$app/paths';
   import { trips } from '$lib/db';
   import type { Trip } from '$lib/db';
   import { t } from '$lib/i18n.svelte';
@@ -66,10 +67,10 @@
   onMount(() => startLive(() => loadTrip(page.params.id ?? '')));
 
   function isActive(seg: string): boolean {
-    return pathname.startsWith(`/trip/${id}/${seg}`);
+    return pathname.startsWith(`${base}/trip/${id}/${seg}`);
   }
 
-  const bookingsActive = $derived(pathname.startsWith(`/trip/${id}/bookings`));
+  const bookingsActive = $derived(pathname.startsWith(`${base}/trip/${id}/bookings`));
 
   const tabs: { labelKey: string; icon: IconComponent; seg: string }[] = $derived([
     { labelKey: 'overview', icon: LayoutDashboard, seg: 'overview' },
@@ -103,7 +104,7 @@
       class="fixed inset-y-0 left-0 z-40 hidden w-60 flex-col border-r border-border bg-surface lg:flex"
     >
       <a
-        href="/"
+        href={`${base}/`}
         class="flex h-16 items-center gap-2 border-b border-border px-4 text-sm font-medium text-ink-muted transition-colors hover:text-ink [&_svg]:size-4"
       >
         <ArrowLeft />
@@ -111,9 +112,9 @@
       </a>
       <nav aria-label="Trip sections" class="flex-1 overflow-y-auto p-3">
         <ul class="flex flex-col gap-1">
-          <li>{@render sideLink(`/trip/${id}/overview`, 'overview', LayoutDashboard, isActive('overview'))}</li>
-          <li>{@render sideLink(`/trip/${id}/itinerary`, 'itinerary', CalendarDays, isActive('itinerary'))}</li>
-          <li>{@render sideLink(`/trip/${id}/checklist`, 'checklist', ListChecks, isActive('checklist'))}</li>
+          <li>{@render sideLink(`${base}/trip/${id}/overview`, 'overview', LayoutDashboard, isActive('overview'))}</li>
+          <li>{@render sideLink(`${base}/trip/${id}/itinerary`, 'itinerary', CalendarDays, isActive('itinerary'))}</li>
+          <li>{@render sideLink(`${base}/trip/${id}/checklist`, 'checklist', ListChecks, isActive('checklist'))}</li>
           <li class="mt-2">
             <p class="px-3 pb-1 text-xs font-semibold uppercase tracking-wide text-ink-muted/70">
               {t('bookings')}
@@ -121,7 +122,7 @@
             <ul class="flex flex-col gap-1">
               <li>
                 {@render sideLink(
-                  `/trip/${id}/bookings?tab=flights`,
+                  `${base}/trip/${id}/bookings?tab=flights`,
                   'flights',
                   Plane,
                   bookingsActive && tab !== 'reservations'
@@ -129,7 +130,7 @@
               </li>
               <li>
                 {@render sideLink(
-                  `/trip/${id}/bookings?tab=reservations`,
+                  `${base}/trip/${id}/bookings?tab=reservations`,
                   'reservations',
                   BedDouble,
                   bookingsActive && tab === 'reservations'
@@ -137,7 +138,7 @@
               </li>
             </ul>
           </li>
-          <li class="mt-2">{@render sideLink(`/trip/${id}/costs`, 'costs', Wallet, isActive('costs'))}</li>
+          <li class="mt-2">{@render sideLink(`${base}/trip/${id}/costs`, 'costs', Wallet, isActive('costs'))}</li>
         </ul>
       </nav>
       <div class="border-t border-border p-4 text-xs text-ink-muted">{t('offline_ready')}</div>
@@ -150,7 +151,7 @@
       >
         <div class="flex min-w-0 items-center gap-2">
           <a
-            href="/"
+            href={`${base}/`}
             aria-label={t('back_to_trips')}
             class="grid size-9 shrink-0 place-items-center rounded-md text-ink-muted transition-colors hover:bg-surface-sunken hover:text-ink active:scale-95 lg:hidden [&_svg]:size-5"
           >
@@ -189,7 +190,7 @@
             <h2 class="mt-4 text-xl font-semibold">{t('trip_not_found')}</h2>
             <p class="mt-1 text-ink-muted">{t('trip_not_found_desc')}</p>
             <a
-              href="/"
+              href={`${base}/`}
               class="mt-5 inline-flex h-11 items-center rounded-md bg-primary-600 px-4 font-medium text-white shadow-soft transition-colors hover:bg-primary-700 active:scale-[0.97]"
             >
               {t('back_to_trips')}
@@ -211,7 +212,7 @@
             {@const active = isActive(item.seg)}
             <li class="flex-1">
               <a
-                href={`/trip/${id}/${item.seg}`}
+                href={`${base}/trip/${id}/${item.seg}`}
                 aria-current={active ? 'page' : undefined}
                 class={cn(
                   'relative flex min-h-[3.5rem] flex-col items-center justify-center gap-1 px-1 py-2 text-[0.7rem] font-medium transition-colors active:[&_svg]:scale-90 [&_svg]:transition-transform [&_svg]:duration-100 [&_svg]:size-5',

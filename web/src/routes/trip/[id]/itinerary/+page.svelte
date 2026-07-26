@@ -133,10 +133,12 @@
     return timeline.days.find((d) => d.date === selectedDate) ?? timeline.days[0] ?? null;
   });
 
+  import { base } from '$app/paths';
+
   const selectedKey = $derived(selectedDate ?? 'ideas');
   const links = $derived({
-    flights: `/trip/${id}/bookings?tab=flights`,
-    reservations: `/trip/${id}/bookings?tab=reservations`
+    flights: `${base}/trip/${id}/bookings?tab=flights`,
+    reservations: `${base}/trip/${id}/bookings?tab=reservations`
   });
 
   const hasDays = $derived(dates.length > 0);

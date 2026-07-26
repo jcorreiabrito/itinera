@@ -1,5 +1,6 @@
 <script lang="ts">
   import { onMount } from 'svelte';
+  import { base } from '$app/paths';
   import { listConflicts, markConflictReviewed, trips } from '$lib/db';
   import { t } from '$lib/i18n.svelte';
   import { ArrowLeft, GitMerge, Check } from 'lucide-svelte';
@@ -121,7 +122,7 @@
   <div class="mx-auto flex h-16 max-w-3xl items-center justify-between gap-3 px-4 sm:px-6">
     <div class="flex items-center gap-2">
       <a
-        href="/settings"
+        href={`${base}/settings`}
         aria-label={t('settings')}
         class="grid size-9 place-items-center rounded-md text-ink-muted transition-colors hover:bg-surface-sunken hover:text-ink [&_svg]:size-5"
       >
