@@ -17,14 +17,32 @@ import logging
 from collections.abc import AsyncIterator
 from contextlib import asynccontextmanager
 
-from fastapi import FastAPI
+from fastapi import FastAPI, Request
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi.responses import JSONResponse
 
 from . import __version__
 from .config import Settings, get_settings
 from .couch import CouchClient
+from .errors import CouchDBUnavailableError
 from .routers import backups, exports, health, imports, pdf
 from .scheduler import build_scheduler
+
+try:
+    import structlog
+    structlog.configure(
+        processors=[
+            structlog.contextvars.merge_contextvars,
+            structlog.processors.add_log_level,
+            structlog.processors.StackInfoRenderer(),
+            structlog.dev.set_exc_info,
+            structlog.processors.TimeStamper(fmt="iso"),
+            structlog.dev.ConsoleRenderer()
+        ],
+        logger_factory=structlog.PrintLoggerFactory(),
+    )
+except ImportError:
+    pass
 
 logging.basicConfig(level=logging.INFO, format="%(asctime)s %(levelname)s %(name)s: %(message)s")
 logger = logging.getLogger("itinera.main")
@@ -99,6 +117,13 @@ def create_app(settings: Settings | None = None, couch: CouchClient | None = Non
     app.state.couch = couch
     app.state.scheduler = None
 
+    @app.exception_handler(CouchDBUnavailableError)
+    async def couch_unavailable_handler(request: Request, exc: CouchDBUnavailableError):
+        return JSONResponse(
+            status_code=503,
+            content={"detail": exc.detail},
+        )
+
     origins = settings.cors_origin_list
     if origins:
         app.add_middleware(
@@ -111,6 +136,7 @@ def create_app(settings: Settings | None = None, couch: CouchClient | None = Non
 
     for module in (health, exports, pdf, backups, imports):
         app.include_router(module.router, prefix="/api")
+        app.include_router(module.router, prefix="/api/v1")
 
     return app
 

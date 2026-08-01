@@ -184,7 +184,7 @@
     function validate(): boolean {
         const e: Partial<Record<keyof FormState, string>> = {};
         if (!form.title.trim()) e.title = 'Give the activity a name.';
-        if (form.allDay && form.startTime && form.endTime && form.endTime < form.startTime) {
+        if (!form.allDay && form.startTime && form.endTime && form.endTime < form.startTime) {
             e.endTime = 'End time is before the start.';
         }
         if (form.costs.length > 0) {

@@ -3,6 +3,7 @@
   import { page } from '$app/state';
   import { checklist, expenses, flights, itinerary, reservations, todayIso, trips } from '$lib/db';
   import type { ChecklistItem, Flight, Reservation } from '$lib/db';
+  import { t } from '$lib/i18n.svelte';
   import { ErrorState, Skeleton } from '$lib/components/ui';
   import {
     BudgetWidget,
@@ -126,7 +127,7 @@
     </div>
   </div>
 {:else if loadError}
-  <ErrorState title="Couldn't load this trip" onretry={retry} />
+  <ErrorState title={t('could_not_load_trip')} onretry={retry} />
 {:else if tripWD && budget && timeline}
   <div class="grid gap-5 md:grid-cols-2">
     <div class="min-w-0 md:col-span-2">

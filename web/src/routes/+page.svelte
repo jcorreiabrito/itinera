@@ -4,8 +4,10 @@
   import { bareTripUid, settings, trips } from '$lib/db';
   import type { Trip } from '$lib/db';
   import { t } from '$lib/i18n.svelte';
-  import { ChevronDown, Compass, MapPin, Plus, Search, Settings } from 'lucide-svelte';
-  import { Button, Dialog, EmptyState, Skeleton, SyncStatusPill, toast } from '$lib/components/ui';
+  import { ChevronDown, Compass, History, MapPin, Plus, Search, Settings } from 'lucide-svelte';
+  import { Button, Dialog, EmptyState, Skeleton, SyncStatusPill, ThemeToggle, toast } from '$lib/components/ui';
+  import ConflictLogModal from '$lib/components/ui/ConflictLogModal.svelte';
+  import TripTemplateModal from '$lib/components/trip/TripTemplateModal.svelte';
   import { DuplicateTripSheet, NewTripSheet, TripCard, TripFormSheet } from '$lib/components/trip';
   import { startLive } from '$lib/live';
 
@@ -17,6 +19,8 @@
   let defaultCurrency = $state('EUR');
   let archiveOpen = $state(false);
 
+  let conflictOpen = $state(false);
+  let templateOpen = $state(false);
   let createOpen = $state(false);
   let editOpen = $state(false);
   let editTrip = $state<Trip | null>(null);
@@ -204,6 +208,16 @@
       </div>
       <div class="flex items-center gap-2">
         <SyncStatusPill />
+        <button
+          type="button"
+          onclick={() => (conflictOpen = true)}
+          aria-label="View sync conflict history"
+          title="View sync conflict history"
+          class="grid size-9 place-items-center rounded-md text-ink-muted transition-colors hover:bg-surface-sunken hover:text-ink active:scale-95 [&_svg]:size-4"
+        >
+          <History />
+        </button>
+        <ThemeToggle />
         <a
           href="/settings"
           aria-label={t('settings')}
@@ -211,6 +225,9 @@
         >
           <Settings />
         </a>
+        <Button variant="ghost" class="hidden sm:inline-flex" size="sm" onclick={() => (templateOpen = true)}>
+          Templates
+        </Button>
         <Button class="hidden sm:inline-flex" size="sm" onclick={openCreate}>
           <Plus class="size-4" /> {t('new_trip')}
         </Button>
@@ -421,3 +438,11 @@
     <Button variant="destructive" onclick={confirmDelete}>{t('delete')}</Button>
   {/snippet}
 </Dialog>
+
+<ConflictLogModal bind:open={conflictOpen} />
+
+<TripTemplateModal
+  bind:open={templateOpen}
+  onCreated={(tripId) => goto(`/trip/${bareTripUid(tripId)}/overview`)}
+/>
+

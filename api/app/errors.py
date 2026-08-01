@@ -21,3 +21,11 @@ class PdfUnavailable(ItineraError):
     def __init__(self, detail: str) -> None:
         self.detail = detail
         super().__init__(detail)
+
+
+class CouchDBUnavailableError(ItineraError):
+    """CouchDB service is unreachable or returned a network error."""
+
+    def __init__(self, detail: str = "Database is temporarily unavailable") -> None:
+        self.detail = detail
+        super().__init__(detail)

@@ -90,11 +90,14 @@
     if (entry.kind === 'reservation' && entry.reservation) {
       const placement = entry.reservation;
       const res = placement.reservation;
+      if (placement.placement === 'point') {
+        return res?.name ?? 'Reservation';
+      }
       const verb = {
         checkIn: 'Check-in',
         checkOut: 'Check-out',
         staying: 'Staying at',
-        point: 'Reservation'
+        point: ''
       }[placement.placement ?? 'staying'];
       return `${verb}: ${res?.name ?? 'Reservation'}`;
     }
@@ -264,20 +267,20 @@
 
 <div
   bind:this={gridScrollContainer}
-  class="overflow-auto max-h-[calc(100vh-250px)] min-h-[500px] w-full relative border border-border bg-surface rounded-xl shadow-card select-none animate-fade-in"
+  class="overflow-auto max-h-[calc(100vh-200px)] lg:max-h-[calc(100vh-250px)] min-h-[450px] w-full relative border border-border bg-surface rounded-xl shadow-card select-none animate-fade-in snap-x snap-mandatory scroll-smooth"
 >
   <div class="flex flex-col min-w-max">
     <!-- Row 1: Sticky Header row containing day titles, to-dos and costs -->
     <div class="flex sticky top-0 z-40 border-b border-border bg-surface-sunken">
       <!-- TIME Corner Cell -->
-      <div class="w-16 shrink-0 border-r border-border bg-surface-sunken sticky left-0 z-50 flex items-center justify-center text-[10px] font-bold tracking-wider text-ink-muted/80 h-[100px]">
+      <div class="w-12 sm:w-16 shrink-0 border-r border-border bg-surface-sunken sticky left-0 z-50 flex items-center justify-center text-[10px] font-bold tracking-wider text-ink-muted/80 h-[100px]">
         TIME
       </div>
       <!-- Day Headers Columns -->
       <div class="flex flex-1">
         {#each days as day}
           {@const p = parts(day.date)}
-          <div class="flex-1 min-w-[160px] border-r border-border p-3 flex flex-col justify-between gap-1 h-[100px]">
+          <div class="flex-1 w-[calc(100vw-4.5rem)] sm:w-[200px] lg:w-auto lg:min-w-[160px] shrink-0 snap-start border-r border-border p-3 flex flex-col justify-between gap-1 h-[100px]">
             <div class="flex items-start justify-between">
               <div>
                 <span class="text-[10px] font-bold text-ink-muted uppercase tracking-wider">{p.weekday}</span>
@@ -340,13 +343,13 @@
     <!-- Row 2: Sticky All-Day / Untimed Row -->
     <div class="flex sticky top-[100px] z-30 border-b border-border bg-surface-sunken">
       <!-- ALL DAY Corner Cell -->
-      <div class="w-16 shrink-0 border-r border-border bg-surface-sunken sticky left-0 z-50 flex items-center justify-center text-[9px] font-bold tracking-wider text-ink-muted/80 uppercase py-2">
+      <div class="w-12 sm:w-16 shrink-0 border-r border-border bg-surface-sunken sticky left-0 z-50 flex items-center justify-center text-[9px] font-bold tracking-wider text-ink-muted/80 uppercase py-2">
         ALL DAY
       </div>
       <!-- Day Columns for All-Day elements -->
       <div class="flex flex-1 bg-surface-sunken">
         {#each days as day}
-          <div class="flex-1 min-w-[160px] border-r border-border p-2 space-y-1">
+          <div class="flex-1 w-[calc(100vw-4.5rem)] sm:w-[200px] lg:w-auto lg:min-w-[160px] shrink-0 snap-start border-r border-border p-2 space-y-1">
             <!-- Traditional All-Day items -->
             {#each day.allDay as item (item._id)}
               <button
@@ -414,7 +417,7 @@
     <!-- Row 3: Timed Grid Area (scrolls vertically inside the unified parent viewport) -->
     <div class="flex relative">
       <!-- Left time markings sticky column (stays on left when scrolling horizontally) -->
-      <div class="w-16 shrink-0 border-r border-border bg-surface select-none sticky left-0 z-30 shadow-[2px_0_4px_rgba(42,38,32,0.02)]">
+      <div class="w-12 sm:w-16 shrink-0 border-r border-border bg-surface select-none sticky left-0 z-30 shadow-[2px_0_4px_rgba(42,38,32,0.02)]">
         {#each Array(24) as _, hour}
           <div class="h-16 border-b border-border/30 px-2 flex items-start justify-end text-[10px] font-semibold tabular-nums text-ink-muted/80 pt-1 bg-surface">
             {hour.toString().padStart(2, '0')}:00
@@ -433,7 +436,7 @@
 
         <!-- Columns for each day's timed events -->
         {#each days as day}
-          <div class="flex-1 min-w-[160px] border-r border-border/30 relative h-[1536px] z-10 bg-transparent">
+          <div class="flex-1 w-[calc(100vw-4.5rem)] sm:w-[200px] lg:w-auto lg:min-w-[160px] shrink-0 snap-start border-r border-border/30 relative h-[1536px] z-10 bg-transparent">
             {#each computePositions(day.timed) as item}
               {@const Icon = getIcon(item.entry)}
               

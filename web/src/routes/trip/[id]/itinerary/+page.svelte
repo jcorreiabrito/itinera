@@ -5,9 +5,11 @@
   import type { Flight, ItineraryItem, Reservation, Trip } from '$lib/db';
   import { CalendarDays, Plus } from 'lucide-svelte';
   import { Button, EmptyState, ErrorState, Skeleton } from '$lib/components/ui';
+  import ExportCalendarButton from '$lib/components/trip/ExportCalendarButton.svelte';
   import { DateStrip, ItineraryDay, ItineraryItemSheet, WholeTripOverview } from '$lib/components/itinerary';
   import { getTripShellContext } from '$lib/trip-context';
   import { startLive } from '$lib/live';
+  import { t } from '$lib/i18n.svelte';
   import { cn } from '$lib/utils';
 
   const shell = getTripShellContext();
@@ -31,22 +33,7 @@
   let initForId = '';
   let viewMode = $state<'day' | 'overview'>('day');
 
-  // Enforce desktop-only: default to day view when viewport drops below 1024px
-  $effect(() => {
-    if (typeof window !== 'undefined') {
-      const mediaQuery = window.matchMedia('(min-width: 1024px)');
-      const listener = (e: MediaQueryListEvent) => {
-        if (!e.matches) {
-          viewMode = 'day';
-        }
-      };
-      mediaQuery.addEventListener('change', listener);
-      if (!mediaQuery.matches) {
-        viewMode = 'day';
-      }
-      return () => mediaQuery.removeEventListener('change', listener);
-    }
-  });
+
 
   // Dynamically expand layout width for the Whole Trip Overview
   $effect(() => {
@@ -139,6 +126,39 @@
     reservations: `/trip/${id}/bookings?tab=reservations`
   });
 
+  const allTripItems = $derived.by(() => {
+    if (!timeline) return [];
+    const itemsList: ItineraryItem[] = [];
+    const pushEntries = (entries: any[]) => {
+      for (const entry of entries) {
+        if (entry && typeof entry === 'object') {
+          if ('kind' in entry) {
+            if (entry.kind === 'item' && entry.item) itemsList.push(entry.item as ItineraryItem);
+          } else if ('_id' in entry && entry.type === 'itineraryItem') {
+            itemsList.push(entry as ItineraryItem);
+          }
+        }
+      }
+    };
+    for (const d of timeline.days) {
+      pushEntries(d.allDay);
+      pushEntries(d.timed);
+    }
+    pushEntries(timeline.unscheduled.allDay);
+    pushEntries(timeline.unscheduled.timed);
+    return itemsList;
+  });
+
+  const currentDayItems = $derived.by(() => {
+    if (!currentDay) return [];
+    const itemsList: ItineraryItem[] = [];
+    for (const item of currentDay.allDay) itemsList.push(item);
+    for (const entry of currentDay.timed) {
+      if (entry.kind === 'item' && entry.item) itemsList.push(entry.item);
+    }
+    return itemsList;
+  });
+
   const hasDays = $derived(dates.length > 0);
 
   function reload() {
@@ -168,11 +188,11 @@
 </script>
 
 <svelte:head>
-  <title>Itinerary – {trip?.title ?? 'Trip'}</title>
+  <title>{t('itinerary')} – {trip?.title ?? 'Trip'}</title>
 </svelte:head>
 
 <section aria-labelledby="itinerary-heading">
-  <h1 id="itinerary-heading" class="sr-only">Itinerary</h1>
+  <h1 id="itinerary-heading" class="sr-only">{t('itinerary')}</h1>
 
   {#if !loaded}
     <div class="space-y-4">
@@ -182,14 +202,14 @@
       <Skeleton class="h-24 w-full rounded-lg" />
     </div>
   {:else if loadError}
-    <ErrorState title="Couldn't load your itinerary" onretry={retry} />
+    <ErrorState title={t('could_not_load_itinerary')} onretry={retry} />
   {:else if !hasDays && ideasCount === 0}
     <EmptyState
       icon={CalendarDays}
-      title="Let's plan your days"
-      description="Add trip dates to build your day-by-day timeline – then map out activities, all-day items and daily to-dos."
+      title={t('lets_plan_days')}
+      description={t('plan_days_desc')}
     >
-      <Button onclick={shell.openEditor}>Set trip dates</Button>
+      <Button onclick={shell.openEditor}>{t('set_trip_dates')}</Button>
     </EmptyState>
   {:else}
     <div class="space-y-5">
@@ -205,36 +225,44 @@
             />
           </div>
         {:else if viewMode === 'overview'}
-          <h2 class="font-serif text-xl font-semibold text-ink">Whole Trip Overview</h2>
+          <h2 class="font-serif text-xl font-semibold text-ink">{t('whole_trip_overview')}</h2>
         {/if}
 
-        <div class="hidden lg:inline-flex items-center rounded-lg border border-border bg-surface-sunken p-1 select-none">
-          <button
-            type="button"
-            onclick={() => (viewMode = 'day')}
-            class={cn(
-              'rounded-md px-3 py-1.5 text-xs font-medium transition-colors',
-              viewMode === 'day'
-                ? 'bg-surface text-primary-700 shadow-soft'
-                : 'text-ink-muted hover:text-ink'
-            )}
-          >
-            Day
-          </button>
-          <button
-            type="button"
-            onclick={() => (viewMode = 'overview')}
-            class={cn(
-              'rounded-md px-3 py-1.5 text-xs font-medium transition-colors',
-              viewMode === 'overview'
-                ? 'bg-surface text-primary-700 shadow-soft'
-                : 'text-ink-muted hover:text-ink'
-            )}
-          >
-            Overview
-          </button>
+        <div class="flex items-center space-x-2">
+          {#if trip}
+            <ExportCalendarButton {trip} items={currentDayItems} />
+          {/if}
+
+          <div class="inline-flex items-center rounded-lg border border-border bg-surface-sunken p-1 select-none">
+            <button
+              type="button"
+              onclick={() => (viewMode = 'day')}
+              class={cn(
+                'rounded-md px-3 py-1.5 text-xs font-medium transition-colors',
+                viewMode === 'day'
+                  ? 'bg-surface text-primary-700 shadow-soft'
+                  : 'text-ink-muted hover:text-ink'
+              )}
+            >
+              {t('day')}
+            </button>
+            <button
+              type="button"
+              onclick={() => (viewMode = 'overview')}
+              class={cn(
+                'rounded-md px-3 py-1.5 text-xs font-medium transition-colors',
+                viewMode === 'overview'
+                  ? 'bg-surface text-primary-700 shadow-soft'
+                  : 'text-ink-muted hover:text-ink'
+              )}
+            >
+              {t('overview')}
+            </button>
+          </div>
         </div>
       </div>
+
+
 
       {#if viewMode === 'day'}
         {#if currentDay}
@@ -245,6 +273,7 @@
               {dates}
               destinations={trip?.destinations ?? []}
               {homeCurrency}
+              travelerCount={trip?.travelerCount ?? 1}
               flightsById={flightsById}
               reservationsById={reservationsById}
               {links}
@@ -277,11 +306,11 @@
   <button
     type="button"
     onclick={() => openAdd()}
-    aria-label="Add activity"
+    aria-label={t('add_activity')}
     class="fixed bottom-20 right-4 z-40 inline-flex h-14 items-center gap-2 rounded-full bg-primary-600 px-5 text-base font-medium text-white shadow-card transition-colors hover:bg-primary-700 focus:visible:outline-none focus:visible:ring-2 focus:visible:ring-primary-600 focus:visible:ring-offset-2 focus:visible:ring-offset-bg lg:bottom-8 [&_svg]:size-5"
   >
     <Plus />
-    <span class="hidden sm:inline">Add activity</span>
+    <span class="hidden sm:inline">{t('add_activity')}</span>
   </button>
 {/if}
 

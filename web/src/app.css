@@ -52,6 +52,19 @@
     color-scheme: light;
   }
 
+  html.dark {
+    --color-bg: #111613;
+    --color-surface: #19221c;
+    --color-surface-sunken: #0e120f;
+    --color-border: #25332a;
+    --color-ink: #f0f4f1;
+    --color-ink-muted: #9bb0a3;
+    --color-primary-100: #1d3629;
+    --color-primary-600: #3b8a65;
+    --color-primary-700: #4da57b;
+    color-scheme: dark;
+  }
+
   html {
     -webkit-text-size-adjust: 100%;
     text-size-adjust: 100%;
@@ -114,28 +127,43 @@
     .pr-safe { padding-right: env(safe-area-inset-right); }
 
     .glass-panel {
-      background-color: rgba(255, 253, 249, 0.65) !important;
+      background-color: rgba(255, 253, 249, 0.65);
       backdrop-filter: blur(16px) saturate(120%);
       -webkit-backdrop-filter: blur(16px) saturate(120%);
-      border: 1px solid rgba(234, 225, 212, 0.5) !important;
+      border: 1px solid rgba(234, 225, 212, 0.5);
+    }
+    .dark .glass-panel {
+      background-color: rgba(25, 34, 28, 0.75);
+      border-color: rgba(37, 51, 42, 0.6);
     }
 
     .glass-header {
-      background-color: rgba(251, 247, 241, 0.8) !important;
+      background-color: rgba(251, 247, 241, 0.85);
       backdrop-filter: blur(20px) saturate(120%);
       -webkit-backdrop-filter: blur(20px) saturate(120%);
-      border-bottom: 1px solid rgba(234, 225, 212, 0.6) !important;
+      border-bottom: 1px solid rgba(234, 225, 212, 0.6);
+    }
+    .dark .glass-header {
+      background-color: rgba(17, 22, 19, 0.85);
+      border-bottom-color: rgba(37, 51, 42, 0.6);
     }
 
     .glass-input {
-      background-color: rgba(255, 253, 249, 0.5) !important;
+      background-color: rgba(255, 253, 249, 0.5);
       backdrop-filter: blur(8px);
       -webkit-backdrop-filter: blur(8px);
-      border: 1px solid rgba(234, 225, 212, 0.6) !important;
+      border: 1px solid rgba(234, 225, 212, 0.6);
     }
-
+    .dark .glass-input {
+      background-color: rgba(25, 34, 28, 0.6);
+      border-color: rgba(37, 51, 42, 0.6);
+      color: var(--color-ink);
+    }
     .glass-input:focus {
-      background-color: rgba(255, 253, 249, 0.95) !important;
+      background-color: rgba(255, 253, 249, 0.95);
+    }
+    .dark .glass-input:focus {
+      background-color: rgba(25, 34, 28, 0.95);
     }
 
     /* Hover-lift: card pops up slightly on hover */
@@ -198,6 +226,11 @@
     opacity: 0.22;
     mix-blend-mode: multiply;
     will-change: transform;
+  }
+
+  .dark .mesh-orb {
+    mix-blend-mode: soft-light;
+    opacity: 0.35;
   }
 
   .mesh-orb-1 {

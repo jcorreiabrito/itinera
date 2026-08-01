@@ -13,13 +13,23 @@ from typing import Any
 from urllib.parse import quote
 
 import httpx
+from tenacity import retry, retry_if_exception_type, stop_after_attempt, wait_exponential
 
 from .config import Settings
+from .errors import CouchDBUnavailableError
 
 logger = logging.getLogger("itinera.couch")
 
 # Sentinel high code point used to bound CouchDB prefix range scans.
 _HIGH = "\ufff0"
+
+_retry_couch = retry(
+    stop=stop_after_attempt(3),
+    wait=wait_exponential(multiplier=0.2, max=2.0),
+    retry=retry_if_exception_type((httpx.ConnectError, httpx.TimeoutException, httpx.NetworkError)),
+    reraise=True,
+)
+
 
 # Prefixes for trip-scoped documents (see "IDs are meaningful and prefix-sortable"
 # in 04-data-model.md). The trip document itself is fetched by id separately.

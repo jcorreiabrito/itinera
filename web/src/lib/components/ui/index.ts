@@ -18,6 +18,9 @@ export { default as Skeleton } from './Skeleton.svelte';
 export { default as SyncStatusPill } from './SyncStatusPill.svelte';
 export { default as Textarea } from './Textarea.svelte';
 export { default as Toaster } from './Toaster.svelte';
+export { default as ThemeToggle } from './ThemeToggle.svelte';
+export { default as ErrorBoundary } from './ErrorBoundary.svelte';
+
 
 export { toast, toasts } from './toast';
 

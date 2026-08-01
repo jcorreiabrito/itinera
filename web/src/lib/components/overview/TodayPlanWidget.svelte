@@ -3,6 +3,7 @@
     import type { IconComponent } from '$lib/types';
     import { BedDouble, CalendarDays, MapPin, Plane, Sun } from 'lucide-svelte';
     import { describeTimelineEntry, entryTimeLabel, type NextUpKind } from '$lib/overview';
+    import { t } from '$lib/i18n.svelte';
     import WidgetCard from './WidgetCard.svelte';
 
     interface Props {
@@ -21,14 +22,14 @@
     const isEmpty = $derived(!day || (day.allDay.length === 0 && day.timed.length === 0));
 </script>
 
-<WidgetCard title="Today's plan" icon={Sun} {href} linkLabel="Itinerary">
+<WidgetCard title={t('todays_plan')} icon={Sun} {href} linkLabel={t('itinerary')}>
     {#if !day || isEmpty}
-        <p class="text-sm text-ink-muted">Nothing planned for today.</p>
+        <p class="text-sm text-ink-muted">{t('no_activities_today')}</p>
     {:else}
         <ul class="space-y-2.5">
             {#each day.allDay as item (item._id)}
                 <li class="flex min-w-0 items-center gap-3">
-                    <span class="w-12 shrink-0 text-xs font-medium uppercase text-ink-muted">All day</span>
+                    <span class="w-12 shrink-0 text-xs font-medium uppercase text-ink-muted">{t('today')}</span>
                     <CalendarDays class="size-4 shrink-0 text-primary-700" />
                     <span class="min-w-0 flex-1 truncate text-sm text-ink">{item.title ?? 'Untitled'}</span>
                 </li>

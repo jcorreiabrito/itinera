@@ -37,12 +37,13 @@
     async function quickApplyBuiltin(templateId: string) {
       try {
         const added = await checklist.applyTemplate(id, templateId, 'merge');
-        toast.success(`Template applied (${added} items added).`);
+        toast.success(t('template_applied', { n: String(added) }));
         loadAll(id);
       } catch {
-        toast.error('Could not apply template.');
+        toast.error(t('could_not_apply_template'));
       }
     }
+  import { t } from '$lib/i18n.svelte';
   import { Badge, Button, EmptyState, ErrorState, MenuItem, Popover, ProgressBar, Skeleton, toast } from '$lib/components/ui';
   import {
     ApplyTemplateDialog,
@@ -166,10 +167,10 @@
     if (!activeItem) return;
     try {
       await checklist.moveToGroup(activeItem._id, group);
-      toast.success('Moved item.');
+      toast.success(t('moved_item'));
       loadAll(id);
     } catch {
-      toast.error('Could not move item.');
+      toast.error(t('could_not_move_item'));
     }
   }
 
@@ -178,37 +179,37 @@
       await checklist.toggle(item._id);
       loadAll(id);
     } catch {
-      toast.error('Could not toggle item.');
+      toast.error(t('could_not_toggle_item'));
     }
   }
 
   async function deleteItem(item: ChecklistItem) {
     try {
       await checklist.softDelete(item._id);
-      toast.success('Item deleted.');
+      toast.success(t('item_deleted'));
       loadAll(id);
     } catch {
-      toast.error('Could not delete item.');
+      toast.error(t('could_not_delete_item'));
     }
   }
 
   async function resetList() {
     try {
       await checklist.resetChecks(id);
-      toast.success('Checklist reset.');
+      toast.success(t('checklist_reset'));
       loadAll(id);
     } catch {
-      toast.error('Could not reset checks.');
+      toast.error(t('could_not_reset_checks'));
     }
   }
 
   async function cleanCompleted() {
     try {
       await checklist.cleanCompleted(id);
-      toast.success('Cleared completed items.');
+      toast.success(t('cleared_completed_items'));
       loadAll(id);
     } catch {
-      toast.error('Could not clear completed.');
+      toast.error(t('could_not_clear_completed'));
     }
   }
 
@@ -231,7 +232,7 @@
     <Skeleton class="h-32 w-full rounded-md" />
   </div>
 {:else if loadError}
-  <ErrorState title="Couldn't load your checklist" onretry={retry} />
+  <ErrorState title={t('could_not_load_checklist')} onretry={retry} />
 {:else}
   <div class="flex flex-col gap-4">
     <!-- Header Controls -->
@@ -241,13 +242,13 @@
         aria-label="Checklist view"
       >
         <button type="button" class={segClass(view === 'group')} onclick={() => view = 'group'}>
-          Groups
+          {t('groups')}
         </button>
         <button type="button" class={segClass(view === 'day')} onclick={() => view = 'day'}>
-          Days
+          {t('days')}
         </button>
         <button type="button" class={segClass(view === 'buy')} onclick={() => view = 'buy'}>
-          To Buy
+          {t('to_buy')}
         </button>
       </nav>
 
@@ -259,30 +260,30 @@
             onchange={(e) => hideCompleted = e.currentTarget.checked}
             class="rounded border-border text-primary-600 focus:ring-2 focus:ring-primary-600/30"
           />
-          <span>Hide completed</span>
+          <span>{t('hide_completed')}</span>
         </label>
 
         <Button onclick={() => handleAdd()}>
-          <Plus class="size-4" /> Add item
+          <Plus class="size-4" /> {t('add_item')}
         </Button>
 
-        <Popover bind:open={actionsMenuOpen} label="Checklist options">
+        <Popover bind:open={actionsMenuOpen} label={t('checklist_options')}>
           {#snippet trigger({ toggle, open })}
             <Button variant="secondary" onclick={toggle} aria-haspopup="true" aria-expanded={open}>
-              Options...
+              {t('options_ellipsis')}
             </Button>
           {/snippet}
           <MenuItem icon={ListChecks} onclick={() => { actionsMenuOpen = false; applyDialogOpen = true; }}>
-            Apply template...
+            {t('apply_template_ellipsis')}
           </MenuItem>
           <MenuItem icon={Upload} onclick={() => { actionsMenuOpen = false; saveDialogOpen = true; }}>
-            Save as template...
+            {t('save_as_template_ellipsis')}
           </MenuItem>
           <MenuItem icon={RotateCcw} onclick={() => { actionsMenuOpen = false; resetList(); }}>
-            Reset checklist
+            {t('reset_checklist')}
           </MenuItem>
           <MenuItem icon={Trash2} tone="danger" onclick={() => { actionsMenuOpen = false; cleanCompleted(); }}>
-            Clear completed
+            {t('clear_completed')}
           </MenuItem>
         </Popover>
       </div>
@@ -291,9 +292,9 @@
     <!-- Progress bar -->
     {#if prog.total > 0}
       <div class="flex items-center gap-3 rounded-lg border border-border bg-surface px-4 py-3">
-        <span class="text-sm font-medium text-ink shrink-0">Progress</span>
+        <span class="text-sm font-medium text-ink shrink-0">{t('progress')}</span>
         <div class="flex-1">
-          <ProgressBar value={prog.fraction} tone={prog.fraction === 1 ? 'success' : 'primary'} size="md" label="Checklist overall progress" />
+          <ProgressBar value={prog.fraction} tone={prog.fraction === 1 ? 'success' : 'primary'} size="md" label={t('checklist_overall_progress')} />
         </div>
         <span class="text-sm tabular-nums text-ink-muted shrink-0">{prog.done}/{prog.total}</span>
       </div>
@@ -320,16 +321,16 @@
             <div class="mx-auto grid size-12 place-items-center rounded-full bg-primary-100 dark:bg-primary-950/60 text-primary-600 dark:text-primary-400">
               <ListChecks class="size-6" />
             </div>
-            <h2 class="mt-3 font-serif text-xl font-semibold text-ink">Start your checklist</h2>
+            <h2 class="mt-3 font-serif text-xl font-semibold text-ink">{t('start_your_checklist')}</h2>
             <p class="mt-1 text-sm text-ink-muted max-w-md mx-auto">
-              Choose a starter template tailored for your trip style, or add items one by one.
+              {t('start_checklist_desc')}
             </p>
             <div class="mt-4 flex flex-wrap items-center justify-center gap-3">
               <Button onclick={() => handleAdd()}>
-                <Plus class="size-4" /> Add custom item
+                <Plus class="size-4" /> {t('add_custom_item')}
               </Button>
               <Button variant="secondary" onclick={() => (applyDialogOpen = true)}>
-                Browse all templates...
+                {t('browse_all_templates')}
               </Button>
             </div>
           </div>
@@ -337,8 +338,8 @@
           <!-- Quick Templates Grid -->
           <div>
             <div class="flex items-center justify-between mb-3 px-1">
-              <h3 class="text-sm font-semibold text-ink uppercase tracking-wider">Recommended Templates</h3>
-              <span class="text-xs text-ink-muted">1-click setup</span>
+              <h3 class="text-sm font-semibold text-ink uppercase tracking-wider">{t('recommended_templates')}</h3>
+              <span class="text-xs text-ink-muted">{t('one_click_setup')}</span>
             </div>
             <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
               {#each BUILTIN_TEMPLATES as tpl (tpl._id)}
@@ -353,7 +354,7 @@
                         <h4 class="font-medium text-ink text-sm">{tpl.name}</h4>
                       </div>
                       {#if tpl.isDefault}
-                        <Badge variant="primary" class="text-[10px]">Popular</Badge>
+                        <Badge variant="primary" class="text-[10px]">{t('popular')}</Badge>
                       {/if}
                     </div>
                     <p class="mt-2 text-xs text-ink-muted line-clamp-2 leading-relaxed">
@@ -361,9 +362,9 @@
                     </p>
                   </div>
                   <div class="mt-4 pt-3 border-t border-border/50 flex items-center justify-between">
-                    <span class="text-xs text-ink-muted font-mono">{tpl.items?.length ?? 0} items</span>
+                    <span class="text-xs text-ink-muted font-mono">{t('items_count_plural', { n: String(tpl.items?.length ?? 0) })}</span>
                     <Button variant="secondary" size="sm" onclick={() => quickApplyBuiltin(tpl._id!)}>
-                      Use template
+                      {t('use_template')}
                     </Button>
                   </div>
                 </div>
@@ -397,8 +398,8 @@
         </div>
       {:else}
         <EmptyState
-          title="No daily to-dos"
-          description="Daily to-dos are checklist items linked to a specific day of your itinerary."
+          title={t('no_daily_todos')}
+          description={t('no_daily_todos_desc')}
         />
       {/if}
     {:else if view === 'buy'}
@@ -420,8 +421,8 @@
         </section>
       {:else}
         <EmptyState
-          title="No shopping items"
-          description="Any items in a group named 'To buy' will show up here."
+          title={t('no_shopping_items')}
+          description={t('no_shopping_items_desc')}
         />
       {/if}
     {/if}

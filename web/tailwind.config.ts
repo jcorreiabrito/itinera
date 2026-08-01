@@ -6,6 +6,7 @@ import type { Config } from 'tailwindcss';
  * Locked: light theme only · cozy/warm · forest-green accent.
  */
 export default {
+  darkMode: 'class',
   content: ['./src/**/*.{html,js,svelte,ts}', './src/app.html'],
   theme: {
     extend: {

@@ -3,6 +3,7 @@
     import type { IconComponent } from '$lib/types';
     import { BedDouble, CalendarClock, CalendarDays, MapPin, Plane } from 'lucide-svelte';
     import { formatTime, formatWeekdayDate, relativeTime } from '$lib/format';
+    import { t } from '$lib/i18n.svelte';
     import WidgetCard from './WidgetCard.svelte';
 
     interface Props {
@@ -19,7 +20,7 @@
     };
 </script>
 
-<WidgetCard title="Next up" icon={CalendarClock} {href} linkLabel="Itinerary">
+<WidgetCard title={t('next_up')} icon={CalendarClock} {href} linkLabel={t('itinerary')}>
     {#if nextUp}
         {@const Icon = Icons[nextUp.kind]}
         <div class="flex min-w-0 items-start gap-3">
@@ -45,6 +46,6 @@
             </div>
         </div>
     {:else}
-        <p class="text-sm text-ink-muted">Nothing scheduled yet.</p>
+        <p class="text-sm text-ink-muted">{t('nothing_scheduled_yet')}</p>
     {/if}
 </WidgetCard>

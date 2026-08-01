@@ -1,11 +1,6 @@
-/**
- * Small pure helpers for the Flights UI – smart booking labels, endpoint labels
- * and accessible per-leg / per-booking descriptions. All display maths that is
- * time-zone aware lives in `flights.computeFlight`; these only format strings.
- */
-
 import type { AirportSnapshot, Flight, FlightSegment } from '$lib/db';
 import { formatTime } from '$lib/format';
+import { t } from '$lib/i18n.svelte';
 
 /** Best short label for an airport endpoint: code, else city, else dash. */
 export function endpointCode(airport?: AirportSnapshot): string {
@@ -32,20 +27,18 @@ export function firstDepart(flight: Flight): string | undefined {
 }
 
 /**
- * Infer "Outbound / Return / Flight N" labels across a trip's bookings: the
- * earliest is Outbound; any later booking that lands back at the outbound's
- * origin is a Return; anything else is numbered.
+ * Infer "Outbound / Return / Flight N" labels across a trip's bookings.
  */
 export function smartLabels(flights: Flight[]): string[] {
     if (flights.length === 0) return [];
     const out = flights.map(() => '');
-    out[0] = 'Outbound';
+    out[0] = t('outbound');
     const origin = firstFrom(flights[0]);
     for (let i = 1; i < flights.length; i++) {
         const dest = lastTo(flights[i]);
         const sameCode = origin?.code && dest?.code && origin.code === dest.code;
         const sameCity = origin?.city && dest?.city && origin.city === dest.city;
-        out[i] = sameCode || sameCity ? 'Return' : `Flight ${i + 1}`;
+        out[i] = sameCode || sameCity ? t('return_flight') : t('flight_n', { n: String(i + 1) });
     }
     return out;
 }
@@ -55,7 +48,7 @@ export function airlineLabel(seg: FlightSegment): string {
     return [seg?.airline, seg?.flightNumber].filter(Boolean).join(' ');
 }
 
-/** Accessible label for a single leg, per the a11y docs' a11y example. */
+/** Accessible label for a single leg. */
 export function legAriaLabel(seg: FlightSegment): string {
     const airline = airlineLabel(seg);
     const from = endpointName(seg.from) || 'origin';
@@ -75,13 +68,15 @@ export function flightAriaSummary(computed: {
     stops: number;
     segments: { durationText: string }[];
 }): string {
-    const route = computed.route || 'Flight';
+    const route = computed.route || t('flights');
     const stops =
-        computed.stops > 0 ? `, ${computed.stops} stop${computed.stops > 1 ? 's' : ''}` : ', direct';
+        computed.stops > 0
+            ? `, ${t(computed.stops > 1 ? 'stops_count_plural' : 'stops_count', { n: String(computed.stops) })}`
+            : `, ${t('direct_flight')}`;
     const durations = computed.segments
         .map((s) => s.durationText)
         .filter(Boolean)
         .join(' + ');
     const dur = durations ? `, ${durations}` : '';
-    return `Flight ${route}${stops}${dur}`;
+    return `${t('flights')} ${route}${stops}${dur}`;
 }

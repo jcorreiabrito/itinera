@@ -2,6 +2,7 @@
   import { page } from '$app/state';
   import { FlightsPane } from '$lib/components/flights';
   import { ReservationsPane } from '$lib/components/reservations';
+  import { t } from '$lib/i18n.svelte';
   import { cn } from '$lib/utils';
 
   const id = $derived(page.params.id ?? '');
@@ -18,11 +19,11 @@
 </script>
 
 <svelte:head>
-  <title>Bookings – Itinera</title>
+  <title>{t('bookings')} – Itinera</title>
 </svelte:head>
 
 <section aria-labelledby="bookings-heading">
-  <h1 id="bookings-heading" class="sr-only">Bookings</h1>
+  <h1 id="bookings-heading" class="sr-only">{t('bookings')}</h1>
 
   <nav
     class="mt-4 flex w-full sm:inline-flex rounded-lg border border-border bg-surface-sunken p-1 text-sm"
@@ -33,14 +34,14 @@
       aria-current={tab === 'flights' ? 'page' : undefined}
       class={cn(segClass(tab === 'flights'), 'flex-1 justify-center text-center')}
     >
-      Flights
+      {t('flights')}
     </a>
     <a
       href={`/trip/${id}/bookings?tab=reservations`}
       aria-current={tab === 'reservations' ? 'page' : undefined}
       class={cn(segClass(tab === 'reservations'), 'flex-1 justify-center text-center')}
     >
-      Reservations
+      {t('reservations')}
     </a>
   </nav>
 

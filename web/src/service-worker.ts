@@ -28,6 +28,11 @@ sw.addEventListener('install', (event) => {
       } catch {
         // Ignore: shell will be cached on first successful navigation.
       }
+      try {
+        await cache.add('/index.html');
+      } catch {
+        // Ignore: fallback index.html caching
+      }
       // Note: we intentionally do NOT skipWaiting here, so the client can show an
       // "update available" prompt and apply it on demand (see src/lib/pwa.ts).
     })()
@@ -66,10 +71,32 @@ sw.addEventListener('fetch', (event) => {
     (async () => {
       const cache = await caches.open(CACHE);
 
-      // 1. Navigation requests -> serve cached SPA shell (index.html) immediately.
+      // 1. Navigation requests -> serve cached SPA shell immediately.
       if (request.mode === 'navigate') {
-        const shell = await cache.match(APP_SHELL);
+        const shell =
+          (await cache.match(APP_SHELL, { ignoreSearch: true })) ||
+          (await cache.match('/index.html', { ignoreSearch: true })) ||
+          (await cache.match(request, { ignoreSearch: true }));
         if (shell) return shell;
+
+        try {
+          const response = await fetch(request);
+          if (response.ok && url.origin === location.origin) {
+            cache.put(APP_SHELL, response.clone());
+            cache.put('/index.html', response.clone());
+            cache.put(request, response.clone());
+          }
+          return response;
+        } catch (error) {
+          // Offline fallback: try to find any cached index.html or root page in cache
+          for (const key of await cache.keys()) {
+            if (key.url.endsWith('/') || key.url.endsWith('/index.html') || key.url.includes('index')) {
+              const anyShell = await cache.match(key);
+              if (anyShell) return anyShell;
+            }
+          }
+          throw error;
+        }
       }
 
       // 2. Cache-first for our own precached, immutable build assets.
@@ -86,7 +113,11 @@ sw.addEventListener('fetch', (event) => {
       // 3. Network-first for everything else, with an offline fallback to cache.
       try {
         const response = await fetch(request);
-        if (response.ok && url.origin === location.origin) {
+        const isCacheableExternal =
+          url.hostname.includes('tile.openstreetmap.org') ||
+          url.hostname.includes('open-meteo.com');
+
+        if (response.ok && (url.origin === location.origin || isCacheableExternal)) {
           cache.put(request, response.clone());
         }
         return response;

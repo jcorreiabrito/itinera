@@ -155,9 +155,222 @@
         .remaining-ok { color: var(--success); font-weight: 600; }
         .remaining-over { color: var(--danger); font-weight: 600; }
 
+        /* Markdown notes styling */
+        .trip-notes {
+            background: var(--surface);
+            border: 1px solid var(--border);
+            border-left: 4px solid var(--primary-600);
+            border-radius: 8px;
+            padding: 12px 16px;
+            margin-bottom: 20px;
+        }
+        .note-p {
+            margin: 0 0 8px 0;
+            color: var(--ink);
+            line-height: 1.5;
+        }
+        .note-p:last-child { margin-bottom: 0; }
+        .note-h1 {
+            font-family: "Fraunces", Georgia, serif;
+            color: var(--primary-700);
+            font-size: 13pt;
+            font-weight: 600;
+            margin: 14px 0 6px 0;
+            border-bottom: 1px solid var(--primary-100);
+            padding-bottom: 3px;
+        }
+        .trip-notes .note-h1:first-child { margin-top: 0; }
+        .note-h2 {
+            font-family: "Fraunces", Georgia, serif;
+            color: var(--primary-700);
+            font-size: 11.5pt;
+            font-weight: 600;
+            margin: 10px 0 4px 0;
+        }
+        .note-h3 {
+            font-weight: 600;
+            color: var(--ink);
+            font-size: 10.5pt;
+            margin: 8px 0 2px 0;
+        }
+        .note-list, .note-list-ordered {
+            margin: 6px 0 10px 0;
+            padding-left: 20px;
+            color: var(--ink);
+        }
+        .note-list li, .note-list-ordered li {
+            margin-bottom: 4px;
+            line-height: 1.45;
+        }
+        .note-quote {
+            border-left: 3px solid var(--border);
+            margin: 8px 0;
+            padding: 4px 0 4px 12px;
+            color: var(--muted);
+            font-style: italic;
+        }
+        .note-hr {
+            border: 0;
+            border-top: 1px solid var(--border);
+            margin: 12px 0;
+        }
+        .note-code {
+            font-family: monospace;
+            background: var(--sunken);
+            padding: 2px 5px;
+            border-radius: 4px;
+            font-size: 9pt;
+        }
+        .note-link {
+            color: var(--primary-700);
+            text-decoration: underline;
+        }
+        
+        /* Compact adjustments for inline items & reservations */
+        .item .note, .card .sub {
+            color: var(--muted);
+        }
+        .item .note .note-p, .card .sub .note-p,
+        .item .note .note-list, .card .sub .note-list {
+            margin-bottom: 4px;
+            color: var(--muted);
+            font-size: 9.5pt;
+        }
+        .item .note .note-list, .card .sub .note-list {
+            padding-left: 16px;
+        }
+
         .muted { color: var(--muted); }
         .empty { color: var(--muted); font-style: italic; }
         .progress { color: var(--muted); font-size: 10pt; font-weight: 400; }
+
+        /* Calendar Overview Grid */
+        .cal-grid-section {
+            page-break-inside: avoid;
+            margin-bottom: 24pt;
+        }
+        .cal-grid-container {
+            display: flex;
+            border: 1px solid var(--border);
+            border-radius: 6px;
+            background: #ffffff;
+            overflow: hidden;
+            margin-top: 8pt;
+        }
+        .cal-time-col {
+            width: 40px;
+            border-right: 1px solid var(--border);
+            background: var(--surface-sunken);
+        }
+        .cal-time-header {
+            height: 28px;
+            border-bottom: 1px solid var(--border);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 6.5pt;
+            font-weight: 700;
+            color: var(--muted);
+            text-transform: uppercase;
+        }
+        .cal-time-slot {
+            height: 30px;
+            border-bottom: 1px solid rgba(0,0,0,0.05);
+            font-size: 6.5pt;
+            color: var(--muted);
+            text-align: right;
+            padding-right: 4px;
+            padding-top: 2px;
+            box-sizing: border-box;
+        }
+        .cal-days-container {
+            display: flex;
+            flex: 1;
+        }
+        .cal-day-col {
+            flex: 1;
+            border-right: 1px solid var(--border);
+            position: relative;
+        }
+        .cal-day-col:last-child {
+            border-right: none;
+        }
+        .cal-day-header {
+            height: 28px;
+            border-bottom: 1px solid var(--border);
+            background: var(--surface-sunken);
+            padding: 2px 3px;
+            text-align: center;
+            box-sizing: border-box;
+        }
+        .cal-day-name {
+            font-size: 7.5pt;
+            font-weight: 700;
+            color: var(--ink);
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+        }
+        .cal-day-dest {
+            font-size: 6pt;
+            color: var(--primary-700);
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+        }
+        .cal-body-relative {
+            position: relative;
+        }
+        .cal-hour-line {
+            height: 30px;
+            border-bottom: 1px solid rgba(0,0,0,0.05);
+            box-sizing: border-box;
+        }
+        .cal-event-card {
+            position: absolute;
+            left: 2px;
+            right: 2px;
+            background: #f0f7f4;
+            border: 1px solid #c2e0d3;
+            border-left: 3px solid var(--primary-600);
+            border-radius: 3px;
+            padding: 1px 3px;
+            font-size: 6.5pt;
+            box-sizing: border-box;
+            overflow: hidden;
+        }
+        .cal-event-title {
+            font-weight: 700;
+            color: var(--ink);
+            line-height: 1.15;
+            white-space: normal;
+            word-wrap: break-word;
+            overflow: hidden;
+        }
+        .cal-event-time {
+            font-size: 5.5pt;
+            color: var(--muted);
+            line-height: 1.1;
+            margin-top: 1px;
+            white-space: normal;
+            word-wrap: break-word;
+        }
+        .cal-allday-row {
+            min-height: 18px;
+            border-bottom: 1px solid var(--border);
+            background: #fafafa;
+            padding: 2px;
+        }
+        .cal-allday-pill {
+            font-size: 6pt;
+            background: #e6f4ea;
+            color: #1e7e34;
+            padding: 1px 3px;
+            border-radius: 2px;
+            margin-bottom: 1px;
+            white-space: normal;
+            word-wrap: break-word;
+        }
     </style>
 </head>
 <body>
@@ -170,9 +383,63 @@
     </div>
 
     {% if trip.notes %}
-    <section>
-        <p class="muted">{{ trip.notes }}</p>
+    <section class="trip-notes">
+        {{ trip.notes | markdown | safe }}
     </section>
+    {% endif %}
+
+    {% if calendar_grid and calendar_grid.has_data %}
+        {% for chunk in calendar_grid.chunks %}
+        <section class="cal-grid-section">
+            <h2 class="section-title">
+                Trip Overview
+                {% if chunk.total_chunks > 1 %}
+                    <span style="font-size: 9.5pt; font-weight: 500; color: var(--muted); float: right;">
+                        Part {{ chunk.chunk_index }} of {{ chunk.total_chunks }} ({{ chunk.range_label }})
+                    </span>
+                {% endif %}
+            </h2>
+            <div class="cal-grid-container">
+                <div class="cal-time-col">
+                    <div class="cal-time-header">Time</div>
+                    {% for hour in chunk.hours %}
+                    <div class="cal-time-slot">{{ hour }}</div>
+                    {% endfor %}
+                </div>
+                <div class="cal-days-container">
+                    {% for day in chunk.days %}
+                    <div class="cal-day-col">
+                        <div class="cal-day-header">
+                            <div class="cal-day-name">{{ day.label }}</div>
+                            {% if day.destination %}<div class="cal-day-dest">{{ day.destination }}</div>{% endif %}
+                        </div>
+                        {% if day.all_day %}
+                        <div class="cal-allday-row">
+                            {% for item in day.all_day %}
+                            <div class="cal-allday-pill">{{ item.title }}</div>
+                            {% endfor %}
+                        </div>
+                        {% endif %}
+                        <div class="cal-body-relative" style="height: {{ chunk.hours|length * 30 }}px;">
+                            {% for hour in chunk.hours %}
+                            <div class="cal-hour-line"></div>
+                            {% endfor %}
+                            {% for ev in day.timed %}
+                            <div class="cal-event-card" style="top: {{ ev.top_pct }}%; height: {{ ev.height_pct }}%;">
+                                <div class="cal-event-title">{{ ev.title }}</div>
+                                <div class="cal-event-time">
+                                    {{ ev.time_range }}
+                                    {% if ev.location %}<br>{{ ev.location }}{% endif %}
+                                </div>
+                            </div>
+                            {% endfor %}
+                        </div>
+                    </div>
+                    {% endfor %}
+                </div>
+            </div>
+        </section>
+        {% endfor %}
     {% endif %}
 
     <section>
@@ -183,6 +450,7 @@
                 <div class="day-date">
                     {{ day.label }}
                     {% if day.destination %}<span style="color: var(--primary-700); font-weight: 500; font-size: 9.5pt;"> • {{ day.destination }}</span>{% endif %}
+                    {% if day.total_cost_formatted %}<span style="color: var(--success); font-size: 9.5pt; font-weight: 600; float: right;">Day Total: {{ day.total_cost_formatted }}{% if day.total_cost_pp_formatted %} ({{ day.total_cost_pp_formatted }}/p.p.){% endif %}</span>{% endif %}
                 </div>
                 {% if day['items'] %}
                     {% for it in day['items'] %}
@@ -193,8 +461,9 @@
                         <div>
                             <span class="title">{{ it.title or "Untitled" }}</span>
                             {% if it.category %}<span class="cat">{{ it.category }}</span>{% endif %}
+                            {% if it.formatted_cost %}<span class="cat" style="background: #e6f4ea; color: #1e7e34; font-weight: 600;">{{ it.formatted_cost }}{% if it.formatted_cost_pp %} ({{ it.formatted_cost_pp }}/p.p.){% endif %}</span>{% endif %}
                             {% if it.location and it.location.name %}<div class="where">{{ it.location.name }}</div>{% endif %}
-                            {% if it.notes %}<div class="note">{{ it.notes }}</div>{% endif %}
+                            {% if it.notes %}<div class="note">{{ it.notes | markdown | safe }}</div>{% endif %}
                         </div>
                     </div>
                     {% endfor %}
@@ -246,7 +515,7 @@
                     {% if r.start %} • {{ r.start }}{% if r.end %} → {{ r.end }}{% endif %}{% endif %}
                     {% if r.confirmation %} • Conf. {{ r.confirmation }}{% endif %}
                 </div>
-                {% if r.notes %}<div class="sub">{{ r.notes }}</div>{% endif %}
+                {% if r.notes %}<div class="sub">{{ r.notes | markdown | safe }}</div>{% endif %}
             </div>
             {% endfor %}
         {% else %}

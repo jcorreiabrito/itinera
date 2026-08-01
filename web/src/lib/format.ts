@@ -7,12 +7,13 @@
  */
 
 import { DateTime } from 'luxon';
-import { t } from './i18n.svelte';
+import { getLanguage, t } from './i18n.svelte';
 
 /** "12-19 Sep 2026" / "28 Sep – 3 Oct 2026" / "12 Sep 2026". */
 export function formatDateRange(start?: string | null, end?: string | null): string {
-  const s = start ? DateTime.fromISO(start) : null;
-  const e = end ? DateTime.fromISO(end) : null;
+  const lang = (typeof getLanguage === 'function' && getLanguage()) || 'en';
+  const s = start ? DateTime.fromISO(start, { locale: lang }) : null;
+  const e = end ? DateTime.fromISO(end, { locale: lang }) : null;
 
   if (s?.isValid && e?.isValid) {
     if (s.hasSame(e, 'day')) return s.toFormat('d LLL yyyy');
@@ -29,14 +30,16 @@ export function formatDateRange(start?: string | null, end?: string | null): str
 /** "Sat 12 Sep" – a compact weekday + date label. */
 export function formatWeekdayDate(iso?: string | null): string {
   if (!iso) return '';
-  const dt = DateTime.fromISO(iso);
+  const lang = (typeof getLanguage === 'function' && getLanguage()) || 'en';
+  const dt = DateTime.fromISO(iso, { locale: lang });
   return dt.isValid ? dt.toFormat('ccc d LLL') : '';
 }
 
 /** "12 Sep 2026". */
 export function formatDate(iso?: string | null): string {
   if (!iso) return '';
-  const dt = DateTime.fromISO(iso);
+  const lang = (typeof getLanguage === 'function' && getLanguage()) || 'en';
+  const dt = DateTime.fromISO(iso, { locale: lang });
   return dt.isValid ? dt.toFormat('d LLL yyyy') : '';
 }
 
@@ -51,7 +54,8 @@ export function formatTime(value?: string | null): string {
 /** Relative phrase like "in 3 days" / "2 hours ago" (locale-aware). */
 export function relativeTime(iso: string | null): string {
   if (!iso) return '';
-  const dt = DateTime.fromISO(iso, { setZone: true });
+  const lang = (typeof getLanguage === 'function' && getLanguage()) || 'en';
+  const dt = DateTime.fromISO(iso, { setZone: true, locale: lang });
   return dt.isValid ? (dt.toRelative() ?? '') : '';
 }
 
@@ -69,19 +73,23 @@ export function formatNights(nights: number): string {
 export function formatMoney(
   amount: number,
   currency = 'EUR',
-  opts: { compact?: boolean } = {}
+  opts: { compact?: boolean; decimals?: boolean } = {}
 ): string {
   const safeAmount = Number.isFinite(amount) ? amount : 0;
+  const lang = (typeof getLanguage === 'function' && getLanguage()) || 'en';
+  const locale = lang === 'pt-BR' ? 'pt-BR' : 'en-US';
   try {
-    return new Intl.NumberFormat(undefined, {
+    const hasCents = Math.abs(safeAmount % 1) > 0.001;
+    const useDecimals = opts.decimals ?? hasCents;
+    return new Intl.NumberFormat(locale, {
       style: 'currency',
       currency,
       notation: opts.compact ? 'compact' : 'standard',
-      maximumFractionDigits: opts.compact ? 1 : 0
+      minimumFractionDigits: useDecimals ? 2 : 0,
+      maximumFractionDigits: opts.compact ? 1 : useDecimals ? 2 : 0
     }).format(safeAmount);
   } catch {
-    // Unknown currency code → fall back to a plain amount + code.
-    return `${currency} ${Math.round(safeAmount)}`;
+    return `${currency} ${safeAmount.toFixed(2)}`;
   }
 }
 

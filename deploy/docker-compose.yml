@@ -50,6 +50,7 @@ services:
       context: ..
       dockerfile: deploy/api.Dockerfile
       network: host
+    pull_policy: build
     restart: unless-stopped
     environment:
       COUCHDB_URL: http://couchdb:5984
@@ -89,6 +90,7 @@ services:
       context: ..
       dockerfile: deploy/web.Dockerfile
       network: host
+    pull_policy: build
     restart: unless-stopped
     environment:
       # The entrypoint derives COUCHDB_BASIC_AUTH (base64 user:pass) from these so
@@ -106,7 +108,7 @@ services:
       couchdb:
         condition: service_started
       fastapi:
-        condition: service_started
+        condition: service_healthy
     volumes:
       - caddy-data:/data
       - caddy-config:/config

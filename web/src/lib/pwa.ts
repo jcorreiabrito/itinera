@@ -15,8 +15,16 @@ let reloading = false;
  * svelte.config.js so we can drive this UX ourselves.
  */
 export function registerServiceWorker(): void {
-  if (typeof navigator === 'undefined' || !('serviceWorker' in navigator)) return;
-  if (!import.meta.env.PROD) return;
+  if (typeof navigator === 'undefined' || !('serviceWorker' in navigator)) {
+    if (typeof window !== 'undefined' && !window.isSecureContext) {
+      console.warn('Service Worker cannot register on insecure HTTP LAN connections. Access via HTTPS or localhost for offline caching support.');
+    }
+    return;
+  }
+  if (!import.meta.env.PROD) {
+    console.log('Service Worker auto-registration skipped in development mode.');
+    return;
+  }
 
   navigator.serviceWorker.addEventListener('controllerchange', () => {
     if (updateApplied || reloading) return;

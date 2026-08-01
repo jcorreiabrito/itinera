@@ -13,7 +13,12 @@
  * rather than throwing opaque network errors, and never crashes the app.
  */
 
-const API_BASE = '/api';
+export const API_BASE = '/api/v1';
+
+export function getApiUrl(path: string): string {
+  const cleanPath = path.startsWith('/') ? path : `/${path}`;
+  return `${API_BASE}${cleanPath}`;
+}
 
 /** A failed `/api` call, carrying the HTTP status when there was a response. */
 export class ApiError extends Error {

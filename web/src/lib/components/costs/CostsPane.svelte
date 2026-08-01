@@ -6,6 +6,7 @@
     import { Button, ErrorState, Skeleton, toast } from '$lib/components/ui';
     import { getTripShellContext } from '$lib/trip-context';
     import { startLive } from '$lib/live';
+    import { t } from '$lib/i18n.svelte';
     import { cn } from '$lib/utils';
     import SummaryHeader from './SummaryHeader.svelte';
     import QuickAdd from './QuickAdd.svelte';
@@ -63,7 +64,6 @@
             everLoaded = true;
             loadError = false;
         } catch {
-            // First-load failure surfaces an inline retry; later reloads keep prior data.
             if (!everLoaded) loadError = true;
         } finally {
             loaded = true;
@@ -109,17 +109,16 @@
             await expenses.togglePaid(expense._id);
             reload();
         } catch {
-            toast.error('Could not update the expense. Try again.');
+            toast.error(t('could_not_update_expense'));
         }
     }
 
-    const TABS: { value: View; label: string }[] = [
-        { value: 'day', label: 'By day' },
-        { value: 'category', label: 'By category' },
-        { value: 'list', label: 'List' }
+    const TABS: { value: View; labelKey: string }[] = [
+        { value: 'day', labelKey: 'by_day' },
+        { value: 'category', labelKey: 'by_category' },
+        { value: 'list', labelKey: 'list' }
     ];
 
-    // Roving-tabindex arrow-key navigation for the cost-view tabs (WAI-ARIA tabs).
     function onViewKeydown(e: KeyboardEvent) {
         const idx = TABS.findIndex((t) => t.value === view);
         let next = idx;
@@ -148,7 +147,7 @@
         <Skeleton class="h-24 w-full rounded-lg" />
     </div>
 {:else if loadError}
-    <ErrorState title="Couldn't load costs" onretry={retry} />
+    <ErrorState title={t('could_not_load_costs')} onretry={retry} />
 {:else if summary}
     <div class="space-y-5">
         <SummaryHeader {summary} onEditBudget={() => (budgetOpen = true)} />
@@ -158,12 +157,12 @@
         {#if !hasExpenses}
             <div class="rounded-lg border border-dashed border-border bg-surface-sunken px-6 py-12 text-center">
                 <Wallet class="mx-auto size-9 text-ink-muted" aria-hidden="true" />
-                <h2 class="mt-3 text-lg font-semibold">No expenses yet</h2>
+                <h2 class="mt-3 text-lg font-semibold">{t('no_expenses_yet')}</h2>
                 <p class="mx-auto mt-1 max-w-sm text-sm text-ink-muted">
-                    Quick-add above, or add a detailed expense with currency, dates and budget links. Booking costs from flights and Reservations show up here automatically.
+                    {t('no_expenses_desc')}
                 </p>
                 <Button class="mt-4" onclick={() => openAdd()}>
-                    <Plus class="size-4" /> Add expense
+                    <Plus class="size-4" /> {t('add_expense')}
                 </Button>
             </div>
         {:else}
@@ -174,19 +173,19 @@
                     role="tablist"
                     aria-label="Cost views"
                 >
-                    {#each TABS as t (t.value)}
+                    {#each TABS as tab (tab.value)}
                         <button
                             type="button"
-                            id={`costtab-${t.value}`}
+                            id={`costtab-${tab.value}`}
                             role="tab"
-                            aria-selected={view === t.value}
+                            aria-selected={view === tab.value}
                             aria-controls="cost-panel"
-                            tabindex={view === t.value ? 0 : -1}
-                            onclick={() => (view = t.value)}
+                            tabindex={view === tab.value ? 0 : -1}
+                            onclick={() => (view = tab.value)}
                             onkeydown={onViewKeydown}
-                            class={cn(segClass(view === t.value), 'flex-1 justify-center text-center px-1 text-xs sm:text-sm')}
+                            class={cn(segClass(view === tab.value), 'flex-1 justify-center text-center px-1 text-xs sm:text-sm')}
                         >
-                            {t.label}
+                            {t(tab.labelKey)}
                         </button>
                     {/each}
                 </div>
@@ -202,7 +201,7 @@
                             : 'border-border bg-surface text-ink-muted hover:text-ink'
                     )}
                 >
-                    Unpaid only
+                    {t('unpaid_only')}
                 </button>
             </div>
 
@@ -224,11 +223,11 @@
     <button
         type="button"
         onclick={() => openAdd()}
-        aria-label="Add expense"
+        aria-label={t('add_expense')}
         class="fixed bottom-20 right-4 z-40 inline-flex h-14 items-center gap-2 rounded-full bg-primary-600 px-5 text-base font-medium text-white shadow-lg hover:bg-primary-700 active:scale-95"
     >
         <Plus />
-        <span class="hidden sm:inline">Add expense</span>
+        <span class="hidden sm:inline">{t('add_expense')}</span>
     </button>
 {/if}
 

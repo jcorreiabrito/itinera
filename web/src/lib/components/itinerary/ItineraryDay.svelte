@@ -8,6 +8,7 @@
     import { getDestinationForDate } from '$lib/destinations';
     import { renderMarkdown } from '$lib/markdown';
     import { cn } from '$lib/utils';
+    import { fetchTripWeather, loadCachedWeather, type DayWeather } from '$lib/utils/weather';
     import { CATEGORY_META, CATEGORY_ORDER } from './categories';
     import TimelineEntryRow from './TimelineEntryRow.svelte';
     import MoveToDayDialog from './MoveToDayDialog.svelte';
@@ -20,6 +21,7 @@
         dates: string[];
         destinations?: Destination[];
         homeCurrency?: string;
+        travelerCount?: number;
         flightsById?: Map<string, Flight>;
         reservationsById?: Map<string, Reservation>;
         links: { flights: string; reservations: string };
@@ -35,6 +37,7 @@
         dates,
         destinations = [],
         homeCurrency = 'EUR',
+        travelerCount = 1,
         flightsById,
         reservationsById,
         links,
@@ -52,6 +55,29 @@
     const activeDestination = $derived(
         day.date && destinations.length > 0 ? getDestinationForDate(day.date, destinations) : null
     );
+
+    let dayWeather = $state<DayWeather | null>(null);
+
+    $effect(() => {
+        if (!day.date || !activeDestination?.lat || !activeDestination?.lng) {
+            dayWeather = null;
+            return;
+        }
+        const lat = activeDestination.lat;
+        const lng = activeDestination.lng;
+        const targetDate = day.date;
+
+        const cached = loadCachedWeather(lat, lng);
+        if (cached?.days?.[targetDate]) {
+            dayWeather = cached.days[targetDate];
+        }
+
+        fetchTripWeather(lat, lng).then((forecast) => {
+            if (forecast?.days?.[targetDate]) {
+                dayWeather = forecast.days[targetDate];
+            }
+        });
+    });
 
     const todosDone = $derived(day.todos.filter((t) => t.done).length);
     let todosOpen = $state(true);
@@ -245,6 +271,12 @@
                         {activeDestination.name}
                     </span>
                 {/if}
+                {#if dayWeather}
+                    <span class="inline-flex items-center gap-1 rounded-full border border-sky-300 bg-sky-50 px-2.5 py-0.5 text-xs font-semibold text-sky-800" title={dayWeather.description}>
+                        <span>{dayWeather.icon}</span>
+                        <span>{dayWeather.maxTemp}° / {dayWeather.minTemp}°C</span>
+                    </span>
+                {/if}
             </div>
             {#if !isIdeas}
                 {#if day.day?.title}
@@ -324,6 +356,7 @@
                         {flightsById}
                         {reservationsById}
                         {homeCurrency}
+                        {travelerCount}
                         canMoveUp={canMove(item, 'up')}
                         canMoveDown={canMove(item, 'down')}
                         {onedit}
@@ -350,6 +383,7 @@
                     {flightsById}
                     {reservationsById}
                     {homeCurrency}
+                    {travelerCount}
                     canMoveUp={entry.item ? canMove(entry.item, 'up') : false}
                     canMoveDown={entry.item ? canMove(entry.item, 'down') : false}
                     {onedit}
@@ -376,7 +410,12 @@
         <div class="flex items-center justify-between rounded-lg border border-border bg-surface px-3 py-2.5 text-sm">
             <span class="font-medium text-ink-muted">Day subtotal</span>
             {#if day.subtotal.spent > 0}
-                <span class="font-semibold tabular-nums text-ink">{formatMoney(day.subtotal.spent, homeCurrency)}</span>
+                <div class="text-right">
+                    <span class="font-semibold tabular-nums text-ink">{formatMoney(day.subtotal.spent, homeCurrency, { decimals: true })}</span>
+                    {#if travelerCount > 1}
+                        <span class="ml-1 text-xs font-normal text-ink-muted">({formatMoney(day.subtotal.spent / travelerCount, homeCurrency, { decimals: true })}/p.p.)</span>
+                    {/if}
+                </div>
             {:else}
                 <span class="text-ink-muted">No costs yet</span>
             {/if}

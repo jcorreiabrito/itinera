@@ -36,6 +36,7 @@
         flightsById?: Map<string, Flight>;
         reservationsById?: Map<string, Reservation>;
         homeCurrency?: string;
+        travelerCount?: number;
         canMoveUp?: boolean;
         canMoveDown?: boolean;
         onedit: (item: ItineraryItem) => void;
@@ -52,6 +53,7 @@
         flightsById,
         reservationsById,
         homeCurrency = 'EUR',
+        travelerCount = 1,
         canMoveUp = false,
         canMoveDown = false,
         onedit,
@@ -148,7 +150,16 @@
                 {#if item.estCost != null || linkStatus || item.notes}
                     <div class="mt-1.5 flex flex-wrap items-center gap-1.5">
                         {#if item.estCost != null}
-                            <Badge variant="neutral">{formatMoney(item.estCost, item.currency ?? homeCurrency)}</Badge>
+                            {@const ccy = item.currency ?? homeCurrency}
+                            {@const costStr = formatMoney(item.estCost, ccy, { decimals: true })}
+                            <span title={travelerCount > 1 ? `Total: ${costStr} (${formatMoney(item.estCost / travelerCount, ccy, { decimals: true })} / person)` : costStr}>
+                                <Badge variant="neutral">
+                                    {costStr}
+                                    {#if travelerCount > 1}
+                                        <span class="ml-1 font-normal opacity-75 text-[0.7rem]">({formatMoney(item.estCost / travelerCount, ccy, { decimals: true })}/p.p.)</span>
+                                    {/if}
+                                </Badge>
+                            </span>
                         {/if}
                         {#if linkStatus}
                             {#if linkStatus.removed}
@@ -256,10 +267,10 @@
     {@const ResIcon = resIcons[res?.kind ?? 'other'] ?? MapPin}
     {@const staying = placement.placement === 'staying'}
     {@const verb = {
-        checkIn: 'Checking in',
-        checkOut: 'Checking out',
+        checkIn: 'Check-in:',
+        checkOut: 'Check-out:',
         staying: 'Staying at',
-        point: 'Reservation'
+        point: ''
     }[placement.placement ?? 'staying']}
     <li class="relative flex items-start gap-3">
         <span class="w-12 shrink-0 pt-2 text-right text-xs font-medium tabular-nums text-ink-muted">
@@ -289,7 +300,7 @@
                 <div class="min-w-0 flex-1">
                     <p class="font-medium text-ink">
                         {#if timeLabel}<span class="sr-only">{timeLabel} – </span>{/if}
-                        {#if verb}<span class={staying ? 'text-sm text-ink-muted' : 'font-medium text-ink'}>{verb}</span> {/if}{res?.name ?? 'Reservation'}
+                        {#if verb}<span class={staying ? 'text-sm text-ink-muted' : 'font-medium text-ink'}>{verb}</span>{' '}{/if}{res?.name ?? 'Reservation'}
                     </p>
                     {#if !staying}<Badge variant="primary">Booking</Badge>{/if}
                     <ChevronRight class="size-4 shrink-0 text-ink-muted transition-transform group-hover:translate-x-0.5" />

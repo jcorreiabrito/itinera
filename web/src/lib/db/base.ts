@@ -61,6 +61,18 @@ export async function getDoc<T extends AnyDoc>(
   }
 }
 
+function stripUndefined<T>(obj: T): T {
+  if (obj === null || typeof obj !== 'object') return obj;
+  if (Array.isArray(obj)) return obj.map(stripUndefined) as unknown as T;
+  const result: Record<string, unknown> = {};
+  for (const [key, value] of Object.entries(obj as Record<string, unknown>)) {
+    if (value !== undefined) {
+      result[key] = typeof value === 'object' && value !== null ? stripUndefined(value) : value;
+    }
+  }
+  return result as T;
+}
+
 /**
  * Write a fully-formed document. Refreshes `updatedAt`, validates against the
  * type's schema, and returns the document with its new `_rev`.
@@ -71,7 +83,8 @@ export async function putDoc<T extends AnyDoc>(
   { validate = true }: { validate?: boolean } = {}
 ): Promise<Stored<T>> {
   const stamped = { ...doc, updatedAt: nowIso() } as T;
-  const toWrite = validate ? validateDoc(stamped) : stamped;
+  const cleaned = stripUndefined(stamped);
+  const toWrite = validate ? validateDoc(cleaned) : cleaned;
   const res = await db.put(toWrite as unknown as Parameters<typeof db.put>[0]);
   return { ...toWrite, _id: res.id, _rev: res.rev } as Stored<T>;
 }
@@ -107,7 +120,15 @@ export async function patchDoc<T extends AnyDoc>(
       const current = await getDoc<T>(id, db);
       if (!current) throw new Error(`patchDoc: document not found: ${id}`);
       const delta = typeof patch === 'function' ? patch(current) : patch;
-      return await putDoc({ ...current, ...delta } as T, db);
+      const updated = { ...current };
+      for (const [k, v] of Object.entries(delta)) {
+        if (v === undefined) {
+          delete (updated as any)[k];
+        } else {
+          (updated as any)[k] = v;
+        }
+      }
+      return await putDoc(updated as T, db);
     } catch (err) {
       const status = (err as { status?: number })?.status;
       if (status === 409 && attempt < retries) {

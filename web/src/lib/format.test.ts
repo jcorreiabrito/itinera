@@ -5,7 +5,10 @@
 
 import { vi, describe, it, expect, beforeAll } from 'vitest';
 
+let mockLang = 'en';
+
 vi.mock('$lib/i18n.svelte', () => ({
+  getLanguage: () => mockLang,
   t: (key: string, params?: Record<string, string>) => {
     if (!params) return key;
     return Object.entries(params).reduce((s, [k, v]) => s.replace(`{${k}}`, v), key);
@@ -109,6 +112,13 @@ describe('formatMoney', () => {
   it('formats EUR amount', () => {
     const result = formatMoney(1000, 'EUR');
     expect(result).toContain('1');
+  });
+
+  it('formats BRL amount in pt-BR locale', () => {
+    mockLang = 'pt-BR';
+    const result = formatMoney(1200, 'BRL');
+    expect(result).toMatch(/R\$\s*1\.200/);
+    mockLang = 'en';
   });
 
   it('handles unknown currency code gracefully', () => {

@@ -1,11 +1,3 @@
-/**
- * Static metadata + tiny pure helpers for the Costs & Budget views.
- *
- * Keeps the components declarative: category labels/icons/order, the offline
- * currency list, source-badge labels for linked expenses, and small formatting
- * helpers. No domain maths lives here – all roll-ups come from $lib/db.
- */
-
 import {
     BedDouble,
     Bus,
@@ -20,6 +12,7 @@ import {
 } from 'lucide-svelte';
 import type { ExpenseCategory, LinkedType } from '$lib/db';
 import type { IconComponent } from '$lib/types';
+import { t } from '$lib/i18n.svelte';
 
 export interface CategoryMeta {
     label: string;
@@ -37,24 +30,48 @@ export const CATEGORY_ORDER: ExpenseCategory[] = [
     'other'
 ];
 
-export const CATEGORY_META: Record<ExpenseCategory, CategoryMeta> = {
-    transport: { label: 'Transport', icon: Bus },
-    lodging: { label: 'Lodging', icon: BedDouble },
-    food: { label: 'Food', icon: Utensils },
-    activities: { label: 'Activities', icon: Ticket },
-    shopping: { label: 'Shopping', icon: ShoppingBag },
-    fees: { label: 'Fees', icon: Receipt },
-    other: { label: 'Other', icon: Tag },
+const CATEGORY_ICONS: Record<ExpenseCategory, IconComponent> = {
+    transport: Bus,
+    lodging: BedDouble,
+    food: Utensils,
+    activities: Ticket,
+    shopping: ShoppingBag,
+    fees: Receipt,
+    other: Tag
 };
+
+const CATEGORY_KEYS: Record<ExpenseCategory, string> = {
+    transport: 'cat_transport',
+    lodging: 'cat_lodging',
+    food: 'cat_food',
+    activities: 'cat_activities',
+    shopping: 'cat_shopping',
+    fees: 'cat_fees',
+    other: 'cat_other'
+};
+
+export const CATEGORY_META: Record<ExpenseCategory, CategoryMeta> = new Proxy({} as any, {
+    get(_target, prop: string) {
+        const cat = prop as ExpenseCategory;
+        if (CATEGORY_ICONS[cat]) {
+            return {
+                label: t(CATEGORY_KEYS[cat]),
+                icon: CATEGORY_ICONS[cat]
+            };
+        }
+        return undefined;
+    }
+});
 
 /** Label for an arbitrary category string (rollups key by string). */
 export function categoryLabel(category: string): string {
-    return CATEGORY_META[category as ExpenseCategory]?.label ?? 'Other';
+    const key = CATEGORY_KEYS[category as ExpenseCategory];
+    return key ? t(key) : t('cat_other');
 }
 
 /** Icon for an arbitrary category string. */
 export function categoryIcon(category: string): IconComponent {
-    return CATEGORY_META[category as ExpenseCategory]?.icon ?? Tag;
+    return CATEGORY_ICONS[category as ExpenseCategory] ?? Tag;
 }
 
 export interface SourceMeta {
@@ -62,22 +79,37 @@ export interface SourceMeta {
     icon: IconComponent;
 }
 
-/** Source-badge metadata for a linked (auto-created) expense. */
-export const SOURCE_META: Record<LinkedType, SourceMeta> = {
-    flight: { label: 'From flight', icon: Plane },
-    reservation: { label: 'From booking', icon: BedDouble },
-    itineraryItem: { label: 'From itinerary', icon: CalendarDays },
-    trip: { label: 'From trip', icon: MapPin }
+const SOURCE_ICONS: Record<LinkedType, IconComponent> = {
+    flight: Plane,
+    reservation: BedDouble,
+    itineraryItem: CalendarDays,
+    trip: MapPin
 };
+
+const SOURCE_KEYS: Record<LinkedType, string> = {
+    flight: 'from_flight',
+    reservation: 'from_booking',
+    itineraryItem: 'from_itinerary',
+    trip: 'from_trip'
+};
+
+export const SOURCE_META: Record<LinkedType, SourceMeta> = new Proxy({} as any, {
+    get(_target, prop: string) {
+        const linked = prop as LinkedType;
+        if (SOURCE_ICONS[linked]) {
+            return {
+                label: t(SOURCE_KEYS[linked]),
+                icon: SOURCE_ICONS[linked]
+            };
+        }
+        return undefined;
+    }
+});
 
 export function sourceMeta(linkedType: LinkedType | null | undefined): SourceMeta | null {
     return linkedType ? SOURCE_META[linkedType] : null;
 }
 
-/**
- * A modest set of common travel currencies for the manual-FX selectors. The
- * trip's home currency is always merged in (see `currencyOptions`).
- */
 const CURRENCIES = [
     'EUR',
     'USD',

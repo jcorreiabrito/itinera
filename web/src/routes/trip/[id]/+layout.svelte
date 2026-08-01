@@ -15,20 +15,23 @@
     MapPinned,
     Pencil,
     Plane,
+    Share2,
     Wallet
   } from 'lucide-svelte';
   import type { IconComponent } from '$lib/types';
-  import { Skeleton, SyncStatusPill } from '$lib/components/ui';
   import { TripDataMenu, TripFormSheet } from '$lib/components/trip';
   import { setTripShellContext } from '$lib/trip-context';
   import { startLive } from '$lib/live';
   import { cn } from '$lib/utils';
+  import { ErrorBoundary, Skeleton, SyncStatusPill, ThemeToggle } from '$lib/components/ui';
+  import ShareTripModal from '$lib/components/trip/ShareTripModal.svelte';
 
   let { children }: { children: Snippet } = $props();
 
   let trip = $state<Trip | null>(null);
   let loaded = $state(false);
   let editOpen = $state(false);
+  let shareOpen = $state(false);
   const reloadSignal = writable(0);
 
   const id = $derived(page.params.id ?? '');
@@ -167,6 +170,18 @@
 
         <div class="flex items-center gap-1.5 shrink-0">
           <SyncStatusPill />
+          <ThemeToggle />
+          {#if trip}
+            <button
+              type="button"
+              onclick={() => (shareOpen = true)}
+              aria-label="Share trip"
+              title="Share trip"
+              class="grid size-9 place-items-center rounded-md text-ink-muted transition-colors hover:bg-surface-sunken hover:text-ink active:scale-95 [&_svg]:size-5"
+            >
+              <Share2 />
+            </button>
+          {/if}
           <button
             type="button"
             onclick={openEditor}
@@ -196,7 +211,9 @@
             </a>
           </div>
         {:else}
-          {@render children()}
+          <ErrorBoundary>
+            {@render children()}
+          </ErrorBoundary>
         {/if}
       </main>
 
@@ -232,3 +249,8 @@
   </div>
 
   <TripFormSheet bind:open={editOpen} mode="edit" {trip} onsaved={requestReload} onlivechange={requestReload} />
+
+  {#if trip}
+    <ShareTripModal bind:open={shareOpen} {trip} />
+  {/if}
+

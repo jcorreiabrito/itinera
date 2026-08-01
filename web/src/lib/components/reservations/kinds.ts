@@ -12,6 +12,7 @@ import { dateOf, minutesOfDay } from '$lib/db/datetime';
 import type { Reservation, ReservationKind } from '$lib/db';
 import { BedDouble, Bus, Car, MapPin, Ticket, Utensils } from 'lucide-svelte';
 import type { IconComponent } from '$lib/types';
+import { t } from '$lib/i18n.svelte';
 
 export interface KindMeta {
     label: string;
@@ -22,14 +23,25 @@ export interface KindMeta {
     endLabel: string | null;
 }
 
-export const KIND_META: Record<ReservationKind, KindMeta> = {
-    lodging: { label: 'Lodging', icon: BedDouble, startLabel: 'Check-in', endLabel: 'Check-out' },
-    car: { label: 'Car rental', icon: Car, startLabel: 'Pick-up', endLabel: 'Drop-off' },
-    restaurant: { label: 'Restaurant', icon: Utensils, startLabel: 'Reservation time', endLabel: null },
-    activity: { label: 'Activity', icon: Ticket, startLabel: 'Arrives', endLabel: 'End (optional)' },
-    transport: { label: 'Transport', icon: Bus, startLabel: 'Departs', endLabel: 'Arrives' },
-    other: { label: 'Other', icon: MapPin, startLabel: 'Start', endLabel: 'End (optional)' },
-};
+export const KIND_META: Record<ReservationKind, KindMeta> = new Proxy({} as any, {
+    get(_target, prop: string) {
+        const k = prop as ReservationKind;
+        switch (k) {
+            case 'lodging':
+                return { label: t('cat_lodging'), icon: BedDouble, startLabel: t('check_in'), endLabel: t('check_out') };
+            case 'car':
+                return { label: t('kind_car'), icon: Car, startLabel: t('pick_up'), endLabel: t('drop_off') };
+            case 'restaurant':
+                return { label: t('kind_restaurant'), icon: Utensils, startLabel: t('reservation_time'), endLabel: null };
+            case 'activity':
+                return { label: t('cat_activity'), icon: Ticket, startLabel: t('departure'), endLabel: t('end') };
+            case 'transport':
+                return { label: t('cat_transport'), icon: Bus, startLabel: t('departure'), endLabel: t('arrival') };
+            default:
+                return { label: t('cat_other'), icon: MapPin, startLabel: t('start'), endLabel: t('end') };
+        }
+    }
+});
 
 export const KIND_ORDER: ReservationKind[] = [
     'lodging',
@@ -54,7 +66,7 @@ export function detailSummary(res: Reservation): string {
         case 'car':
             return [s('company'), s('carClass')].filter(Boolean).join(' · ');
         case 'restaurant':
-            return s('partySize') ? `Party of ${s('partySize')}` : '';
+            return s('partySize') ? t('party_of', { n: s('partySize') }) : '';
         case 'activity':
             return [s('provider'), s('meetingPoint')].filter(Boolean).join(' · ');
         case 'transport':
