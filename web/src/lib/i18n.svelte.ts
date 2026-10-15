@@ -15,17 +15,23 @@ export function setLanguage(lang: Language) {
   currentLanguage = lang;
 }
 
-/** Automatically load language from settings */
+/** Automatically load language from settings or browser locale */
 export async function initLanguage() {
   try {
     const s = await settings.get();
-    if (s.language === 'pt-BR') {
+    if (s.language === 'pt-BR' || s.language === 'en') {
+      currentLanguage = s.language;
+    } else if (typeof navigator !== 'undefined' && navigator.language?.toLowerCase().startsWith('pt')) {
       currentLanguage = 'pt-BR';
     } else {
       currentLanguage = 'en';
     }
   } catch (e) {
-    console.error('Failed to load language', e);
+    if (typeof navigator !== 'undefined' && navigator.language?.toLowerCase().startsWith('pt')) {
+      currentLanguage = 'pt-BR';
+    } else {
+      currentLanguage = 'en';
+    }
   }
 }
 

@@ -13,26 +13,26 @@ export default {
       colors: {
         // Forest-green accent
         primary: {
-          100: '#E6F0EA',
-          600: '#2F684F',
-          700: '#245539',
+          100: 'rgb(var(--color-primary-100-rgb) / <alpha-value>)',
+          600: 'rgb(var(--color-primary-600-rgb) / <alpha-value>)',
+          700: 'rgb(var(--color-primary-700-rgb) / <alpha-value>)',
         },
         // Warm highlights
         accent: {
-          terracotta: '#C96B4A',
-          amber: '#E0A458',
+          terracotta: 'rgb(var(--color-accent-terracotta-rgb) / <alpha-value>)',
+          amber: 'rgb(var(--color-accent-amber-rgb) / <alpha-value>)',
         },
-        // Surfaces (warm paper)
-        bg: 'var(--color-bg)',
+        // Surfaces (warm paper in light, deep forest-charcoal in dark)
+        bg: 'rgb(var(--color-bg-rgb) / <alpha-value>)',
         surface: {
-          DEFAULT: '#FFFDF9',
-          sunken: '#F4EEE4'
+          DEFAULT: 'rgb(var(--color-surface-rgb) / <alpha-value>)',
+          sunken: 'rgb(var(--color-surface-sunken-rgb) / <alpha-value>)'
         },
-        border: '#EAE1D4',
-        // Text (warm near-black)
+        border: 'rgb(var(--color-border-rgb) / <alpha-value>)',
+        // Text (warm near-black in light, crisp off-white in dark)
         ink: {
-          DEFAULT: '#2A2620',
-          muted: '#6F6557'
+          DEFAULT: 'rgb(var(--color-ink-rgb) / <alpha-value>)',
+          muted: 'rgb(var(--color-ink-muted-rgb) / <alpha-value>)'
         },
         // Status
         success: '#3E8E5A',

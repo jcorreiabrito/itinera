@@ -25,7 +25,7 @@ from . import __version__
 from .config import Settings, get_settings
 from .couch import CouchClient
 from .errors import CouchDBUnavailableError
-from .routers import backups, exports, health, imports, pdf
+from .routers import backups, calendar, exports, health, imports, pdf
 from .scheduler import build_scheduler
 
 try:
@@ -134,7 +134,7 @@ def create_app(settings: Settings | None = None, couch: CouchClient | None = Non
             allow_credentials=False,
         )
 
-    for module in (health, exports, pdf, backups, imports):
+    for module in (health, exports, calendar, pdf, backups, imports):
         app.include_router(module.router, prefix="/api")
         app.include_router(module.router, prefix="/api/v1")
 

@@ -2,7 +2,7 @@
 <html lang="en">
 <head>
     <meta charset="utf-8" />
-    <title>{{ trip.title or "Trip" }} – Itinera</title>
+    <title>{{ trip.title or i18n.untitled_trip }} – Itinera</title>
     <style>
         /* Itinera printable theme – cozy / warm / forest-green (see 13-ui-ux.md). */
         @page {
@@ -15,7 +15,7 @@
                 font-size: 9pt;
             }
             @bottom-right {
-                content: "Page " counter(page) " of " counter(pages);
+                content: "{{ i18n.page_prefix }} " counter(page) " {{ i18n.page_of }} " counter(pages);
                 font-family: "Inter", "Helvetica Neue", Arial, sans-serif;
                 color: #6f6557;
                 font-size: 8pt;
@@ -375,7 +375,7 @@
 </head>
 <body>
     <div class="cover">
-        <h1>{{ trip.title or "Untitled trip" }}</h1>
+        <h1>{{ trip.title or i18n.untitled_trip }}</h1>
         <div class="meta">
             {% if destinations %}<span>{{ destinations }}</span>{% endif %}
             {% if trip.startDate %}<span class="dot">•</span><span>{{ trip.startDate }}</span>{% if trip.endDate %} → {{ trip.endDate }}{% endif %}{% endif %}
@@ -392,16 +392,16 @@
         {% for chunk in calendar_grid.chunks %}
         <section class="cal-grid-section">
             <h2 class="section-title">
-                Trip Overview
+                {{ i18n.trip_overview }}
                 {% if chunk.total_chunks > 1 %}
                     <span style="font-size: 9.5pt; font-weight: 500; color: var(--muted); float: right;">
-                        Part {{ chunk.chunk_index }} of {{ chunk.total_chunks }} ({{ chunk.range_label }})
+                        {{ i18n.part_x_of_y.format(part=chunk.chunk_index, total=chunk.total_chunks, range=chunk.range_label) }}
                     </span>
                 {% endif %}
             </h2>
             <div class="cal-grid-container">
                 <div class="cal-time-col">
-                    <div class="cal-time-header">Time</div>
+                    <div class="cal-time-header">{{ i18n.time }}</div>
                     {% for hour in chunk.hours %}
                     <div class="cal-time-slot">{{ hour }}</div>
                     {% endfor %}
@@ -443,42 +443,42 @@
     {% endif %}
 
     <section>
-        <h2 class="section-title">Itinerary</h2>
+        <h2 class="section-title">{{ i18n.itinerary }}</h2>
         {% if days %}
             {% for day in days %}
             <div class="day">
                 <div class="day-date">
                     {{ day.label }}
                     {% if day.destination %}<span style="color: var(--primary-700); font-weight: 500; font-size: 9.5pt;"> • {{ day.destination }}</span>{% endif %}
-                    {% if day.total_cost_formatted %}<span style="color: var(--success); font-size: 9.5pt; font-weight: 600; float: right;">Day Total: {{ day.total_cost_formatted }}{% if day.total_cost_pp_formatted %} ({{ day.total_cost_pp_formatted }}/p.p.){% endif %}</span>{% endif %}
+                    {% if day.total_cost_formatted %}<span style="color: var(--success); font-size: 9.5pt; font-weight: 600; float: right;">{{ i18n.day_total }}: {{ day.total_cost_formatted }}{% if day.total_cost_pp_formatted %} ({{ day.total_cost_pp_formatted }}/{{ i18n.per_person }}){% endif %}</span>{% endif %}
                 </div>
                 {% if day['items'] %}
                     {% for it in day['items'] %}
                     <div class="item">
                         <div class="time">
-                            {% if it.allDay %}All day{% elif it.startTime %}{{ it.startTime }}{% if it.endTime %} – {{ it.endTime }}{% endif %}{% endif %}
+                            {% if it.allDay %}{{ i18n.all_day }}{% elif it.startTime %}{{ it.startTime }}{% if it.endTime %} – {{ it.endTime }}{% endif %}{% endif %}
                         </div>
                         <div>
-                            <span class="title">{{ it.title or "Untitled" }}</span>
+                            <span class="title">{{ it.title or i18n.untitled }}</span>
                             {% if it.category %}<span class="cat">{{ it.category }}</span>{% endif %}
-                            {% if it.formatted_cost %}<span class="cat" style="background: #e6f4ea; color: #1e7e34; font-weight: 600;">{{ it.formatted_cost }}{% if it.formatted_cost_pp %} ({{ it.formatted_cost_pp }}/p.p.){% endif %}</span>{% endif %}
+                            {% if it.formatted_cost %}<span class="cat" style="background: #e6f4ea; color: #1e7e34; font-weight: 600;">{{ it.formatted_cost }}{% if it.formatted_cost_pp %} ({{ it.formatted_cost_pp }}/{{ i18n.per_person }}){% endif %}</span>{% endif %}
                             {% if it.location and it.location.name %}<div class="where">{{ it.location.name }}</div>{% endif %}
                             {% if it.notes %}<div class="note">{{ it.notes | markdown | safe }}</div>{% endif %}
                         </div>
                     </div>
                     {% endfor %}
                 {% else %}
-                    <div class="day-empty">Nothing scheduled.</div>
+                    <div class="day-empty">{{ i18n.nothing_scheduled }}</div>
                 {% endif %}
             </div>
             {% endfor %}
         {% else %}
-            <p class="empty">No itinerary items yet.</p>
+            <p class="empty">{{ i18n.no_itinerary }}</p>
         {% endif %}
     </section>
 
     <section>
-        <h2 class="section-title">Flights</h2>
+        <h2 class="section-title">{{ i18n.flights }}</h2>
         {% if flights %}
             {% for f in flights %}
             <div class="card">
@@ -489,44 +489,44 @@
                     {% if seg.to %}{{ seg.to.code or seg.to.city or "" }}{% endif %}
                 </div>
                 <div class="sub">
-                    {% if seg.departLocal %}Depart {{ seg.departLocal }}{% endif %}
-                    {% if seg.arriveLocal %} • Arrive {{ seg.arriveLocal }}{% endif %}
-                    {% if seg.seat %} • Seat {{ seg.seat }}{% endif %}
-                    {% if seg.terminal %} • Term {{ seg.terminal }}{% endif %}
-                    {% if seg.gate %} • Gate {{ seg.gate }}{% endif %}
+                    {% if seg.departLocal %}{{ i18n.depart }} {{ seg.departLocal }}{% endif %}
+                    {% if seg.arriveLocal %} • {{ i18n.arrive }} {{ seg.arriveLocal }}{% endif %}
+                    {% if seg.seat %} • {{ i18n.seat }} {{ seg.seat }}{% endif %}
+                    {% if seg.terminal %} • {{ i18n.term }} {{ seg.terminal }}{% endif %}
+                    {% if seg.gate %} • {{ i18n.gate }} {{ seg.gate }}{% endif %}
                 </div>
                 {% endfor %}
-                {% if f.bookingRef %}<div class="sub">Booking ref: {{ f.bookingRef }}</div>{% endif %}
+                {% if f.bookingRef %}<div class="sub">{{ i18n.booking_ref }}: {{ f.bookingRef }}</div>{% endif %}
             </div>
             {% endfor %}
         {% else %}
-            <p class="empty">No flights recorded.</p>
+            <p class="empty">{{ i18n.no_flights }}</p>
         {% endif %}
     </section>
 
     <section>
-        <h2 class="section-title">Reservations</h2>
+        <h2 class="section-title">{{ i18n.reservations }}</h2>
         {% if reservations %}
             {% for r in reservations %}
             <div class="card">
-                <div class="head">{{ r.name or "Reservation" }}{% if r.kind %} <span class="cat">{{ r.kind }}</span>{% endif %}</div>
+                <div class="head">{{ r.name or i18n.reservation }}{% if r.kind %} <span class="cat">{{ r.kind }}</span>{% endif %}</div>
                 <div class="sub">
                     {% if r.location and r.location.name %}{{ r.location.name }}{% endif %}
                     {% if r.start %} • {{ r.start }}{% if r.end %} → {{ r.end }}{% endif %}{% endif %}
-                    {% if r.confirmation %} • Conf. {{ r.confirmation }}{% endif %}
+                    {% if r.confirmation %} • {{ i18n.conf }} {{ r.confirmation }}{% endif %}
                 </div>
                 {% if r.notes %}<div class="sub">{{ r.notes | markdown | safe }}</div>{% endif %}
             </div>
             {% endfor %}
         {% else %}
-            <p class="empty">No reservations recorded.</p>
+            <p class="empty">{{ i18n.no_reservations }}</p>
         {% endif %}
     </section>
 
     <section>
         <h2 class="section-title">
-            Checklist
-            <span class="progress">{{ checklist_progress.done }}/{{ checklist_progress.total }} done</span>
+            {{ i18n.checklist }}
+            <span class="progress">{{ checklist_progress.done }}/{{ checklist_progress.total }} {{ i18n.done }}</span>
         </h2>
         {% if checklist_groups %}
             {% for g in checklist_groups %}
@@ -543,16 +543,16 @@
             </div>
             {% endfor %}
         {% else %}
-            <p class="empty">Your checklist is empty.</p>
+            <p class="empty">{{ i18n.empty_checklist }}</p>
         {% endif %}
     </section>
 
     <section>
-        <h2 class="section-title">Costs &amp; Budget</h2>
+        <h2 class="section-title">{{ i18n.costs }}</h2>
         {% if costs.hasData %}
         <table class="list">
             <thead>
-                <tr><th>Category</th><th class="num">Estimate</th><th class="num">Actual</th></tr>
+                <tr><th>{{ i18n.category }}</th><th class="num">{{ i18n.estimate }}</th><th class="num">{{ i18n.actual }}</th></tr>
             </thead>
             <tbody>
                 {% for row in costs.rows %}
@@ -565,7 +565,7 @@
             </tbody>
             <tfoot>
                 <tr>
-                    <td>Total</td>
+                    <td>{{ i18n.total }}</td>
                     <td class="num">{{ costs.totalEstimate or "—" }}</td>
                     <td class="num">{{ costs.totalActual or "—" }}</td>
                 </tr>
@@ -573,18 +573,18 @@
         </table>
         {% if costs.budget %}
         <p style="margin-top:8px;">
-            Budget: <strong>{{ costs.budget }}</strong> .
-            Remaining:
+            {{ i18n.budget }}: <strong>{{ costs.budget }}</strong> .
+            {{ i18n.remaining }}:
             <span class="{% if costs.remaining and costs.remaining.startswith('-') %}remaining-over{% else %}remaining-ok{% endif %}">
                 {{ costs.remaining }}
             </span>
         </p>
         {% endif %}
         {% else %}
-            <p class="empty">No expenses recorded.</p>
+            <p class="empty">{{ i18n.no_expenses }}</p>
         {% endif %}
     </section>
 
-    <p class="muted" style="font-size:8pt; margin-top:14px;">Generated by Itinera • {{ generatedAt }}</p>
+    <p class="muted" style="font-size:8pt; margin-top:14px;">{{ i18n.generated_by.format(date=generatedAt) }}</p>
 </body>
 </html>

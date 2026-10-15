@@ -353,5 +353,66 @@ export const ptBR: Record<string, string> = {
   'flight_n': 'Voo {n}',
   'direct_flight': 'sem escalas',
   'stops_count': '{n} escala',
-  'stops_count_plural': '{n} escalas'
+  'stops_count_plural': '{n} escalas',
+
+  // Map & Locations
+  'templates': 'Modelos',
+  'itinerary_map': 'Mapa do Roteiro',
+  'drop_pin': 'Marcar Ponto',
+  'click_map': 'Clique no Mapa...',
+  'fullscreen_map': 'Tela cheia',
+  'minimize_map': 'Minimizar mapa',
+  'collapse_section': 'Recolher seção',
+  'expand_section': 'Expandir seção',
+  'map_pins_count': '{n} destino(s) marcados',
+  'map_hint': 'Adicione locais aos itens do roteiro para ver pontos',
+  'add_pin_title': 'Adicionar Atividade no Ponto do Mapa',
+  'activity_title': 'Título da Atividade',
+  'pin_added': 'Nova atividade adicionada a partir do ponto no mapa!',
+  'could_not_save_pin': 'Não foi possível salvar a atividade do mapa.',
+
+  // Flights & Bookings Pane
+  'no_flights_yet': 'Nenhum voo ainda',
+  'no_flights_desc': 'Adicione uma reserva com um ou mais trechos. Aeroportos, fusos horários, durações e conexões funcionam offline.',
+  'add_flight_booking': 'Adicionar voo',
+  'could_not_load_flights': 'Não foi possível carregar os voos',
+  'no_reservations_yet': 'Nenhuma reserva ainda',
+  'no_reservations_desc': 'Hotéis, carros, restaurantes, passeios e transportes – uma linha do tempo organizada por data, com vouchers anexados e visíveis offline.',
+  'could_not_load_reservations': 'Não foi possível carregar as reservas',
+
+  // Itinerary Day & Entry
+  'daily_todos': 'Tarefas do dia',
+  'all_day': 'O dia todo',
+  'day_subtotal': 'Subtotal do dia',
+  'no_costs_yet': 'Sem custos ainda',
+  'add_an_activity': 'Adicionar uma atividade...',
+  'add_an_idea': 'Adicionar uma ideia...',
+  'day_details': 'Detalhes do dia',
+  'title': 'Título',
+  'edit_day': 'Editar dia',
+  'add_title': 'Adicionar título',
+  'unscheduled_ideas': 'Não agendados · Ideias',
+  'capture_ideas_hint': 'Anote ideias aqui e mova-as para um dia depois.',
+  'nothing_planned_yet': 'Nada planejado – adicione algo abaixo.',
+  'no_ideas_yet': 'Nenhuma ideia anotada ainda – escreva uma abaixo.',
+  'previous_day': 'Dia anterior',
+  'next_day': 'Próximo dia',
+
+  // Attachments & Data Menu
+  'loading': 'Carregando...',
+  'open_in_new_tab': 'Abrir em nova aba',
+  'download': 'Baixar',
+  'cannot_preview_safely': 'Este tipo de arquivo não pode ser pré-visualizado com segurança. Baixe-o para abrir em outro aplicativo.',
+  'export_json': 'Exportar JSON',
+  'printable_pdf': 'PDF para Impressão',
+  'update_from_json': 'Atualizar a partir de arquivo JSON',
+  'paste_json_update': 'Colar JSON para atualizar',
+  'exports_need_server': 'Exportações precisam de conexão com o servidor. A atualização por JSON funciona offline.',
+  'saved_to_device': 'Salvo no seu dispositivo.',
+
+  // Map Provider & API Keys
+  'carto_api_key': 'Chave de API do CARTO (Opcional)',
+  'carto_api_key_desc': 'Insira sua chave gratuita de carto.com/basemaps/apikey para utilizar os temas Voyager e Dark Matter sem marca d’água. Se deixar em branco, o mapa utilizará o OpenStreetMap gratuito automaticamente.',
+  'carto_api_key_placeholder': 'Cole sua chave de API aqui...',
+  'map_settings': 'Configurações de Mapa'
 };

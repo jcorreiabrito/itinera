@@ -375,7 +375,8 @@ export const settingsSchema = z
     defaultChecklistTemplateId: z.string().nullable().optional(),
     theme: themePrefSchema.optional(),
     firstDayOfWeek: z.number().int().optional(),
-    language: z.string().optional()
+    language: z.string().optional(),
+    cartoApiKey: z.string().optional()
   })
   .passthrough();
 export type Settings = z.infer<typeof settingsSchema>;

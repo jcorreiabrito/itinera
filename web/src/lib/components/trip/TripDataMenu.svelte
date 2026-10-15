@@ -1,10 +1,11 @@
 <script lang="ts">
     import { syncStatus } from '$lib/db';
-    import { ClipboardPaste, Download, FileDown, FileText, FileUp, MoreVertical, WifiOff } from 'lucide-svelte';
+    import { ClipboardPaste, Download, FileDown, FileText, FileUp, MoreVertical, Printer, WifiOff } from 'lucide-svelte';
     import { Dialog, Popover, toast } from '$lib/components/ui';
     import { downloadTripExport, downloadTripPdf } from '$lib/api';
     import { prepareTripUpdateDiff, executeTripUpdate, type TripUpdateDiff } from '$lib/db/importer';
     import { cn } from '$lib/utils';
+    import { t } from '$lib/i18n.svelte';
     import UpdateDiffSheet from './UpdateDiffSheet.svelte';
 
     interface Props {
@@ -46,21 +47,9 @@
         }
     }
 
-    // `navigator.online` is not reactive, so mirror it via the online/offline
-    // events; combine with the sync store (doc 85) for the gentle gate.
-    let navOnline = $state(typeof navigator === 'undefined' ? true : navigator.onLine);
-    $effect(() => {
-        const up = () => (navOnline = true);
-        const down = () => (navOnline = false);
-        window.addEventListener('online', up);
-        window.addEventListener('offline', down);
-        return () => {
-            window.removeEventListener('online', up);
-            window.removeEventListener('offline', down);
-        };
-    });
+    import { network } from '$lib/stores/network.svelte';
 
-    const online = $derived(navOnline && $syncStatus.state !== 'offline' && $syncStatus.state !== 'error');
+    const online = $derived(network.isOnline && $syncStatus.state !== 'offline' && $syncStatus.state !== 'error');
 
     async function exportJson() {
         if (!online || busy) return;
@@ -187,27 +176,35 @@
 
     <div class="w-60 p-1">
         <p class="px-2.5 py-1.5 text-xs font-semibold uppercase tracking-wide text-ink-muted/80">
-            Export {title ? `"${title}"` : 'this trip'}
+            Export {title ? `"${title}"` : ''}
         </p>
 
         <button type="button" class={itemClass} onclick={exportJson} disabled={!online || !!busy}>
             <FileDown />
-            {busy === 'json' ? 'Exporting...' : 'Export JSON'}
+            {busy === 'json' ? t('saving') : t('export_json')}
         </button>
         <button type="button" class={itemClass} onclick={exportPdf} disabled={!online || !!busy}>
             <FileText />
-            {busy === 'pdf' ? 'Preparing...' : 'Printable PDF'}
+            {busy === 'pdf' ? t('saving') : t('printable_pdf')}
+        </button>
+        <button
+            type="button"
+            class={itemClass}
+            onclick={() => { open = false; window.print(); }}
+        >
+            <Printer />
+            <span>Imprimir / Salvar PDF (Offline)</span>
         </button>
 
         <div class="my-1 border-t border-border"></div>
 
         <p class="px-2.5 py-1.5 text-xs font-semibold uppercase tracking-wide text-ink-muted/80">
-            Update
+            {t('edit')}
         </p>
 
         <button type="button" class={itemClass} onclick={triggerUpdateFile} disabled={!!busy}>
             <FileUp />
-            {busy === 'update' ? 'Parsing JSON...' : 'Update from JSON file'}
+            {busy === 'update' ? t('loading') : t('update_from_json')}
         </button>
         <button
             type="button"
@@ -216,7 +213,7 @@
             disabled={!!busy}
         >
             <ClipboardPaste />
-            {busy === 'paste' ? 'Parsing JSON...' : 'Paste JSON to update'}
+            {busy === 'paste' ? t('loading') : t('paste_json_update')}
         </button>
 
         {#if !online}
@@ -227,11 +224,11 @@
                 )}
             >
                 <WifiOff />
-                <span>Exports need server connection. JSON Update works offline.</span>
+                <span>{t('exports_need_server')}</span>
             </p>
         {:else}
             <p class="mt-1 flex items-center gap-1.5 px-2.5 py-1 text-[0.7rem] text-ink-muted">
-                <Download class="size-3" /> Saved to your device.
+                <Download class="size-3" /> {t('saved_to_device')}
             </p>
         {/if}
     </div>
@@ -240,7 +237,7 @@
 <!-- Paste JSON dialog -->
 <Dialog
     bind:open={pasteDialogOpen}
-    title="Paste JSON to update"
+    title={t('paste_json_update')}
     description="Paste an exported trip JSON below. You'll see a preview of what will change before anything is saved."
 >
     <div class="flex flex-col gap-3">
@@ -264,7 +261,7 @@
         <textarea
             value={pasteText}
             oninput={(e) => { pasteText = e.currentTarget.value; pasteError = ''; }}
-            placeholder="Paste your exported trip JSON here…"
+            placeholder={t('import_paste_placeholder')}
             rows="12"
             spellcheck="false"
             autocomplete="off"
@@ -282,7 +279,7 @@
             onclick={() => (pasteDialogOpen = false)}
             class="rounded-md px-3 py-2 text-sm font-medium text-ink-muted transition-colors hover:bg-surface-sunken"
         >
-            Cancel
+            {t('cancel')}
         </button>
         <button
             type="button"
@@ -290,7 +287,7 @@
             disabled={!pasteText.trim() || !!pasteJsonError || busy === 'paste'}
             class="rounded-md bg-primary-600 px-4 py-2 text-sm font-medium text-white transition-colors hover:bg-primary-700 disabled:opacity-50"
         >
-            {busy === 'paste' ? 'Parsing…' : 'Preview changes'}
+            {busy === 'paste' ? t('saving') : 'Preview changes'}
         </button>
     {/snippet}
 </Dialog>

@@ -3,6 +3,7 @@
     import { formatMoney } from '$lib/format';
     import { Badge } from '$lib/components/ui';
     import CostBar from './CostBar.svelte';
+    import CategoryDonut from './CategoryDonut.svelte';
     import { categoryIcon, categoryLabel } from './labels';
 
     interface Props {
@@ -30,6 +31,8 @@
         {unpaidOnly ? 'Nothing outstanding – every cost is paid.' : 'No costs yet.'}
     </p>
 {:else}
+    <CategoryDonut {categories} {homeCurrency} {unpaidOnly} class="mb-4" />
+
     <ul class="space-y-2.5">
         {#each visible as row (row.category)}
             {@const t = row.totals}

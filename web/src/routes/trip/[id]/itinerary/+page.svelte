@@ -3,10 +3,10 @@
   import { page } from '$app/state';
   import { flights, itinerary, reservations, todayIso, trips } from '$lib/db';
   import type { Flight, ItineraryItem, Reservation, Trip } from '$lib/db';
-  import { CalendarDays, Plus } from 'lucide-svelte';
-  import { Button, EmptyState, ErrorState, Skeleton } from '$lib/components/ui';
+  import { CalendarDays, Plus, Search, X, MapPin, Clock } from 'lucide-svelte';
+  import { Button, EmptyState, ErrorState, Input, Skeleton } from '$lib/components/ui';
   import ExportCalendarButton from '$lib/components/trip/ExportCalendarButton.svelte';
-  import { DateStrip, ItineraryDay, ItineraryItemSheet, WholeTripOverview } from '$lib/components/itinerary';
+  import { DateStrip, ItineraryDay, ItineraryItemSheet, TripMap, WholeTripOverview } from '$lib/components/itinerary';
   import { getTripShellContext } from '$lib/trip-context';
   import { startLive } from '$lib/live';
   import { t } from '$lib/i18n.svelte';
@@ -35,27 +35,6 @@
 
 
 
-  // Dynamically expand layout width for the Whole Trip Overview
-  $effect(() => {
-    if (typeof document !== 'undefined') {
-      const mainEl = document.querySelector('main');
-      if (mainEl) {
-        if (viewMode === 'overview') {
-          mainEl.classList.remove('max-w-5xl');
-          mainEl.classList.add('max-w-none');
-        } else {
-          mainEl.classList.remove('max-w-none');
-          mainEl.classList.add('max-w-5xl');
-        }
-      }
-      return () => {
-        if (mainEl) {
-          mainEl.classList.remove('max-w-none');
-          mainEl.classList.add('max-w-5xl');
-        }
-      };
-    }
-  });
 
   let sheetOpen = $state(false);
   let sheetMode = $state<'create' | 'edit'>('create');
@@ -147,6 +126,30 @@
     pushEntries(timeline.unscheduled.allDay);
     pushEntries(timeline.unscheduled.timed);
     return itemsList;
+  });
+
+  let itinerarySearch = $state('');
+  let itineraryCategory = $state<string>('all');
+
+  const searchFilteredItems = $derived.by(() => {
+    const q = itinerarySearch.trim().toLowerCase();
+    const cat = itineraryCategory;
+    if (!q && cat === 'all') return null;
+
+    return allTripItems.filter((item) => {
+      const matchCat = cat === 'all' || item.category === cat;
+      if (!matchCat) return false;
+      if (!q) return true;
+
+      const titleMatch = item.title?.toLowerCase().includes(q);
+      const notesMatch = item.notes?.toLowerCase().includes(q);
+      const locMatch =
+        typeof item.location === 'string'
+          ? item.location.toLowerCase().includes(q)
+          : (item.location?.name?.toLowerCase().includes(q) ||
+             item.location?.address?.toLowerCase().includes(q));
+      return Boolean(titleMatch || notesMatch || locMatch);
+    });
   });
 
   const currentDayItems = $derived.by(() => {
@@ -262,9 +265,106 @@
         </div>
       </div>
 
+      <!-- Itinerary Search & Category Quick Filters -->
+      <div class="flex flex-col sm:flex-row items-stretch sm:items-center gap-2 rounded-xl border border-border bg-surface p-2.5 shadow-soft">
+        <div class="relative flex-1">
+          <Input
+            value={itinerarySearch}
+            placeholder="Buscar atividade, lugar, restaurante..."
+            class="pl-9 pr-8 text-sm"
+            oninput={(e) => (itinerarySearch = e.currentTarget.value)}
+          />
+          <Search class="absolute left-3 top-1/2 -translate-y-1/2 size-4 text-ink-muted/50 pointer-events-none" />
+          {#if itinerarySearch}
+            <button
+              type="button"
+              class="absolute right-2.5 top-1/2 -translate-y-1/2 size-5 rounded grid place-items-center text-ink-muted hover:text-ink"
+              onclick={() => (itinerarySearch = '')}
+            >
+              <X class="size-3.5" />
+            </button>
+          {/if}
+        </div>
 
+        <div class="flex items-center gap-1 overflow-x-auto pb-1 sm:pb-0">
+          {#each [['all', 'Todas'], ['sightseeing', 'Passeios'], ['food', 'Comida'], ['transport', 'Transporte'], ['lodging', 'Hospedagem']] as [catVal, catLabel]}
+            <button
+              type="button"
+              class={cn(
+                'px-2.5 py-1 text-xs font-medium rounded-lg shrink-0 transition-colors',
+                itineraryCategory === catVal
+                  ? 'bg-primary-600 text-white shadow-soft'
+                  : 'bg-surface-sunken text-ink-muted hover:text-ink hover:bg-surface-sunken/80'
+              )}
+              onclick={() => (itineraryCategory = catVal)}
+            >
+              {catLabel}
+            </button>
+          {/each}
+        </div>
+      </div>
 
-      {#if viewMode === 'day'}
+      {#if searchFilteredItems !== null}
+        <div class="flex flex-col gap-3">
+          <div class="flex items-center justify-between text-xs text-ink-muted px-1">
+            <span>{searchFilteredItems.length} atividades encontradas</span>
+            <button
+              type="button"
+              class="text-primary-600 hover:underline font-medium"
+              onclick={() => { itinerarySearch = ''; itineraryCategory = 'all'; }}
+            >
+              Limpar filtros
+            </button>
+          </div>
+
+          {#if searchFilteredItems.length === 0}
+            <div class="rounded-xl border border-dashed border-border bg-surface/50 p-8 text-center text-sm text-ink-muted">
+              Nenhuma atividade corresponde aos critérios de busca.
+            </div>
+          {:else}
+            <div class="flex flex-col gap-2">
+              {#each searchFilteredItems as itm (itm._id)}
+                <div
+                  role="button"
+                  tabindex="0"
+                  class="flex items-center justify-between gap-3 p-3 rounded-lg border border-border bg-surface hover:bg-surface-sunken/60 shadow-soft cursor-pointer transition-colors text-left"
+                  onclick={() => openEdit(itm)}
+                  onkeydown={(e) => e.key === 'Enter' && openEdit(itm)}
+                >
+                  <div class="flex-1 min-w-0">
+                    <div class="flex items-center gap-2 mb-1">
+                      <span class="text-xs font-semibold px-2 py-0.5 rounded bg-primary-100 text-primary-700">
+                        {itm.date || 'Ideias'}
+                      </span>
+                      {#if itm.startTime}
+                        <span class="text-xs text-ink-muted flex items-center gap-1">
+                          <Clock class="size-3" />
+                          {itm.startTime}
+                        </span>
+                      {/if}
+                    </div>
+                    <div class="font-medium text-ink text-sm truncate">{itm.title}</div>
+                    {#if itm.location}
+                      <div class="text-xs text-ink-muted truncate flex items-center gap-1 mt-0.5">
+                        <MapPin class="size-3 shrink-0" />
+                        <span>{typeof itm.location === 'string' ? itm.location : (itm.location.name || itm.location.address)}</span>
+                      </div>
+                    {/if}
+                  </div>
+                  <Button variant="ghost" size="sm" class="shrink-0 text-xs">Editar</Button>
+                </div>
+              {/each}
+            </div>
+          {/if}
+        </div>
+      {:else}
+        {#if allTripItems.length > 0}
+          <div class="rounded-xl border border-border bg-surface p-1 shadow-soft">
+            <TripMap items={allTripItems} destination={trip?.destinations[0]?.name} tripId={id} onchanged={reload} />
+          </div>
+        {/if}
+
+        {#if viewMode === 'day'}
         {#if currentDay}
           {#key selectedKey}
             <ItineraryDay
@@ -297,12 +397,13 @@
           onaddactivity={(date) => openAdd(date)}
         />
       {/if}
+      {/if}
     </div>
   {/if}
 </section>
 
 <!-- Floating add button -->
-{#if !loaded && !hasDays && ideasCount > 0}
+{#if loaded && (hasDays || ideasCount > 0)}
   <button
     type="button"
     onclick={() => openAdd()}

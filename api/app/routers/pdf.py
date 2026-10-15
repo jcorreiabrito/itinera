@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-from fastapi import APIRouter, Depends, HTTPException
+from fastapi import APIRouter, Depends, HTTPException, Query
 from fastapi.responses import Response
 
 from ..couch import CouchClient
@@ -24,10 +24,11 @@ router = APIRouter(tags=["pdf"])
 )
 async def print_trip(
     trip_id: str,
+    lang: str | None = Query(None, description="Language for PDF rendering (e.g. 'pt-BR' or 'en')"),
     couch: CouchClient = Depends(get_couch),
 ) -> Response:
     try:
-        pdf_bytes, filename = await build_trip_pdf(couch, trip_id)
+        pdf_bytes, filename = await build_trip_pdf(couch, trip_id, lang=lang)
     except TripNotFound as exc:
         raise HTTPException(status_code=404, detail=str(exc)) from exc
     except PdfUnavailable as exc:

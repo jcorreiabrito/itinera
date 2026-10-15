@@ -353,5 +353,66 @@ export const en: Record<string, string> = {
   'flight_n': 'Flight {n}',
   'direct_flight': 'direct',
   'stops_count': '{n} stop',
-  'stops_count_plural': '{n} stops'
+  'stops_count_plural': '{n} stops',
+
+  // Map & Locations
+  'templates': 'Templates',
+  'itinerary_map': 'Itinerary Map',
+  'drop_pin': 'Drop Pin',
+  'click_map': 'Click Map...',
+  'fullscreen_map': 'Fullscreen map',
+  'minimize_map': 'Minimize map',
+  'collapse_section': 'Collapse section',
+  'expand_section': 'Expand section',
+  'map_pins_count': '{n} pinned destination(s)',
+  'map_hint': 'Add locations to itinerary items to view pins',
+  'add_pin_title': 'Add Activity at Map Location',
+  'activity_title': 'Activity Title',
+  'pin_added': 'Added new itinerary item from map pin!',
+  'could_not_save_pin': 'Could not save map pin activity.',
+
+  // Flights & Bookings Pane
+  'no_flights_yet': 'No flights yet',
+  'no_flights_desc': 'Add a booking with one or more legs. Airports, time zones, durations and layovers all work offline.',
+  'add_flight_booking': 'Add flight booking',
+  'could_not_load_flights': "Couldn't load flights",
+  'no_reservations_yet': 'No reservations yet',
+  'no_reservations_desc': 'Hotels, cars, restaurants, activities and transport – one date-sorted timeline, with vouchers attached and viewable offline.',
+  'could_not_load_reservations': "Couldn't load reservations",
+
+  // Itinerary Day & Entry
+  'daily_todos': 'Daily to-dos',
+  'all_day': 'All day',
+  'day_subtotal': 'Day subtotal',
+  'no_costs_yet': 'No costs yet',
+  'add_an_activity': 'Add an activity...',
+  'add_an_idea': 'Add an idea...',
+  'day_details': 'Day details',
+  'title': 'Title',
+  'edit_day': 'Edit day',
+  'add_title': 'Add title',
+  'unscheduled_ideas': 'Unscheduled · Ideas',
+  'capture_ideas_hint': 'Capture ideas here, then move them onto a day.',
+  'nothing_planned_yet': 'Nothing planned – add something below.',
+  'no_ideas_yet': 'No ideas captured yet – jot one down below.',
+  'previous_day': 'Previous day',
+  'next_day': 'Next day',
+
+  // Attachments & Data Menu
+  'loading': 'Loading...',
+  'open_in_new_tab': 'Open in new tab',
+  'download': 'Download',
+  'cannot_preview_safely': "This file type can't be previewed safely. Download it to open in another app.",
+  'export_json': 'Export JSON',
+  'printable_pdf': 'Printable PDF',
+  'update_from_json': 'Update from JSON file',
+  'paste_json_update': 'Paste JSON to update',
+  'exports_need_server': 'Exports need server connection. JSON Update works offline.',
+  'saved_to_device': 'Saved to your device.',
+
+  // Map Provider & API Keys
+  'carto_api_key': 'CARTO API Key (Optional)',
+  'carto_api_key_desc': 'Enter your free API key from carto.com/basemaps/apikey to use Voyager and Dark Matter styles without watermarks. If left empty, OpenStreetMap is used automatically.',
+  'carto_api_key_placeholder': 'Paste your API key here...',
+  'map_settings': 'Map Settings'
 };

@@ -429,6 +429,19 @@
   </div>
 {/if}
 
+<!-- Floating add button (mobile) -->
+{#if loaded && (groupView.length > 0 || dayView.length > 0 || buyItems.length > 0)}
+  <button
+    type="button"
+    onclick={() => handleAdd()}
+    aria-label={t('add_item')}
+    class="fixed bottom-20 right-4 z-40 inline-flex h-14 items-center gap-2 rounded-full bg-primary-600 px-5 text-base font-medium text-white shadow-card transition-colors hover:bg-primary-700 focus:visible:outline-none focus:visible:ring-2 focus:visible:ring-primary-600 focus:visible:ring-offset-2 focus:visible:ring-offset-bg lg:bottom-8 lg:hidden [&_svg]:size-5"
+  >
+    <Plus />
+    <span class="hidden sm:inline">{t('add_item')}</span>
+  </button>
+{/if}
+
 <!-- Dialogs & Sheets -->
 <ChecklistSheet
   bind:open={itemSheetOpen}

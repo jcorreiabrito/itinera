@@ -3,6 +3,7 @@
     import type { Attachment } from '$lib/db';
     import { Download, ExternalLink, FileWarning } from 'lucide-svelte';
     import { Button, Dialog } from '$lib/components/ui';
+    import { t } from '$lib/i18n.svelte';
 
     interface Props {
         attachment: Attachment | null;
@@ -63,20 +64,20 @@
                 <img src={url} alt={name} class="mx-auto max-h-[68vh] w-auto rounded-md object-contain" />
                 <div class="mt-4 flex justify-center">
                     <Button href={url} download={name} variant="secondary">
-                        <Download class="size-4" /> Download
+                        <Download class="size-4" /> {t('download')}
                     </Button>
                 </div>
             {:else}
-                <p class="py-10 text-center text-sm text-ink-muted">Loading...</p>
+                <p class="py-10 text-center text-sm text-ink-muted">{t('loading')}</p>
             {/if}
         {:else if isPdf}
             {#if url}
                 <div class="flex flex-wrap items-center gap-2">
                     <Button href={url} target="_blank" rel="noopener noreferrer">
-                        <ExternalLink class="size-4" /> Open in new tab
+                        <ExternalLink class="size-4" /> {t('open_in_new_tab')}
                     </Button>
                     <Button href={url} download={name} variant="secondary">
-                        <Download class="size-4" /> Download
+                        <Download class="size-4" /> {t('download')}
                     </Button>
                 </div>
                 <!-- Sandboxed with NO allow-scripts / allow-same-origin: the embedded
@@ -88,7 +89,7 @@
                     class="mt-3 h-[60vh] w-full rounded-md border border-border bg-surface-sunken"
                 ></iframe>
             {:else}
-                <p class="py-10 text-center text-sm text-ink-muted">Loading...</p>
+                <p class="py-10 text-center text-sm text-ink-muted">{t('loading')}</p>
             {/if}
         {:else}
             <!-- Download-only: not on the inline allowlist. Never rendered inline. -->
@@ -97,11 +98,11 @@
                     <FileWarning />
                 </span>
                 <p class="max-w-sm text-pretty text-sm text-ink-muted">
-                    This file type can't be previewed safely. Download it to open in another app.
+                    {t('cannot_preview_safely')}
                 </p>
                 {#if url}
                     <Button href={url} download={name} variant="secondary">
-                        <Download class="size-4" /> Download {name}
+                        <Download class="size-4" /> {t('download')} {name}
                     </Button>
                 {/if}
             </div>

@@ -115,6 +115,8 @@ sw.addEventListener('fetch', (event) => {
         const response = await fetch(request);
         const isCacheableExternal =
           url.hostname.includes('tile.openstreetmap.org') ||
+          url.hostname.includes('basemaps.cartocdn.com') ||
+          url.hostname.includes('open.er-api.com') ||
           url.hostname.includes('open-meteo.com');
 
         if (response.ok && (url.origin === location.origin || isCacheableExternal)) {

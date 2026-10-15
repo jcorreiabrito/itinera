@@ -17,6 +17,7 @@ export interface SettingsPatch {
   theme?: ThemePref;
   firstDayOfWeek?: number;
   language?: string;
+  cartoApiKey?: string;
 }
 
 const DEFAULTS = {
@@ -24,7 +25,13 @@ const DEFAULTS = {
   defaultChecklistTemplateId: null,
   theme: 'system' as ThemePref,
   firstDayOfWeek: 1,
-  language: 'en'
+  cartoApiKey: '',
+  get language() {
+    if (typeof navigator !== 'undefined' && navigator.language?.toLowerCase().startsWith('pt')) {
+      return 'pt-BR';
+    }
+    return 'en';
+  }
 };
 
 /** Get the settings document, creating it with defaults on first access. */
@@ -34,7 +41,8 @@ export async function get(): Promise<Settings> {
   return createDoc<Settings>({
     _id: SETTINGS_ID,
     type: 'settings',
-    ...DEFAULTS
+    ...DEFAULTS,
+    language: DEFAULTS.language
   });
 }
 

@@ -6,7 +6,7 @@
     import { itinerary } from '$lib/db';
     import type { Flight, ItineraryItem, Reservation, ExpenseCategory } from '$lib/db';
     import { Button, Checkbox, Field, Input, Select, Sheet, Textarea, toast } from '$lib/components/ui';
-    import { Trash2, Wallet, Plus } from 'lucide-svelte';
+    import { Trash2, Wallet, Plus, Search, MapPin, Loader2 } from 'lucide-svelte';
     import { DateTime } from 'luxon';
     import { t } from '$lib/i18n.svelte';
     import { CATEGORY_ORDER, CATEGORY_META } from './categories';
@@ -96,6 +96,65 @@
         };
     }
 
+    let searchQuery = $state('');
+    let searchResults = $state<Array<{ name: string; address: string; lat: number; lng: number }>>([]);
+    let searchingLocation = $state(false);
+    let searchDebounceTimer: ReturnType<typeof setTimeout> | null = null;
+
+    function onSearchLocation(query: string) {
+        searchQuery = query;
+        if (searchDebounceTimer) clearTimeout(searchDebounceTimer);
+        const q = query.trim();
+        if (q.length < 2) {
+            searchResults = [];
+            searchingLocation = false;
+            return;
+        }
+
+        searchingLocation = true;
+        searchDebounceTimer = setTimeout(async () => {
+            try {
+                const res = await fetch(
+                    `https://nominatim.openstreetmap.org/search?format=json&q=${encodeURIComponent(q)}&addressdetails=1&limit=5`,
+                    { headers: { 'User-Agent': 'ItineraTravelPlanner/1.0' } }
+                );
+                if (res.ok) {
+                    const data = await res.json();
+                    searchResults = (data || []).map((d: any) => {
+                        const parts = [
+                            d.address?.road,
+                            d.address?.suburb,
+                            d.address?.city || d.address?.town || d.address?.municipality,
+                            d.address?.country
+                        ].filter(Boolean);
+                        return {
+                            name: d.name || d.display_name.split(',')[0],
+                            address: parts.join(', ') || d.display_name,
+                            lat: parseFloat(d.lat),
+                            lng: parseFloat(d.lon)
+                        };
+                    });
+                }
+            } catch {
+                // offline
+            } finally {
+                searchingLocation = false;
+            }
+        }, 350);
+    }
+
+    function selectLocation(loc: { name: string; address: string; lat: number; lng: number }) {
+        form.locName = loc.name;
+        form.locAddress = loc.address;
+        form.lat = loc.lat.toFixed(6);
+        form.lng = loc.lng.toFixed(6);
+        if (!form.title.trim()) {
+            form.title = loc.name;
+        }
+        searchResults = [];
+        searchQuery = '';
+    }
+
     function timeOf(value: string): string {
         if (!value) return '';
         const m = /^(\d{2}):(\d{2})/.exec(value);
@@ -104,6 +163,8 @@
 
     function initForm() {
         errors = {};
+        searchQuery = '';
+        searchResults = [];
         if (mode === 'edit' && item) {
             form = {
                 title: item.title ?? '',
@@ -396,6 +457,51 @@
                 {/each}
             </Select>
         </Field>
+
+        <!-- Smart Location Search & Autocomplete -->
+        <div class="relative flex flex-col gap-1.5">
+            <label for={fid('loc-search')} class="text-xs font-medium text-ink-muted flex items-center justify-between">
+                <span>Buscar atração ou endereço</span>
+                {#if form.lat && form.lng}
+                    <span class="text-[11px] text-primary-600 font-mono">📍 {form.lat}, {form.lng}</span>
+                {/if}
+            </label>
+            <div class="relative">
+                <Input
+                    id={fid('loc-search')}
+                    value={searchQuery}
+                    placeholder="Digite para autocompletar (ex: Torre Eiffel, Coliseu)..."
+                    oninput={(e) => onSearchLocation(e.currentTarget.value)}
+                />
+                <div class="absolute right-3 top-1/2 -translate-y-1/2 text-ink-muted/50 pointer-events-none">
+                    {#if searchingLocation}
+                        <Loader2 class="size-4 animate-spin text-primary-600" />
+                    {:else}
+                        <Search class="size-4" />
+                    {/if}
+                </div>
+            </div>
+
+            {#if searchResults.length > 0}
+                <ul class="absolute top-full left-0 right-0 z-30 mt-1 max-h-56 overflow-y-auto rounded-lg border border-border bg-surface shadow-card py-1 text-sm divide-y divide-border/50">
+                    {#each searchResults as res}
+                        <li>
+                            <button
+                                type="button"
+                                class="w-full text-left px-3 py-2 hover:bg-surface-sunken flex items-start gap-2 transition-colors"
+                                onclick={() => selectLocation(res)}
+                            >
+                                <MapPin class="size-4 text-primary-600 shrink-0 mt-0.5" />
+                                <div class="flex-1 min-w-0">
+                                    <div class="font-medium text-ink truncate">{res.name}</div>
+                                    <div class="text-xs text-ink-muted truncate">{res.address}</div>
+                                </div>
+                            </button>
+                        </li>
+                    {/each}
+                </ul>
+            {/if}
+        </div>
 
         <Field label={t('destination') || 'Location'} for={fid('locname')} hint="Where it happens (optional).">
             <Input

@@ -1,7 +1,8 @@
 <script lang="ts">
-    import { Lightbulb } from 'lucide-svelte';
+    import { ChevronLeft, ChevronRight, Lightbulb } from 'lucide-svelte';
     import { DateTime } from 'luxon';
     import { cn } from '$lib/utils';
+    import { t } from '$lib/i18n.svelte';
 
     interface Props {
         /** Trip dates (ISO) in order. */
@@ -18,6 +19,18 @@
     let { dates, selected, today, ideasCount, onselect }: Props = $props();
 
     const todayInRange = $derived(dates.includes(today));
+    const currentIndex = $derived(selected ? dates.indexOf(selected) : -1);
+    const canPrev = $derived(currentIndex > 0);
+    const canNext = $derived(currentIndex >= 0 && currentIndex < dates.length - 1);
+
+    function goPrev() {
+        if (canPrev) onselect(dates[currentIndex - 1]);
+    }
+
+    function goNext() {
+        if (canNext) onselect(dates[currentIndex + 1]);
+        else if (selected === null && dates.length > 0) onselect(dates[0]);
+    }
 
     let stripEl = $state<HTMLDivElement>();
 
@@ -41,19 +54,31 @@
     });
 </script>
 
-<div class="flex items-center gap-2">
+<div class="flex items-center gap-1.5 sm:gap-2">
+    {#if dates.length > 1}
+        <button
+            type="button"
+            onclick={goPrev}
+            disabled={!canPrev}
+            aria-label="Previous day"
+            class="grid size-9 shrink-0 place-items-center rounded-lg border border-border bg-surface text-ink-muted transition-colors hover:bg-surface-sunken hover:text-ink disabled:opacity-30 disabled:pointer-events-none [&_svg]:size-4"
+        >
+            <ChevronLeft />
+        </button>
+    {/if}
+
     {#if todayInRange}
         <button
             type="button"
             onclick={() => onselect(today)}
             class={cn(
-                'shrink-0 rounded-full border px-3 py-1.5 text-sm font-medium transition-colors',
+                'shrink-0 rounded-full border px-3 py-1.5 text-xs sm:text-sm font-medium transition-colors',
                 selected === today
                     ? 'border-primary-600 bg-primary-600 text-white'
                     : 'border-border bg-surface text-primary-700 hover:bg-primary-100'
             )}
         >
-            Today
+            {t('today') || 'Today'}
         </button>
     {/if}
 
@@ -102,8 +127,20 @@
                 )}
             >
                 <Lightbulb class="size-4" />
-                <span class="text-[0.7rem] font-medium">Ideas ({ideasCount})</span>
+                <span class="text-[0.7rem] font-medium">{t('ideas') || 'Ideas'} ({ideasCount})</span>
             </button>
         {/if}
     </div>
+
+    {#if dates.length > 1}
+        <button
+            type="button"
+            onclick={goNext}
+            disabled={!canNext}
+            aria-label="Next day"
+            class="grid size-9 shrink-0 place-items-center rounded-lg border border-border bg-surface text-ink-muted transition-colors hover:bg-surface-sunken hover:text-ink disabled:opacity-30 disabled:pointer-events-none [&_svg]:size-4"
+        >
+            <ChevronRight />
+        </button>
+    {/if}
 </div>

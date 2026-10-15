@@ -151,7 +151,7 @@
       <header
         class="pt-safe sticky top-0 z-30 flex min-h-[4rem] py-2 items-center justify-between gap-3 border-b border-border bg-bg/85 px-4 backdrop-blur-md sm:px-6"
       >
-        <div class="flex min-w-0 items-center gap-2">
+        <div class="flex min-w-0 flex-1 items-center gap-2">
           <a
             href="/"
             aria-label={t('back_to_trips')}
@@ -160,11 +160,11 @@
             <ArrowLeft />
           </a>
           {#if loaded}
-            <h1 class="truncate font-serif text-lg font-semibold animate-slide-down">
+            <h1 class="truncate font-serif text-base sm:text-lg font-semibold animate-slide-down">
               {trip?.title?.trim() || 'Trip'}
             </h1>
           {:else}
-            <Skeleton class="h-5 w-40" />
+            <Skeleton class="h-5 w-32 sm:w-40" />
           {/if}
         </div>
 

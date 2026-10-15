@@ -9,6 +9,8 @@
     import { Button, Checkbox, Field, Input, Select, Sheet, Textarea, toast } from '$lib/components/ui';
     import { formatMoney } from '$lib/format';
     import { t } from '$lib/i18n.svelte';
+    import { onMount } from 'svelte';
+    import { getSuggestedFxRate, updateExchangeRates } from '$lib/utils/currency';
     import {
         CATEGORY_META,
         CATEGORY_ORDER,
@@ -153,9 +155,24 @@
 
     const cur = $derived((form.currency.trim() || home).toUpperCase());
     const foreign = $derived(cur !== home);
+    const suggestedRate = $derived(foreign ? getSuggestedFxRate(cur, home) : null);
     const estNum = $derived(numOrNull(form.amountEstimate));
     const actNum = $derived(numOrNull(form.amountActual));
     const fxNum = $derived(numOrNull(form.fxRate));
+
+    function onCurrencySelect(newCur: string) {
+        form.currency = newCur;
+        if (newCur !== home) {
+            const sug = getSuggestedFxRate(newCur, home);
+            if (sug && !form.fxRate) {
+                form.fxRate = String(sug);
+            }
+        }
+    }
+
+    onMount(() => {
+        updateExchangeRates(home);
+    });
 
     function numOrNull(value: string): number | null {
         const v = value.trim();
@@ -364,7 +381,7 @@
                 id={fid('cur')}
                 value={form.currency}
                 disabled={isLinked}
-                onchange={(e) => (form.currency = e.currentTarget.value)}
+                onchange={(e) => onCurrencySelect(e.currentTarget.value)}
             >
                 {#each currencyOptions(home) as code (code)}
                     <option value={code}>{code === home ? `● ${home}` : code}</option>
@@ -373,24 +390,40 @@
         </Field>
 
         {#if foreign}
-            <Field
-                label={`Exchange rate (1 ${cur} = ? ${home})`}
-                for={fid('fx')}
-                error={errors.fxRate}
-                hint="A manual snapshot – no network needed."
-            >
-                <Input
-                    id={fid('fx')}
-                    type="number"
-                    inputmode="decimal"
-                    min={0}
-                    step="any"
-                    value={form.fxRate}
-                    placeholder="e.g. 0.92"
-                    invalid={!!errors.fxRate}
-                    oninput={(e) => (form.fxRate = e.currentTarget.value)}
-                />
-            </Field>
+            <div class="flex flex-col gap-1">
+                <Field
+                    label={`Exchange rate (1 ${cur} = ? ${home})`}
+                    for={fid('fx')}
+                    error={errors.fxRate}
+                    hint="A manual snapshot – no network needed."
+                >
+                    <Input
+                        id={fid('fx')}
+                        type="number"
+                        inputmode="decimal"
+                        min={0}
+                        step="any"
+                        value={form.fxRate}
+                        placeholder="e.g. 0.92"
+                        invalid={!!errors.fxRate}
+                        oninput={(e) => (form.fxRate = e.currentTarget.value)}
+                    />
+                </Field>
+                {#if suggestedRate}
+                    <div class="flex items-center gap-1.5 -mt-1 text-xs text-ink-muted">
+                        <span>Taxa de mercado sugerida: <strong class="text-ink">{suggestedRate}</strong></span>
+                        {#if form.fxRate !== String(suggestedRate)}
+                            <button
+                                type="button"
+                                class="text-primary-600 hover:text-primary-700 underline font-medium cursor-pointer"
+                                onclick={() => (form.fxRate = String(suggestedRate))}
+                            >
+                                Usar esta taxa
+                            </button>
+                        {/if}
+                    </div>
+                {/if}
+            </div>
             {#if fxNum == null}
                 <p class="mt-2 rounded-md border border-warning/30 bg-warning/10 px-3 py-2 text-xs text-warning">
                     Without a rate this expense is excluded from {home} totals until you add one.

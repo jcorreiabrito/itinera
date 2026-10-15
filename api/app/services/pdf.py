@@ -18,12 +18,53 @@ from jinja2 import Environment, FileSystemLoader, select_autoescape
 
 from ..couch import CouchClient
 from ..errors import PdfUnavailable, TripNotFound
+from ..i18n import get_i18n
 from ..util import utcnow_iso
 from .exports import group_docs_by_type
 
 TEMPLATES_DIR = Path(__file__).resolve().parent.parent / "templates"
 
 SAFE_URL = re.compile(r"^(https?://|mailto:)", re.IGNORECASE)
+
+WEEKDAYS_PT = ["Seg", "Ter", "Qua", "Qui", "Sex", "Sáb", "Dom"]
+MONTHS_PT = ["Jan", "Fev", "Mar", "Abr", "Mai", "Jun", "Jul", "Ago", "Set", "Out", "Nov", "Dez"]
+
+
+def _format_day_label(d_obj: date | None, fallback: str, lang: str = "en") -> str:
+    if not d_obj:
+        return fallback
+    if lang == "pt-BR":
+        weekday = WEEKDAYS_PT[d_obj.weekday()]
+        month = MONTHS_PT[d_obj.month - 1]
+        return f"{weekday}, {d_obj.day:02d} de {month}"
+    return d_obj.strftime("%a, %b %d")
+
+
+CURRENCY_SYMBOLS: dict[str, str] = {
+    "BRL": "R$",
+    "USD": "$",
+    "EUR": "€",
+    "GBP": "£",
+    "JPY": "¥",
+    "CAD": "CA$",
+    "AUD": "A$",
+    "CHF": "CHF",
+    "CLP": "CLP$",
+    "ARS": "ARS$",
+    "MXN": "MX$",
+}
+
+
+def _money(amount: float | None, ccy: str, lang: str = "en") -> str | None:
+    if amount is None:
+        return None
+    curr_upper = ccy.upper().strip() if ccy else "EUR"
+    symbol = CURRENCY_SYMBOLS.get(curr_upper, curr_upper)
+    if lang == "pt-BR" or curr_upper == "BRL":
+        formatted = f"{amount:,.2f}".replace(",", "X").replace(".", ",").replace("X", ".")
+        return f"{symbol} {formatted}"
+    formatted = f"{amount:,.2f}"
+    return f"{symbol} {formatted}"
 
 
 def _inline(raw: str) -> str:
@@ -145,32 +186,6 @@ def _jinja_env() -> Environment:
     return env
 
 
-CURRENCY_SYMBOLS: dict[str, str] = {
-    "BRL": "R$",
-    "USD": "$",
-    "EUR": "€",
-    "GBP": "£",
-    "JPY": "¥",
-    "CAD": "CA$",
-    "AUD": "A$",
-    "CHF": "CHF",
-    "CLP": "CLP$",
-    "ARS": "ARS$",
-    "MXN": "MX$",
-}
-
-
-def _money(amount: float | None, currency: str) -> str | None:
-    if amount is None:
-        return None
-    curr_upper = currency.upper().strip() if currency else "EUR"
-    symbol = CURRENCY_SYMBOLS.get(curr_upper, curr_upper)
-    if curr_upper == "BRL":
-        formatted_num = f"{amount:,.2f}".replace(",", "X").replace(".", ",").replace("X", ".")
-        return f"{symbol} {formatted_num}"
-    else:
-        formatted_num = f"{amount:,.2f}"
-        return f"{symbol} {formatted_num}"
 
 
 def _date_range(start: str | None, end: str | None) -> list[str]:
@@ -199,7 +214,9 @@ def _parse_minutes(val: str | None) -> int | None:
     return None
 
 
-def shape_trip_pdf_context(docs: list[dict[str, Any]]) -> dict[str, Any]:
+def shape_trip_pdf_context(
+    docs: list[dict[str, Any]], lang: str | None = None
+) -> dict[str, Any]:
     """
     Groups itinerary items per day across the trip span, lists flights and
     reservations, summarises the checklist by group, and computes the cost
@@ -208,6 +225,9 @@ def shape_trip_pdf_context(docs: list[dict[str, Any]]) -> dict[str, Any]:
     grouped = group_docs_by_type(docs)
     trip = grouped["trip"][0] if grouped["trip"] else {}
     home_ccy = trip.get("homeCurrency") or "EUR"
+
+    effective_lang = "pt-BR" if (lang or trip.get("locale") or trip.get("lang") or "").lower().replace("-", "_").startswith("pt") else "en"
+    i18n_dict = get_i18n(effective_lang)
 
     def _active(key: str) -> list[dict[str, Any]]:
         return [d for d in grouped.get(key, []) if not d.get("deletedAt")]
@@ -222,14 +242,28 @@ def shape_trip_pdf_context(docs: list[dict[str, Any]]) -> dict[str, Any]:
 
     ordered = _date_range(trip.get("startDate"), trip.get("endDate"))
     seen = set(ordered)
-    day_blocks: list[dict[str, Any]] = [
-        {"date": d, "label": d, "items": by_day.get(d, [])} for d in ordered
-    ]
+    day_blocks: list[dict[str, Any]] = []
+    for d in ordered:
+        d_obj = None
+        try:
+            d_obj = date.fromisoformat(d)
+        except ValueError:
+            pass
+        lbl = _format_day_label(d_obj, d, effective_lang)
+        day_blocks.append({"date": d, "label": lbl, "items": by_day.get(d, [])})
+
     for d in sorted(k for k in by_day if k != "__unscheduled__" and k not in seen):
-        day_blocks.append({"date": d, "label": d, "items": by_day[d]})
+        d_obj = None
+        try:
+            d_obj = date.fromisoformat(d)
+        except ValueError:
+            pass
+        lbl = _format_day_label(d_obj, d, effective_lang)
+        day_blocks.append({"date": d, "label": lbl, "items": by_day[d]})
+
     if "__unscheduled__" in by_day:
         day_blocks.append(
-            {"date": None, "label": "Unscheduled", "items": by_day["__unscheduled__"]}
+            {"date": None, "label": i18n_dict["unscheduled"], "items": by_day["__unscheduled__"]}
         )
 
     # --- Flights & reservations ---
@@ -271,18 +305,18 @@ def shape_trip_pdf_context(docs: list[dict[str, Any]]) -> dict[str, Any]:
     cost_rows = [
         {
             "category": cat,
-            "estimate": _money(vals["estimate"], home_ccy),
-            "actual": _money(vals["actual"], home_ccy),
+            "estimate": _money(vals["estimate"], home_ccy, effective_lang),
+            "actual": _money(vals["actual"], home_ccy, effective_lang),
         }
         for cat, vals in sorted(by_cat.items())
     ]
     costs = {
         "homeCurrency": home_ccy,
-        "totalEstimate": _money(total_est, home_ccy),
-        "totalActual": _money(total_act, home_ccy),
-        "budget": _money(budget_total, home_ccy) if budget_total is not None else None,
+        "totalEstimate": _money(total_est, home_ccy, effective_lang),
+        "totalActual": _money(total_act, home_ccy, effective_lang),
+        "budget": _money(budget_total, home_ccy, effective_lang) if budget_total is not None else None,
         "remaining": (
-            _money(budget_total - total_act, home_ccy) if budget_total is not None else None
+            _money(budget_total - total_act, home_ccy, effective_lang) if budget_total is not None else None
         ),
         "rows": cost_rows,
         "hasData": bool(expenses),
@@ -319,13 +353,13 @@ def shape_trip_pdf_context(docs: list[dict[str, Any]]) -> dict[str, Any]:
                 cost_val = float(cost)
                 day_total += cost_val
                 ccy = item.get("currency") or home_ccy
-                item["formatted_cost"] = _money(cost_val, ccy)
+                item["formatted_cost"] = _money(cost_val, ccy, effective_lang)
                 if traveler_count > 1:
-                    item["formatted_cost_pp"] = _money(cost_val / traveler_count, ccy)
+                    item["formatted_cost_pp"] = _money(cost_val / traveler_count, ccy, effective_lang)
         if day_total > 0:
-            block["total_cost_formatted"] = _money(day_total, home_ccy)
+            block["total_cost_formatted"] = _money(day_total, home_ccy, effective_lang)
             if traveler_count > 1:
-                block["total_cost_pp_formatted"] = _money(day_total / traveler_count, home_ccy)
+                block["total_cost_pp_formatted"] = _money(day_total / traveler_count, home_ccy, effective_lang)
 
     destinations = " → ".join(d.get("name", "").strip() for d in raw_dests)
     done = sum(1 for c in checklist if c.get("done"))
@@ -368,7 +402,7 @@ def shape_trip_pdf_context(docs: list[dict[str, Any]]) -> dict[str, Any]:
                 d_obj = date.fromisoformat(day_date)
             except ValueError:
                 pass
-            day_label = d_obj.strftime("%a, %b %d") if d_obj else day_date
+            day_label = _format_day_label(d_obj, day_date, effective_lang)
 
             timed_events: list[dict[str, Any]] = []
             all_day_events: list[dict[str, Any]] = []
@@ -376,7 +410,7 @@ def shape_trip_pdf_context(docs: list[dict[str, Any]]) -> dict[str, Any]:
             for item in block.get("items", []):
                 start_m = _parse_minutes(item.get("startTime"))
                 cat = item.get("category") or "other"
-                title = item.get("title") or "Untitled"
+                title = item.get("title") or i18n_dict["untitled"]
                 if start_m is not None:
                     end_m = _parse_minutes(item.get("endTime"))
                     if end_m is None or end_m <= start_m:
@@ -452,6 +486,8 @@ def shape_trip_pdf_context(docs: list[dict[str, Any]]) -> dict[str, Any]:
         "costs": costs,
         "calendar_grid": calendar_grid,
         "generatedAt": utcnow_iso(),
+        "i18n": i18n_dict,
+        "lang": effective_lang,
     }
 
 
@@ -477,12 +513,14 @@ def html_to_pdf(html: str, *, base_url: str | None = None) -> bytes:
     return HTML(string=html, base_url=base_url).write_pdf()
 
 
-async def build_trip_pdf(couch: CouchClient, trip_id: str) -> tuple[bytes, str]:
+async def build_trip_pdf(
+    couch: CouchClient, trip_id: str, lang: str | None = None
+) -> tuple[bytes, str]:
     """Fetch a trip, render its printable PDF, and return `(bytes, filename)`."""
     docs = await couch.get_trip_docs(trip_id)
     if not any(d.get("type") == "trip" for d in docs):
         raise TripNotFound(trip_id)
-    context = shape_trip_pdf_context(docs)
+    context = shape_trip_pdf_context(docs, lang=lang)
     pdf_bytes = html_to_pdf(render_trip_html(context))
     title = (context["trip"].get("title") or "trip").strip().lower().replace(" ", "-")
     safe_title = "".join(ch for ch in title if ch.isalnum() or ch in "-_") or "trip"

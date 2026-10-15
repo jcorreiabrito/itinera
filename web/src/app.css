@@ -25,6 +25,18 @@
 @layer base {
   /* Design tokens (docs/13-ui-ux.md) exposed as CSS variables for ad-hoc use. */
   :root {
+    --color-primary-100-rgb: 230 240 234;
+    --color-primary-600-rgb: 47 104 79;
+    --color-primary-700-rgb: 36 85 57;
+    --color-accent-terracotta-rgb: 201 107 74;
+    --color-accent-amber-rgb: 224 164 88;
+    --color-bg-rgb: 251 247 241;
+    --color-surface-rgb: 255 253 249;
+    --color-surface-sunken-rgb: 244 238 228;
+    --color-border-rgb: 234 225 212;
+    --color-ink-rgb: 42 38 32;
+    --color-ink-muted-rgb: 111 101 87;
+
     --color-primary-100: #e6f0ea;
     --color-primary-600: #2f6b4f;
     --color-primary-700: #245539;
@@ -53,6 +65,16 @@
   }
 
   html.dark {
+    --color-bg-rgb: 17 22 19;
+    --color-surface-rgb: 25 34 28;
+    --color-surface-sunken-rgb: 14 18 15;
+    --color-border-rgb: 37 51 42;
+    --color-ink-rgb: 240 244 241;
+    --color-ink-muted-rgb: 155 176 163;
+    --color-primary-100-rgb: 29 54 41;
+    --color-primary-600-rgb: 59 138 101;
+    --color-primary-700-rgb: 77 165 123;
+
     --color-bg: #111613;
     --color-surface: #19221c;
     --color-surface-sunken: #0e120f;
@@ -291,4 +313,71 @@
       scroll-behavior: auto !important;
     }
   }
+
+  /* Dark mode adaptation for standard OpenStreetMap tiles when no CARTO key is configured */
+  html.dark .leaflet-tile-pane .osm-dark-tiles {
+    filter: brightness(0.65) invert(1) contrast(1.6) hue-rotate(200deg) saturate(0.4);
+  }
+
+  /* Clean offline print styles */
+  @media print {
+    header,
+    nav,
+    aside,
+    button:not(.print-keep),
+    .bottom-nav,
+    .pb-safe,
+    .mesh-container,
+    .no-print,
+    [role="status"],
+    .sr-only,
+    .toast,
+    [aria-label="Add"],
+    [aria-label="New"] {
+      display: none !important;
+    }
+
+    body,
+    html {
+      background: #ffffff !important;
+      color: #111111 !important;
+      font-size: 11pt !important;
+    }
+
+    #main-content {
+      padding: 0 !important;
+      margin: 0 !important;
+      max-width: 100% !important;
+      min-height: auto !important;
+    }
+
+    .shadow-soft,
+    .shadow-card,
+    .shadow-sheet {
+      box-shadow: none !important;
+      border: 1px solid #e0e0e0 !important;
+    }
+
+    .glass-panel,
+    .glass-header {
+      background: #ffffff !important;
+      backdrop-filter: none !important;
+      -webkit-backdrop-filter: none !important;
+      border: 1px solid #e0e0e0 !important;
+    }
+
+    article,
+    .card,
+    li,
+    tr {
+      break-inside: avoid;
+      page-break-inside: avoid;
+    }
+
+    a {
+      text-decoration: none !important;
+      color: inherit !important;
+    }
+  }
 }
+

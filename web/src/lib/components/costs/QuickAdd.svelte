@@ -3,7 +3,8 @@
     import { expenses, todayIso } from '$lib/db';
     import type { ExpenseCategory } from '$lib/db';
     import { Button, Input, Select, toast } from '$lib/components/ui';
-    import { CATEGORY_ORDER, CATEGORY_META, categoryLabel } from './labels';
+    import { CATEGORY_ORDER, CATEGORY_META, categoryLabel, currencyOptions } from './labels';
+    import { getSuggestedFxRate } from '$lib/utils/currency';
 
     interface Props {
         /** Bare trip ULID. */
@@ -15,9 +16,14 @@
     let { tripId, homeCurrency, onsaved }: Props = $props();
 
     let amount = $state('');
+    let selectedCurrency = $state(homeCurrency);
     let category = $state<ExpenseCategory>('food');
     let date = $state(todayIso());
     let saving = $state(false);
+
+    $effect(() => {
+        selectedCurrency = homeCurrency;
+    });
 
     const amountNum = $derived(Number(amount));
     const valid = $derived(amount.trim() !== '' && Number.isFinite(amountNum) && amountNum > 0);
@@ -26,12 +32,15 @@
         if (!valid || saving) return;
         saving = true;
         try {
+            const isForeign = selectedCurrency !== homeCurrency;
+            const fxRate = isForeign ? getSuggestedFxRate(selectedCurrency, homeCurrency) : undefined;
             await expenses.create(tripId, {
                 description: categoryLabel(category),
                 category,
                 date: date || null,
                 amountActual: amountNum,
-                currency: homeCurrency,
+                currency: selectedCurrency,
+                fxRate: fxRate ?? undefined,
                 paid: false
             });
             amount = '';
@@ -51,9 +60,9 @@
         add();
     }}
 >
-    <div class="min-w-[7rem] flex-1">
+    <div class="min-w-[6.5rem] flex-1">
         <label for="quick-amount" class="mb-1 block text-xs font-medium text-ink-muted">
-            Quick add ({homeCurrency})
+            Valor
         </label>
         <Input
             id="quick-amount"
@@ -62,9 +71,22 @@
             min={0}
             step="any"
             value={amount}
-            placeholder="Amount"
+            placeholder="0.00"
             oninput={(e) => (amount = e.currentTarget.value)}
         />
+    </div>
+
+    <div class="w-24 shrink-0">
+        <label for="quick-currency" class="mb-1 block text-xs font-medium text-ink-muted">Moeda</label>
+        <Select
+            id="quick-currency"
+            value={selectedCurrency}
+            onchange={(e) => (selectedCurrency = e.currentTarget.value)}
+        >
+            {#each currencyOptions(homeCurrency) as code (code)}
+                <option value={code}>{code}</option>
+            {/each}
+        </Select>
     </div>
 
     <div class="min-w-[8rem] flex-1">

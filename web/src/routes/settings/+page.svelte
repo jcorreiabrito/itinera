@@ -45,6 +45,7 @@
   let homeCurrency = $state('EUR');
   let firstDayOfWeek = $state(1);
   let language = $state<Language>('en');
+  let cartoApiKey = $state('');
   let saving = $state(false);
 
   let templates = $state<ChecklistTemplate[]>([]);
@@ -66,21 +67,9 @@
   let backingUp = $state(false);
   let loadingBackups = $state(false);
 
-  // `navigator.onLine` isn't reactive, so mirror it and combine with the sync
-  // store: the export/backup controls run on the home server (doc 14 / NFR-5).
-  let navOnline = $state(typeof navigator === 'undefined' ? true : navigator.onLine);
-  const up = () => (navOnline = true);
-  const down = () => (navOnline = false);
-  $effect(() => {
-    window.addEventListener('online', up);
-    window.addEventListener('offline', down);
-    return () => {
-      window.removeEventListener('online', up);
-      window.removeEventListener('offline', down);
-    };
-  });
+  import { network } from '$lib/stores/network.svelte';
 
-  const online = $derived(navOnline && $syncStatus.state !== 'offline' && $syncStatus.state !== 'error');
+  const online = $derived(network.isOnline && $syncStatus.state !== 'offline' && $syncStatus.state !== 'error');
 
   async function loadTemplates() {
     try {
@@ -133,6 +122,7 @@
       homeCurrency = s.homeCurrencyDefault ?? 'EUR';
       firstDayOfWeek = s.firstDayOfWeek ?? 1;
       language = (s.language as Language) ?? 'en';
+      cartoApiKey = s.cartoApiKey ?? (typeof localStorage !== 'undefined' ? localStorage.getItem('itinera_carto_api_key') ?? '' : '');
     } catch {
       toast.error('Could not load settings.');
     }
@@ -164,7 +154,15 @@
   async function save() {
     saving = true;
     try {
-      await settings.update({ homeCurrencyDefault: homeCurrency, firstDayOfWeek, language });
+      await settings.update({
+        homeCurrencyDefault: homeCurrency,
+        firstDayOfWeek,
+        language,
+        cartoApiKey: cartoApiKey.trim()
+      });
+      if (typeof localStorage !== 'undefined') {
+        localStorage.setItem('itinera_carto_api_key', cartoApiKey.trim());
+      }
       setLanguage(language);
       toast.success(t('settings_saved'));
     } catch {
@@ -319,6 +317,29 @@
           <option value="pt-BR">Português (Brasil)</option>
         </Select>
       </Field>
+
+      <div class="sm:col-span-2 border-t border-border pt-4">
+        <Field label={t('carto_api_key')} for="settings-carto-key">
+          <Input
+            id="settings-carto-key"
+            type="text"
+            placeholder={t('carto_api_key_placeholder')}
+            value={cartoApiKey}
+            oninput={(e) => (cartoApiKey = e.currentTarget.value)}
+          />
+        </Field>
+        <p class="mt-1.5 text-xs text-ink-muted leading-relaxed">
+          {t('carto_api_key_desc')}
+          <a
+            href="https://carto.com/basemaps/apikey"
+            target="_blank"
+            rel="noopener noreferrer"
+            class="text-primary-700 underline font-medium hover:text-primary-800 ml-1 inline-flex items-center"
+          >
+            carto.com/basemaps/apikey ↗
+          </a>
+        </p>
+      </div>
     </div>
 
     <div class="mt-5">

@@ -9,6 +9,7 @@
     import { renderMarkdown } from '$lib/markdown';
     import { cn } from '$lib/utils';
     import { fetchTripWeather, loadCachedWeather, type DayWeather } from '$lib/utils/weather';
+    import { t } from '$lib/i18n.svelte';
     import { CATEGORY_META, CATEGORY_ORDER } from './categories';
     import TimelineEntryRow from './TimelineEntryRow.svelte';
     import MoveToDayDialog from './MoveToDayDialog.svelte';
@@ -47,7 +48,7 @@
 
     const isIdeas = $derived(day.date === null);
     const heading = $derived.by(() => {
-        if (!day.date) return 'Unscheduled · Ideas';
+        if (!day.date) return t('unscheduled_ideas') || 'Unscheduled · Ideas';
         const dt = DateTime.fromISO(day.date);
         return dt.isValid ? dt.toFormat('ccc d LLL') : day.date;
     });
@@ -287,7 +288,7 @@
                     <div class="mt-1.5 space-y-1.5 text-sm text-ink-muted">{@html renderMarkdown(day.day.notes)}</div>
                 {/if}
             {:else}
-                <p class="mt-0.5 text-sm text-ink-muted">Capture ideas here, then move them onto a day.</p>
+                <p class="mt-0.5 text-sm text-ink-muted">{t('capture_ideas_hint')}</p>
             {/if}
         </div>
         {#if !isIdeas}
@@ -297,7 +298,7 @@
                 class="inline-flex shrink-0 items-center gap-1.5 rounded-md border border-border bg-surface px-2.5 py-1.5 text-xs font-medium text-ink-muted transition-colors hover:bg-surface-sunken hover:text-ink [&_svg]:size-3.5"
             >
                 <Pencil />
-                {day.day?.title || day.day?.notes ? 'Edit day' : 'Add title'}
+                {day.day?.title || day.day?.notes ? t('edit_day') : t('add_title')}
             </button>
         {/if}
     </header>
@@ -313,7 +314,7 @@
             >
                 <span class="inline-flex items-center gap-1.5 text-sm font-medium text-ink">
                     <ListTodo class="size-4 text-primary-700" />
-                    Daily to-dos
+                    {t('daily_todos')}
                     <span class="text-ink-muted">({todosDone} of {day.todos.length} done)</span>
                 </span>
                 <ChevronDown class={cn('size-4 text-ink-muted transition-transform', todosOpen && '-rotate-180')} />
@@ -335,6 +336,7 @@
                                 </span>
                                 {#if todo.important}
                                     <Star class="size-3.5 shrink-0 fill-accent-amber text-accent-amber" aria-label="Important" />
+                                
                                 {/if}
                             </label>
                         </li>
@@ -347,7 +349,7 @@
     <!-- All-day lane -->
     {#if allDayItems.length > 0}
         <div>
-            <h3 class="mb-2 text-xs font-semibold uppercase tracking-wide text-ink-muted">All day</h3>
+            <h3 class="mb-2 text-xs font-semibold uppercase tracking-wide text-ink-muted">{t('all_day')}</h3>
             <ul class="space-y-2">
                 {#each allDayItems as item (item._id)}
                     <TimelineEntryRow
@@ -400,7 +402,7 @@
     {#if isEmpty}
         <div class="rounded-lg border border-dashed border-border bg-surface px-4 py-8 text-center">
             <p class="text-sm text-ink-muted">
-                {isIdeas ? 'No ideas captured yet – jot one down below.' : 'Nothing planned – add something below.'}
+                {isIdeas ? t('no_ideas_yet') : t('nothing_planned_yet')}
             </p>
         </div>
     {/if}
@@ -408,7 +410,7 @@
     <!-- Day subtotal -->
     {#if !isIdeas}
         <div class="flex items-center justify-between rounded-lg border border-border bg-surface px-3 py-2.5 text-sm">
-            <span class="font-medium text-ink-muted">Day subtotal</span>
+            <span class="font-medium text-ink-muted">{t('day_subtotal')}</span>
             {#if day.subtotal.spent > 0}
                 <div class="text-right">
                     <span class="font-semibold tabular-nums text-ink">{formatMoney(day.subtotal.spent, homeCurrency, { decimals: true })}</span>
@@ -417,7 +419,7 @@
                     {/if}
                 </div>
             {:else}
-                <span class="text-ink-muted">No costs yet</span>
+                <span class="text-ink-muted">{t('no_costs_yet')}</span>
             {/if}
         </div>
         {#if day.subtotal.missingRateCount > 0}
@@ -435,18 +437,18 @@
             quickAdd();
         }}
     >
-        <label for="quick-add-{tripId}" class="sr-only">Add an activity</label>
+        <label for="quick-add-{tripId}" class="sr-only">{t('add_activity')}</label>
         <div class="flex items-center gap-2">
             <Input
                 id="quick-add-{tripId}"
                 class="flex-1"
                 value={qTitle}
-                placeholder={isIdeas ? 'Add an idea...' : 'Add an activity...'}
+                placeholder={isIdeas ? t('add_an_idea') : t('add_an_activity')}
                 oninput={(e) => (qTitle = e.currentTarget.value)}
             />
             <Button type="submit" size="sm" disabled={qSaving || !qTitle.trim()}>
                 <Plus class="size-4" />
-                Add
+                {t('add') || 'Add'}
             </Button>
         </div>
         <div class="mt-2.5 flex flex-wrap items-center gap-1">
@@ -457,7 +459,7 @@
                     onchange={(e) => (qAllDay = e.currentTarget.checked)}
                     class="size-4 rounded border-border text-primary-600 focus:ring-2 focus:ring-primary-600/30"
                 />
-                All day
+                {t('all_day')}
             </label>
             {#if !qAllDay}
                 <label class="inline-flex items-center gap-2 text-sm text-ink-muted">
@@ -488,9 +490,9 @@
 </section>
 
 <!-- Day details dialog -->
-<Dialog bind:open={metaOpen} title="Day details" description={!isIdeas ? undefined : heading}>
+<Dialog bind:open={metaOpen} title={t('day_details')} description={!isIdeas ? undefined : heading}>
     <div class="flex flex-col gap-4">
-        <Field label="Title" for="day-title">
+        <Field label={t('title')} for="day-title">
             <Input
                 id="day-title"
                 value={metaTitle}
@@ -498,7 +500,7 @@
                 oninput={(e) => (metaTitle = e.currentTarget.value)}
             />
         </Field>
-        <Field label="Notes" for="day-notes" hint="Markdown supported.">
+        <Field label={t('notes')} for="day-notes" hint="Markdown supported.">
             <Textarea
                 id="day-notes"
                 rows={3}
@@ -510,8 +512,8 @@
     </div>
 
     {#snippet footer()}
-        <Button variant="ghost" onclick={() => (metaOpen = false)} disabled={metaSaving}>Cancel</Button>
-        <Button onclick={saveMeta} disabled={metaSaving}>{metaSaving ? 'Saving...' : 'Save'}</Button>
+        <Button variant="ghost" onclick={() => (metaOpen = false)} disabled={metaSaving}>{t('cancel')}</Button>
+        <Button onclick={saveMeta} disabled={metaSaving}>{metaSaving ? t('saving') : t('save')}</Button>
     {/snippet}
 </Dialog>
 

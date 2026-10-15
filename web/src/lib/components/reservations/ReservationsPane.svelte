@@ -7,6 +7,7 @@
     import { formatWeekdayDate } from '$lib/format';
     import { getTripShellContext } from '$lib/trip-context';
     import { startLive } from '$lib/live';
+    import { t } from '$lib/i18n.svelte';
     import ReservationRow from './ReservationRow.svelte';
     import ReservationSheet from './ReservationSheet.svelte';
     import { buildTimeline, KIND_META, KIND_ORDER } from './kinds';
@@ -104,22 +105,22 @@
     async function removeReservation(res: Reservation) {
         try {
             await reservations.softDelete(res._id);
-            toast.success('Reservation removed.', {
+            toast.success(t('reservation_removed'), {
                 action: {
-                    label: 'Undo',
+                    label: t('undo'),
                     onClick: async () => {
                         try {
                             await reservations.restore(res._id);
                             reload();
                         } catch {
-                            toast.error('Could not undo. Try restoring from Trash.');
+                            toast.error(t('could_not_undo'));
                         }
                     }
                 }
             });
             reload();
         } catch {
-            toast.error('Could not remove the reservation. Try again.');
+            toast.error(t('reservation_removed'));
         }
     }
 </script>
@@ -132,15 +133,15 @@
         <Skeleton class="h-24 w-full rounded-lg" />
     </div>
 {:else if loadError}
-    <ErrorState title="Couldn't load reservations" onretry={retry} />
+    <ErrorState title={t('could_not_load_reservations')} onretry={retry} />
 {:else if resList.length === 0}
     <EmptyState
         icon={BedDouble}
-        title="No reservations yet"
-        description="Hotels, cars, restaurants, activities and transport – one date-sorted timeline, with vouchers attached and viewable offline."
+        title={t('no_reservations_yet')}
+        description={t('no_reservations_desc')}
     >
         <Button onclick={openAdd}>
-            <Plus class="size-4" /> Add reservation
+            <Plus class="size-4" /> {t('add_reservation')}
         </Button>
     </EmptyState>
 {:else}
@@ -150,9 +151,9 @@
             type="button"
             onclick={() => (filter = null)}
             aria-pressed={filter == null}
-            class="inline-flex min-h-touch items-center rounded-full border px-3 py-1.5 text-sm font-medium transition-colors ${filter == null ? 'border-primary-600 bg-primary-600 text-white' : 'border-border bg-surface text-ink-muted hover:text-ink'}"
+            class="inline-flex min-h-touch items-center rounded-full border px-3 py-1.5 text-sm font-medium transition-colors {filter == null ? 'border-primary-600 bg-primary-600 text-white' : 'border-border bg-surface text-ink-muted hover:text-ink'}"
         >
-            All
+            {t('filter_all')}
         </button>
          {#each KIND_ORDER as kind (kind)}
             {@const count = kindCounts.get(kind) ?? 0}
@@ -174,17 +175,17 @@
 
     {#if timeline.length === 0}
         <p class="rounded-lg border border-dashed border-border bg-surface-sunken px-4 py-8 text-center text-sm text-ink-muted">
-            No {filter ? KIND_META[filter].label.toLowerCase() : ''} reservations
+            {t('no_reservations_yet')}
             <button type="button" onclick={() => (filter = null)} class="font-medium text-primary-700 hover:underline">
-                Show all
+                {t('view_all')}
             </button>
         </p>
     {:else}
         <div class="space-y-6">
             {#each timeline as group (group.date ?? 'undated')}
-                <section aria-label={group.date ? `Reservations for ${group.date}` : 'Unscheduled reservations'}>
+                <section aria-label={group.date ? `Reservations for ${group.date}` : t('unscheduled')}>
                     <h2 class="mb-2 px-1 text-sm font-semibold text-ink">
-                        {group.date ? formatWeekdayDate(group.date) : 'Unscheduled'}
+                        {group.date ? formatWeekdayDate(group.date) : t('unscheduled')}
                     </h2>
                     <ul class="space-y-2">
                         {#each group.entries as entry (entry.reservation._id + entry.rowKind)}
@@ -209,11 +210,11 @@
     <button
         type="button"
         onclick={openAdd}
-        aria-label="Add reservation"
-        class="fixed bottom-20 right-4 z-40 inline-flex h-14 items-center gap-2 rounded-full bg-primary-600 px-5 text-base font-medium text-white shadow-card transition-colors hover:bg-primary-700 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary-600 focus-visible:ring-offset-2 focus-visible:ring-offset-bg [&_svg]:size-5"
+        aria-label={t('add_reservation')}
+        class="fixed bottom-20 right-4 z-40 inline-flex h-14 items-center gap-2 rounded-full bg-primary-600 px-5 text-base font-medium text-white shadow-card transition-colors hover:bg-primary-700 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary-600 focus-visible:ring-offset-2 focus-visible:ring-offset-bg lg:bottom-8 [&_svg]:size-5"
     >
         <Plus />
-        <span class="hidden sm:inline">Add reservation</span>
+        <span class="hidden sm:inline">{t('add_reservation')}</span>
     </button>
 {/if}
 

@@ -2,9 +2,11 @@
   import { onMount, onDestroy } from 'svelte';
   import L from 'leaflet';
   import 'leaflet/dist/leaflet.css';
-  import { itinerary, type ItineraryItem } from '$lib/db';
-  import { MapPin, Maximize2, Minimize2, ChevronUp, ChevronDown, Compass, Play, Square, Plus } from 'lucide-svelte';
+  import { bareTripUid, itinerary, settings, type ItineraryItem } from '$lib/db';
+  import { Compass, Maximize2, Minimize2, ChevronUp, ChevronDown, Plus, CloudDownload, Settings as SettingsIcon } from 'lucide-svelte';
   import { toast, Dialog, Button, Input, Field } from '$lib/components/ui';
+  import { theme } from '$lib/stores/theme.svelte';
+  import { t } from '$lib/i18n.svelte';
 
   let {
     items = [],
@@ -32,12 +34,6 @@
   let newPinTitle = $state('');
   let newPinDate = $state('');
   let newPinSaving = $state(false);
-
-  // Route animation state
-  let isAnimating = $state(false);
-  let animProgress = $state(0);
-  let animFrameId: number | null = null;
-  let animMarker: any = null;
 
   // Active locations with valid location info or coordinates
   let locations = $derived(
@@ -137,24 +133,121 @@
         setCachedCoord(locStr, coords);
         return coords;
       }
-    } catch (e) {
-      console.warn('Geocoding failed/offline for:', locStr);
+    } catch {
+      // offline or geocoding unavailable
     }
     return null;
   }
 
-  onMount(() => {
+  let currentTileLayer: L.TileLayer | null = null;
+  let downloadingOffline = $state(false);
+  let cartoApiKey = $state<string>('');
+
+  onMount(async () => {
     if (typeof window === 'undefined' || !mapContainer) return;
+    try {
+      const s = await settings.get();
+      if (s?.cartoApiKey) cartoApiKey = s.cartoApiKey.trim();
+    } catch {}
+    if (!cartoApiKey && typeof localStorage !== 'undefined') {
+      cartoApiKey = localStorage.getItem('itinera_carto_api_key') || '';
+    }
     initMap();
   });
 
   onDestroy(() => {
-    stopRouteAnimation();
     if (leafMap) {
       leafMap.remove();
       leafMap = null;
     }
   });
+
+  function updateTileLayer() {
+    if (!leafMap) return;
+    if (currentTileLayer) {
+      currentTileLayer.remove();
+    }
+
+    if (cartoApiKey) {
+      const tileUrl = theme.isDark
+        ? `https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png?key=${encodeURIComponent(cartoApiKey)}`
+        : `https://{s}.basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}{r}.png?key=${encodeURIComponent(cartoApiKey)}`;
+      currentTileLayer = L.tileLayer(tileUrl, {
+        maxZoom: 19,
+        attribution: '&copy; OpenStreetMap contributors &copy; CARTO',
+        referrerPolicy: 'strict-origin-when-cross-origin',
+      }).addTo(leafMap);
+    } else {
+      // Fallback: OpenStreetMap (100% free, no API key needed, zero watermark)
+      currentTileLayer = L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+        maxZoom: 19,
+        attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors',
+        referrerPolicy: 'strict-origin-when-cross-origin',
+        className: theme.isDark ? 'osm-dark-tiles' : '',
+      }).addTo(leafMap);
+    }
+  }
+
+  $effect(() => {
+    const _dark = theme.isDark;
+    if (mapLoaded && leafMap) {
+      updateTileLayer();
+    }
+  });
+
+  async function downloadOfflineMap() {
+    if (downloadingOffline) return;
+    downloadingOffline = true;
+    toast.info('Downloading offline map tiles for destination...');
+    try {
+      let centerLat = 20, centerLng = 0;
+      if (locations.length > 0 && locations[0].lat != null && locations[0].lng != null) {
+        centerLat = locations[0].lat;
+        centerLng = locations[0].lng;
+      } else if (leafMap) {
+        const c = leafMap.getCenter();
+        centerLat = c.lat;
+        centerLng = c.lng;
+      } else if (destination) {
+        const coords = await geocode(destination);
+        if (coords) {
+          centerLat = coords[0];
+          centerLng = coords[1];
+        }
+      }
+
+      const tilesToFetch: string[] = [];
+      const subdomains = ['a', 'b', 'c'];
+      for (let z = 12; z <= 14; z++) {
+        const n = Math.pow(2, z);
+        const x = Math.floor(((centerLng + 180) / 360) * n);
+        const latRad = (centerLat * Math.PI) / 180;
+        const y = Math.floor(((1 - Math.asinh(Math.tan(latRad)) / Math.PI) / 2) * n);
+
+        for (let dx = -1; dx <= 1; dx++) {
+          for (let dy = -1; dy <= 1; dy++) {
+            const tx = x + dx;
+            const ty = y + dy;
+            if (cartoApiKey) {
+              const s = subdomains[Math.abs(tx + ty) % 3];
+              tilesToFetch.push(`https://${s}.basemaps.cartocdn.com/rastertiles/voyager/${z}/${tx}/${ty}.png?key=${encodeURIComponent(cartoApiKey)}`);
+              tilesToFetch.push(`https://${s}.basemaps.cartocdn.com/dark_all/${z}/${tx}/${ty}.png?key=${encodeURIComponent(cartoApiKey)}`);
+            } else {
+              tilesToFetch.push(`https://tile.openstreetmap.org/${z}/${tx}/${ty}.png`);
+            }
+          }
+        }
+      }
+
+      await Promise.allSettled(tilesToFetch.map((url) => fetch(url, { mode: 'no-cors' })));
+      toast.success(`Offline map ready! ${tilesToFetch.length} tiles cached 🗺️`);
+    } catch (err) {
+      console.error('Failed to pre-cache map tiles', err);
+      toast.error('Could not complete offline map download.');
+    } finally {
+      downloadingOffline = false;
+    }
+  }
 
   async function initMap() {
     if (!mapContainer) return;
@@ -166,11 +259,7 @@
       }).setView([20, 0], 2);
 
       L.control.zoom({ position: 'bottomright' }).addTo(leafMap);
-
-      L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
-        maxZoom: 19,
-        referrerPolicy: 'strict-origin-when-cross-origin',
-      }).addTo(leafMap);
+      updateTileLayer();
 
       // Handle map clicks for "Drop Pin" feature
       leafMap.on('click', (e: L.LeafletMouseEvent) => {
@@ -206,13 +295,10 @@
       } else {
         coords = await geocode(loc.locationName);
         if (coords && loc.item) {
-          // Persist back to PouchDB so it syncs across devices
           const existingLoc = typeof loc.item.location === 'object' ? loc.item.location : { name: loc.locationName };
           itinerary.update(loc.item._id, {
             location: { ...existingLoc, lat: coords[0], lng: coords[1] },
           }).catch(() => {});
-          // Polite rate limit for Nominatim
-          await new Promise((r) => setTimeout(r, 1100));
         }
       }
 
@@ -240,7 +326,7 @@
             </div>
             <h4 class="font-serif font-bold text-ink text-sm mb-1">${loc.title}</h4>
             <p class="text-xs text-ink-muted flex items-center gap-1 mb-1">
-              Location: ${loc.locationName}
+              ${loc.locationName}
             </p>
             ${loc.notes ? `<p class="text-xs text-ink/80 italic bg-surface-sunken p-1.5 rounded mt-1">${loc.notes}</p>` : ''}
           </div>
@@ -290,69 +376,9 @@
     }
   }
 
-  function startRouteAnimation() {
-    const coordsList = Array.from(markersMap.values()).map((e) => e.coords);
-    if (coordsList.length < 2 || !leafMap) {
-      toast.error('At least 2 mapped locations are required to animate a route.');
-      return;
-    }
-
-    stopRouteAnimation();
-    isAnimating = true;
-
-    const planeIcon = L.divIcon({
-      className: 'animated-plane-icon',
-      html: `<div class="text-2xl transform -translate-x-1/2 -translate-y-1/2">✈️</div>`,
-      iconSize: [24, 24],
-    });
-
-    animMarker = L.marker(coordsList[0], { icon: planeIcon }).addTo(leafMap);
-
-    let segmentIdx = 0;
-    let step = 0;
-    const stepsPerSegment = 60;
-
-    function animateStep() {
-      if (!isAnimating || segmentIdx >= coordsList.length - 1) {
-        stopRouteAnimation();
-        return;
-      }
-
-      const p1 = coordsList[segmentIdx];
-      const p2 = coordsList[segmentIdx + 1];
-
-      const lat = p1[0] + (p2[0] - p1[0]) * (step / stepsPerSegment);
-      const lng = p1[1] + (p2[1] - p1[1]) * (step / stepsPerSegment);
-
-      if (animMarker) animMarker.setLatLng([lat, lng]);
-
-      step++;
-      if (step > stepsPerSegment) {
-        step = 0;
-        segmentIdx++;
-      }
-
-      animFrameId = requestAnimationFrame(animateStep);
-    }
-
-    animFrameId = requestAnimationFrame(animateStep);
-  }
-
-  function stopRouteAnimation() {
-    isAnimating = false;
-    if (animFrameId != null) {
-      cancelAnimationFrame(animFrameId);
-      animFrameId = null;
-    }
-    if (animMarker) {
-      animMarker.remove();
-      animMarker = null;
-    }
-  }
-
   async function handleSaveNewPin() {
     const rawTripId = tripId || items[0]?.tripid || (items[0] as any)?.tripId;
-    const targetTripId = typeof rawTripId === 'string' ? rawTripId : '';
+    const targetTripId = typeof rawTripId === 'string' ? bareTripUid(rawTripId) : '';
     if (!newPinTitle.trim() || !pendingCoords || !targetTripId) return;
 
     newPinSaving = true;
@@ -367,13 +393,13 @@
         },
       });
 
-      toast.success('Added new itinerary item from map pin!');
+      toast.success(t('pin_added'));
       addModalOpen = false;
       newPinTitle = '';
       pendingCoords = null;
       if (onchanged) onchanged();
     } catch {
-      toast.error('Could not save map pin activity.');
+      toast.error(t('could_not_save_pin'));
     } finally {
       newPinSaving = false;
     }
@@ -392,58 +418,56 @@
         <Compass class="h-4 w-4" />
       </span>
       <div>
-        <h3 class="font-serif text-sm font-semibold text-ink">Itinerary Map</h3>
+        <h3 class="font-serif text-sm font-semibold text-ink">{t('itinerary_map')}</h3>
         <p class="text-[11px] text-ink-muted">
           {locations.length > 0
-            ? `${locations.length} pinned destination(s)`
+            ? t('map_pins_count', { n: String(locations.length) })
             : destination
-              ? `Centred on ${destination}`
-              : 'Add locations to itinerary items to view pins'}
+              ? destination
+              : t('map_hint')}
         </p>
       </div>
     </div>
 
-    <div class="flex items-center space-x-1">
+    <div class="flex items-center space-x-1.5">
+      <button
+        type="button"
+        onclick={downloadOfflineMap}
+        disabled={downloadingOffline}
+        class="inline-flex items-center space-x-1 px-2.5 py-1.5 min-h-touch text-xs font-medium rounded-md transition-colors bg-surface text-ink border border-border hover:bg-surface-sunken disabled:opacity-50"
+        title="Baixar mapa offline para este destino"
+      >
+        <CloudDownload class="h-3.5 w-3.5 text-primary-600" />
+        <span class="hidden sm:inline">{downloadingOffline ? 'Baixando...' : 'Mapa Offline'}</span>
+      </button>
+
       <button
         type="button"
         onclick={() => (isDroppingPin = !isDroppingPin)}
-        class={`inline-flex items-center space-x-1 px-2 py-1 text-xs font-medium rounded-md transition-colors ${
+        class={`inline-flex items-center space-x-1 px-2.5 py-1.5 min-h-touch text-xs font-medium rounded-md transition-colors ${
           isDroppingPin
             ? 'bg-accent-terracotta text-white'
             : 'bg-surface text-ink border border-border hover:bg-surface-sunken'
         }`}
-        title="Click anywhere on the map to drop a new itinerary pin"
+        title={t('drop_pin')}
       >
         <Plus class="h-3.5 w-3.5" />
-        <span>{isDroppingPin ? 'Click Map...' : 'Drop Pin'}</span>
+        <span>{isDroppingPin ? t('click_map') : t('drop_pin')}</span>
       </button>
 
-      {#if locations.length >= 2}
-        <button
-          type="button"
-          onclick={() => (isAnimating ? stopRouteAnimation() : startRouteAnimation())}
-          class={`inline-flex items-center space-x-1 px-2 py-1 text-xs font-medium rounded-md transition-colors ${
-            isAnimating
-              ? 'bg-amber-600 text-white'
-              : 'bg-surface text-primary-700 border border-border hover:bg-surface-sunken'
-          }`}
-          title="Animate Indiana Jones style route polyline"
-        >
-          {#if isAnimating}
-            <Square class="h-3.5 w-3.5" />
-            <span>Stop</span>
-          {:else}
-            <Play class="h-3.5 w-3.5" />
-            <span>Animate Route</span>
-          {/if}
-        </button>
-      {/if}
+      <a
+        href="/settings"
+        class="grid size-9 place-items-center rounded-md text-ink-muted hover:bg-surface hover:text-ink transition-colors"
+        title={t('map_settings')}
+      >
+        <SettingsIcon class="h-4 w-4" />
+      </a>
 
       <button
         type="button"
         onclick={() => (isExpanded = !isExpanded)}
-        class="grid size-8 place-items-center rounded-md text-ink-muted hover:bg-surface hover:text-ink transition-colors"
-        title={isExpanded ? 'Minimize map' : 'Fullscreen map'}
+        class="grid size-9 place-items-center rounded-md text-ink-muted hover:bg-surface hover:text-ink transition-colors"
+        title={isExpanded ? t('minimize_map') : t('fullscreen_map')}
       >
         {#if isExpanded}
           <Minimize2 class="h-4 w-4" />
@@ -455,8 +479,8 @@
       <button
         type="button"
         onclick={() => (isCollapsed = !isCollapsed)}
-        class="grid size-8 place-items-center rounded-md text-ink-muted hover:bg-surface hover:text-ink transition-colors"
-        title={isCollapsed ? 'Expand section' : 'Collapse section'}
+        class="grid size-9 place-items-center rounded-md text-ink-muted hover:bg-surface hover:text-ink transition-colors"
+        title={isCollapsed ? t('expand_section') : t('collapse_section')}
       >
         {#if isCollapsed}
           <ChevronDown class="h-4 w-4" />
@@ -477,7 +501,7 @@
             <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
             <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
           </svg>
-          <span>Loading map & location markers...</span>
+          <span>{t('loading')}</span>
         </div>
       {/if}
 
@@ -507,18 +531,17 @@
 </div>
 
 <!-- Modal for creating activity from dropped pin -->
-<Dialog bind:open={addModalOpen} title="Add Activity at Map Location">
+<Dialog bind:open={addModalOpen} title={t('add_pin_title')}>
   <div class="space-y-4 text-sm">
     <p class="text-ink-muted text-xs">
-      Creating a new activity pin at coordinates:
       {#if pendingCoords}
         <span class="font-mono font-semibold text-primary-700">
-          {pendingCoords.lat.toFixed(4)}, {pendingCoords.lng.toFixed(4)}
+          ({pendingCoords.lat.toFixed(4)}, {pendingCoords.lng.toFixed(4)})
         </span>
       {/if}
     </p>
 
-    <Field label="Activity Title" required>
+    <Field label={t('activity_title')} required>
       <input
         type="text"
         value={newPinTitle}
@@ -528,7 +551,7 @@
       />
     </Field>
 
-    <Field label="Date (Optional)">
+    <Field label={`${t('days')} (${t('optional') || 'Optional'})`}>
       <input
         type="date"
         value={newPinDate}
@@ -538,9 +561,9 @@
     </Field>
 
     <div class="flex justify-end space-x-2 pt-2">
-      <Button variant="ghost" onclick={() => (addModalOpen = false)}>Cancel</Button>
+      <Button variant="ghost" onclick={() => (addModalOpen = false)}>{t('cancel')}</Button>
       <Button disabled={!newPinTitle.trim() || newPinSaving} onclick={handleSaveNewPin}>
-        {newPinSaving ? 'Saving...' : 'Add Map Pin'}
+        {newPinSaving ? t('saving') : t('save')}
       </Button>
     </div>
   </div>

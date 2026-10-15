@@ -4,8 +4,8 @@
   import { bareTripUid, settings, trips } from '$lib/db';
   import type { Trip } from '$lib/db';
   import { t } from '$lib/i18n.svelte';
-  import { ChevronDown, Compass, History, MapPin, Plus, Search, Settings } from 'lucide-svelte';
-  import { Button, Dialog, EmptyState, Skeleton, SyncStatusPill, ThemeToggle, toast } from '$lib/components/ui';
+  import { ChevronDown, Compass, History, MapPin, Plus, Search, Settings, Sparkles } from 'lucide-svelte';
+  import { Button, Dialog, EmptyState, ErrorBoundary, Skeleton, SyncStatusPill, ThemeToggle, toast } from '$lib/components/ui';
   import ConflictLogModal from '$lib/components/ui/ConflictLogModal.svelte';
   import TripTemplateModal from '$lib/components/trip/TripTemplateModal.svelte';
   import { DuplicateTripSheet, NewTripSheet, TripCard, TripFormSheet } from '$lib/components/trip';
@@ -225,8 +225,9 @@
         >
           <Settings />
         </a>
-        <Button variant="ghost" class="hidden sm:inline-flex" size="sm" onclick={() => (templateOpen = true)}>
-          Templates
+        <Button variant="ghost" size="sm" onclick={() => (templateOpen = true)}>
+          <Sparkles class="size-4" />
+          <span>{t('templates')}</span>
         </Button>
         <Button class="hidden sm:inline-flex" size="sm" onclick={openCreate}>
           <Plus class="size-4" /> {t('new_trip')}
@@ -272,93 +273,100 @@
 </header>
 
 <main class="mx-auto w-full max-w-6xl flex-1 px-4 pb-28 pt-5 sm:px-6 lg:pb-12">
-  {#if loading && !sectionsData}
-    <div class="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
-      {#each Array(4) as _, i (i)}
-        <div class="overflow-hidden rounded-lg border border-border bg-surface">
-          <Skeleton class="aspect-[3/2] w-full rounded-none" />
-          <div class="space-y-3 p-3">
-            <Skeleton class="h-4 w-2/3" />
-            <Skeleton class="h-3 w-full" />
-            <Skeleton class="h-3 w-1/2" />
+  <ErrorBoundary>
+    {#if loading && !sectionsData}
+      <div class="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
+        {#each Array(4) as _, i (i)}
+          <div class="overflow-hidden rounded-lg border border-border bg-surface">
+            <Skeleton class="aspect-[3/2] w-full rounded-none" />
+            <div class="space-y-3 p-3">
+              <Skeleton class="h-4 w-2/3" />
+              <Skeleton class="h-3 w-full" />
+              <Skeleton class="h-3 w-1/2" />
+            </div>
           </div>
-        </div>
-      {/each}
-    </div>
-  {:else if totalTrips === 0}
-    <section aria-labelledby="trips-empty" class="flex min-h-[60dvh] flex-col">
-      <h2 id="trips-empty" class="sr-only">{t('trips')}</h2>
-      <EmptyState
-        icon={MapPin}
-        title={t('plan_first_trip')}
-        description={t('empty_description')}
-      >
-        <Button size="lg" onclick={openCreate}>
-          <Plus class="size-5" /> {t('new_trip')}
-        </Button>
-      </EmptyState>
-    </section>
-  {:else}
-    <div class="space-y-8">
-      {#if filtered}
-        {#if filterTab === 'all' || filterTab === 'planning'}
-          {#if filtered.planning.length}
-            {@render section('planning_section', filtered.planning, false, 0)}
-          {/if}
-        {/if}
-
-        {#if filterTab === 'all' || filterTab === 'confirmed'}
-          {#if filtered.active.length}
-            {@render section('active_now', filtered.active, true, filtered.planning.length ? 80 : 0)}
-          {/if}
-          {#if filtered.upcoming.length}
-            {@render section('upcoming', filtered.upcoming, false, (filtered.planning.length ? 80 : 0) + (filtered.active.length ? 80 : 0))}
-          {/if}
-          {#if filtered.past.length}
-            {@render section('past', filtered.past, false, (filtered.planning.length ? 80 : 0) + (filtered.active.length ? 80 : 0) + (filtered.upcoming.length ? 80 : 0))}
-          {/if}
-        {/if}
-
-        {#if filterTab === 'all'}
-          {#if filtered.archived.length}
-          <section aria-labelledby="section-archived">
-            <button
-              type="button"
-              onclick={() => (archiveOpen = !archiveOpen)}
-              aria-expanded={archiveOpen}
-              class="mb-3 flex items-center gap-2 text-sm font-semibold text-ink-muted transition-colors hover:text-ink"
-            >
-              <ChevronDown class="size-4 transition-transform ${archiveOpen ? '' : '-rotate-90'}" />
-              {t('archived')}
-            </button>
-            {#if archiveOpen}
-              <div class="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
-                {#each filtered.archived as trip (trip._id)}
-                  <TripCard
-                    {trip}
-                    {reloadKey}
-                    onedit={() => openEdit(trip)}
-                    onduplicate={() => openDuplicate(trip)}
-                    onarchive={() => archive(trip)}
-                    onunarchive={() => unarchive(trip)}
-                    ondelete={() => askDelete(trip)}
-                    onstagechange={(s) => changeStage(trip, s)}
-                  />
-                {/each}
-              </div>
+        {/each}
+      </div>
+    {:else if totalTrips === 0}
+      <section aria-labelledby="trips-empty" class="flex min-h-[60dvh] flex-col">
+        <h2 id="trips-empty" class="sr-only">{t('trips')}</h2>
+        <EmptyState
+          icon={MapPin}
+          title={t('plan_first_trip')}
+          description={t('empty_description')}
+        >
+          <div class="mt-4 flex flex-wrap items-center justify-center gap-3">
+            <Button size="lg" onclick={openCreate}>
+              <Plus class="size-5" /> {t('new_trip')}
+            </Button>
+            <Button variant="secondary" size="lg" onclick={() => (templateOpen = true)}>
+              <Sparkles class="size-5" /> {t('browse_all_templates')}
+            </Button>
+          </div>
+        </EmptyState>
+      </section>
+    {:else}
+      <div class="space-y-8">
+        {#if filtered}
+          {#if filterTab === 'all' || filterTab === 'planning'}
+            {#if filtered.planning.length}
+              {@render section('planning_section', filtered.planning, false, 0)}
             {/if}
-          </section>
+          {/if}
+
+          {#if filterTab === 'all' || filterTab === 'confirmed'}
+            {#if filtered.active.length}
+              {@render section('active_now', filtered.active, true, filtered.planning.length ? 80 : 0)}
+            {/if}
+            {#if filtered.upcoming.length}
+              {@render section('upcoming', filtered.upcoming, false, (filtered.planning.length ? 80 : 0) + (filtered.active.length ? 80 : 0))}
+            {/if}
+            {#if filtered.past.length}
+              {@render section('past', filtered.past, false, (filtered.planning.length ? 80 : 0) + (filtered.active.length ? 80 : 0) + (filtered.upcoming.length ? 80 : 0))}
+            {/if}
+          {/if}
+
+          {#if filterTab === 'all'}
+            {#if filtered.archived.length}
+            <section aria-labelledby="section-archived">
+              <button
+                type="button"
+                onclick={() => (archiveOpen = !archiveOpen)}
+                aria-expanded={archiveOpen}
+                class="mb-3 flex items-center gap-2 text-sm font-semibold text-ink-muted transition-colors hover:text-ink"
+              >
+                <ChevronDown class="size-4 transition-transform ${archiveOpen ? '' : '-rotate-90'}" />
+                {t('archived')}
+              </button>
+              {#if archiveOpen}
+                <div class="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
+                  {#each filtered.archived as trip (trip._id)}
+                    <TripCard
+                      {trip}
+                      {reloadKey}
+                      onedit={() => openEdit(trip)}
+                      onduplicate={() => openDuplicate(trip)}
+                      onarchive={() => archive(trip)}
+                      onunarchive={() => unarchive(trip)}
+                      ondelete={() => askDelete(trip)}
+                      onstagechange={(s) => changeStage(trip, s)}
+                    />
+                  {/each}
+                </div>
+              {/if}
+            </section>
+            {/if}
           {/if}
         {/if}
-      {/if}
 
-      {#if search.trim() && visibleNonArchived === 0 && filtered?.archived.length === 0}
-        <p class="py-12 text-center text-ink-muted">
-          {t('no_trips_found', { search: search.trim() })}
-        </p>
-      {/if}
-    </div>
-  {/if}
+        {#if search.trim() && visibleNonArchived === 0 && filtered?.archived.length === 0}
+          <p class="py-12 text-center text-ink-muted">
+            {t('no_trips_found', { search: search.trim() })}
+          </p>
+        {/if}
+      </div>
+    {/if}
+  </ErrorBoundary>
 </main>
 
 {#snippet section(label: string, list: trips.TripWithDerived[], highlight = false, sectionDelay = 0)}

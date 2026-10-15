@@ -7,6 +7,7 @@
     import { formatWeekdayDate } from '$lib/format';
     import { getTripShellContext } from '$lib/trip-context';
     import { startLive } from '$lib/live';
+    import { t } from '$lib/i18n.svelte';
     import FlightCard from './FlightCard.svelte';
     import FlightSheet from './FlightSheet.svelte';
     import { firstDepart, smartLabels } from './labels';
@@ -94,22 +95,22 @@
     async function removeFlight(flight: Flight) {
         try {
             await flights.softDelete(flight._id);
-            toast.success('Flight removed.', {
+            toast.success(t('flight_removed'), {
                 action: {
-                    label: 'Undo',
+                    label: t('undo'),
                     onClick: async () => {
                         try {
                             await flights.restore(flight._id);
                             reload();
                         } catch {
-                            toast.error('Could not undo. Try restoring from Trash.');
+                            toast.error(t('could_not_undo'));
                         }
                     }
                 }
             });
             reload();
         } catch {
-            toast.error('Could not remove the flight. Try again.');
+            toast.error(t('flight_removed'));
         }
     }
 </script>
@@ -122,15 +123,15 @@
         <Skeleton class="h-40 w-full rounded-lg" />
     </div>
 {:else if loadError}
-    <ErrorState title="Couldn't load flights" onretry={retry} />
+    <ErrorState title={t('could_not_load_flights')} onretry={retry} />
 {:else if flightList.length === 0}
     <EmptyState
         icon={Plane}
-        title="No flights yet"
-        description="Add a booking with one or more legs. Airports, time zones, durations and layovers all work offline."
+        title={t('no_flights_yet')}
+        description={t('no_flights_desc')}
     >
         <Button onclick={openAdd}>
-            <Plus class="size-4" /> Add flight booking
+            <Plus class="size-4" /> {t('add_flight_booking')}
         </Button>
     </EmptyState>
 {:else}
@@ -161,11 +162,11 @@
     <button
         type="button"
         onclick={openAdd}
-        aria-label="Add flight booking"
-        class="fixed bottom-20 right-4 z-40 inline-flex h-14 items-center gap-2 rounded-full bg-primary-600 px-5 text-base font-medium text-white shadow-card transition-colors hover:bg-primary-700 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary-600"
+        aria-label={t('add_flight_booking')}
+        class="fixed bottom-20 right-4 z-40 inline-flex h-14 items-center gap-2 rounded-full bg-primary-600 px-5 text-base font-medium text-white shadow-card transition-colors hover:bg-primary-700 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary-600 lg:bottom-8 [&_svg]:size-5"
     >
         <Plus />
-        <span class="hidden sm:inline">Add flight</span>
+        <span class="hidden sm:inline">{t('add_flight_booking')}</span>
     </button>
 {/if}
 
