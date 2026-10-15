@@ -38,8 +38,8 @@
     // sm: h-8 px-3
     const sizes: Record<ButtonSize, string> = {
         sm: 'h-8 px-3 text-sm',
-        md: 'h-10 px-4 text-sm',
-        lg: 'h-12 px-6 text-lg',
+        md: 'min-h-touch h-10 px-4 text-sm',
+        lg: 'min-h-touch h-12 px-6 text-lg',
     };
 
     const classes = $derived(cn(base, variants[variant], sizes[size], className));

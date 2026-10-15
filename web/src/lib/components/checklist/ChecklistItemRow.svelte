@@ -83,18 +83,20 @@
 
 <li class="border-b border-border/60 last:border-b-0">
     <div class="flex items-start gap-2.5 py-1.5">
-        <input
-            id={cbId}
-            type="checkbox"
-            checked={item.done}
-            onchange={() => ontoggle(item)}
-            aria-label={ariaLabel}
-            class={cn(
-                'mt-0.5 shrink-0 rounded border-border text-primary-600 focus:ring-2 focus:ring-primary-600/30',
-                large ? 'size-6' : 'size-5'
-            )}
-        />
-        <div class="min-w-0 flex-1">
+        <label for={cbId} class="grid min-h-touch min-w-touch place-items-center -my-2 -ml-2 cursor-pointer shrink-0">
+            <input
+                id={cbId}
+                type="checkbox"
+                checked={item.done}
+                onchange={() => ontoggle(item)}
+                aria-label={ariaLabel}
+                class={cn(
+                    'rounded border-border text-primary-600 focus:ring-2 focus:ring-primary-600/30',
+                    large ? 'size-6' : 'size-5'
+                )}
+            />
+        </label>
+        <div class="min-w-0 flex-1 pt-1 sm:pt-0.5">
             <div class="flex flex-wrap items-center gap-x-2 gap-y-1">
                 <label
                     for={cbId}

@@ -216,9 +216,9 @@
     </EmptyState>
   {:else}
     <div class="space-y-5">
-      <div class="flex items-center justify-between gap-4">
+      <div class="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
         {#if viewMode === 'day' && hasDays}
-          <div class="flex-1 min-w-0">
+          <div class="w-full min-w-0 sm:flex-1">
             <DateStrip
               {dates}
               selected={selectedDate}
@@ -231,7 +231,7 @@
           <h2 class="font-serif text-xl font-semibold text-ink">{t('whole_trip_overview')}</h2>
         {/if}
 
-        <div class="flex items-center space-x-2">
+        <div class="flex items-center justify-between sm:justify-end gap-2 shrink-0">
           {#if trip}
             <ExportCalendarButton {trip} items={currentDayItems} />
           {/if}
@@ -408,7 +408,7 @@
     type="button"
     onclick={() => openAdd()}
     aria-label={t('add_activity')}
-    class="fixed bottom-20 right-4 z-40 inline-flex h-14 items-center gap-2 rounded-full bg-primary-600 px-5 text-base font-medium text-white shadow-card transition-colors hover:bg-primary-700 focus:visible:outline-none focus:visible:ring-2 focus:visible:ring-primary-600 focus:visible:ring-offset-2 focus:visible:ring-offset-bg lg:bottom-8 [&_svg]:size-5"
+    class="fixed bottom-[calc(4.5rem+env(safe-area-inset-bottom,0px))] right-4 z-40 inline-flex h-14 items-center gap-2 rounded-full bg-primary-600 px-5 text-base font-medium text-white shadow-card transition-colors hover:bg-primary-700 focus:visible:outline-none focus:visible:ring-2 focus:visible:ring-primary-600 focus:visible:ring-offset-2 focus:visible:ring-offset-bg lg:bottom-8 [&_svg]:size-5"
   >
     <Plus />
     <span class="hidden sm:inline">{t('add_activity')}</span>

@@ -40,18 +40,18 @@
         {#if hasBudget && summary.budgetTotal != null}
             <BudgetGauge spent={summary.spent} total={summary.budgetTotal} homeCurrency={home} />
         {/if}
-        <dl class="grid grid-cols-3 gap-3 text-center sm:text-left">
-            <div class="rounded-md bg-surface-sunken/60 px-3 py-2">
-                <dt class="text-xs font-medium text-ink-muted">Estimated</dt>
-                <dd class="mt-0.5 text-lg font-semibold tabular-nums">{money(summary.estimate)}</dd>
+        <dl class="grid grid-cols-3 gap-2 sm:gap-3 text-center sm:text-left">
+            <div class="rounded-md bg-surface-sunken/60 p-2 sm:px-3 sm:py-2 min-w-0">
+                <dt class="text-[11px] sm:text-xs font-medium text-ink-muted truncate">Estimated</dt>
+                <dd class="mt-0.5 text-sm sm:text-lg font-semibold tabular-nums truncate">{money(summary.estimate)}</dd>
             </div>
-            <div class="rounded-md bg-surface-sunken/60 px-3 py-2">
-                <dt class="text-xs font-medium text-ink-muted">Actual</dt>
-                <dd class="mt-0.5 text-lg font-semibold tabular-nums">{money(summary.actual)}</dd>
+            <div class="rounded-md bg-surface-sunken/60 p-2 sm:px-3 sm:py-2 min-w-0">
+                <dt class="text-[11px] sm:text-xs font-medium text-ink-muted truncate">Actual</dt>
+                <dd class="mt-0.5 text-sm sm:text-lg font-semibold tabular-nums truncate">{money(summary.actual)}</dd>
             </div>
-            <div class="rounded-md bg-surface-sunken/60 px-3 py-2">
-                <dt class="text-xs font-medium text-ink-muted">Unpaid</dt>
-                <dd class="mt-0.5 text-lg font-semibold tabular-nums {summary.unpaid > 0 ? 'text-accent-terracotta' : 'text-ink'}">
+            <div class="rounded-md bg-surface-sunken/60 p-2 sm:px-3 sm:py-2 min-w-0">
+                <dt class="text-[11px] sm:text-xs font-medium text-ink-muted truncate">Unpaid</dt>
+                <dd class="mt-0.5 text-sm sm:text-lg font-semibold tabular-nums truncate {summary.unpaid > 0 ? 'text-accent-terracotta' : 'text-ink'}">
                     {money(summary.unpaid)}
                 </dd>
             </div>

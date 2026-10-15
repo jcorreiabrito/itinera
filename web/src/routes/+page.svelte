@@ -407,7 +407,7 @@
   type="button"
   onclick={openCreate}
   aria-label={t('new_trip')}
-  class="fixed bottom-6 right-5 z-40 grid size-14 place-items-center rounded-full bg-primary-600 text-white shadow-sheet transition-colors hover:bg-primary-700 focus:visible:outline-none focus:visible:ring-2 focus:visible:ring-primary-600 focus:visible:ring-offset-2 focus:visible:ring-offset-bg sm:hidden [&_svg]:size-6"
+  class="fixed bottom-[calc(1.5rem+env(safe-area-inset-bottom,0px))] right-5 z-40 grid size-14 place-items-center rounded-full bg-primary-600 text-white shadow-sheet transition-colors hover:bg-primary-700 focus:visible:outline-none focus:visible:ring-2 focus:visible:ring-primary-600 focus:visible:ring-offset-2 focus:visible:ring-offset-bg sm:hidden [&_svg]:size-6"
 >
   <Plus />
 </button>

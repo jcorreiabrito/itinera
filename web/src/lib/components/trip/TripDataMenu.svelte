@@ -1,6 +1,6 @@
 <script lang="ts">
     import { syncStatus } from '$lib/db';
-    import { ClipboardPaste, Download, FileDown, FileText, FileUp, MoreVertical, Printer, WifiOff } from 'lucide-svelte';
+    import { ClipboardPaste, Download, FileDown, FileText, FileUp, MoreVertical, Pencil, Printer, Share2, WifiOff } from 'lucide-svelte';
     import { Dialog, Popover, toast } from '$lib/components/ui';
     import { downloadTripExport, downloadTripPdf } from '$lib/api';
     import { prepareTripUpdateDiff, executeTripUpdate, type TripUpdateDiff } from '$lib/db/importer';
@@ -12,9 +12,11 @@
         /** Bare trip UUID or full trip ID. */
         tripid: string;
         title?: string;
+        onedit?: () => void;
+        onshare?: () => void;
     }
 
-    let { tripid, title }: Props = $props();
+    let { tripid, title, onedit, onshare }: Props = $props();
 
     let open = $state(false);
     let busy = $state<'json' | 'pdf' | 'update' | 'paste' | null>(null);
@@ -175,6 +177,31 @@
     {/snippet}
 
     <div class="w-60 p-1">
+        {#if onedit || onshare}
+            <div class="mb-1 border-b border-border pb-1 sm:hidden">
+                {#if onshare}
+                    <button
+                        type="button"
+                        class={itemClass}
+                        onclick={() => { open = false; onshare?.(); }}
+                    >
+                        <Share2 class="size-4" />
+                        <span>Compartilhar</span>
+                    </button>
+                {/if}
+                {#if onedit}
+                    <button
+                        type="button"
+                        class={itemClass}
+                        onclick={() => { open = false; onedit?.(); }}
+                    >
+                        <Pencil class="size-4" />
+                        <span>{t('edit')}</span>
+                    </button>
+                {/if}
+            </div>
+        {/if}
+
         <p class="px-2.5 py-1.5 text-xs font-semibold uppercase tracking-wide text-ink-muted/80">
             Export {title ? `"${title}"` : ''}
         </p>

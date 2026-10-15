@@ -412,14 +412,14 @@
   }`}
 >
   <!-- Header bar -->
-  <div class="flex items-center justify-between px-4 py-3 border-b border-border bg-surface-sunken/80">
-    <div class="flex items-center space-x-2">
-      <span class="grid size-7 place-items-center rounded-md bg-primary-100 text-primary-700">
+  <div class="flex items-center justify-between gap-2 px-3 sm:px-4 py-2.5 sm:py-3 border-b border-border bg-surface-sunken/80">
+    <div class="flex items-center space-x-2 min-w-0 flex-1">
+      <span class="grid size-7 shrink-0 place-items-center rounded-md bg-primary-100 text-primary-700">
         <Compass class="h-4 w-4" />
       </span>
-      <div>
-        <h3 class="font-serif text-sm font-semibold text-ink">{t('itinerary_map')}</h3>
-        <p class="text-[11px] text-ink-muted">
+      <div class="min-w-0 flex-1">
+        <h3 class="font-serif text-sm font-semibold text-ink truncate">{t('itinerary_map')}</h3>
+        <p class="text-[11px] text-ink-muted truncate">
           {locations.length > 0
             ? t('map_pins_count', { n: String(locations.length) })
             : destination
@@ -429,12 +429,12 @@
       </div>
     </div>
 
-    <div class="flex items-center space-x-1.5">
+    <div class="flex items-center space-x-1 sm:space-x-1.5 shrink-0">
       <button
         type="button"
         onclick={downloadOfflineMap}
         disabled={downloadingOffline}
-        class="inline-flex items-center space-x-1 px-2.5 py-1.5 min-h-touch text-xs font-medium rounded-md transition-colors bg-surface text-ink border border-border hover:bg-surface-sunken disabled:opacity-50"
+        class="inline-flex items-center space-x-1 px-2 sm:px-2.5 py-1.5 min-h-touch text-xs font-medium rounded-md transition-colors bg-surface text-ink border border-border hover:bg-surface-sunken disabled:opacity-50"
         title="Baixar mapa offline para este destino"
       >
         <CloudDownload class="h-3.5 w-3.5 text-primary-600" />
@@ -444,7 +444,7 @@
       <button
         type="button"
         onclick={() => (isDroppingPin = !isDroppingPin)}
-        class={`inline-flex items-center space-x-1 px-2.5 py-1.5 min-h-touch text-xs font-medium rounded-md transition-colors ${
+        class={`inline-flex items-center space-x-1 px-2 sm:px-2.5 py-1.5 min-h-touch text-xs font-medium rounded-md transition-colors ${
           isDroppingPin
             ? 'bg-accent-terracotta text-white'
             : 'bg-surface text-ink border border-border hover:bg-surface-sunken'
@@ -452,7 +452,7 @@
         title={t('drop_pin')}
       >
         <Plus class="h-3.5 w-3.5" />
-        <span>{isDroppingPin ? t('click_map') : t('drop_pin')}</span>
+        <span class="hidden sm:inline">{isDroppingPin ? t('click_map') : t('drop_pin')}</span>
       </button>
 
       <a

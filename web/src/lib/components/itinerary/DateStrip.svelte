@@ -61,7 +61,7 @@
             onclick={goPrev}
             disabled={!canPrev}
             aria-label="Previous day"
-            class="grid size-9 shrink-0 place-items-center rounded-lg border border-border bg-surface text-ink-muted transition-colors hover:bg-surface-sunken hover:text-ink disabled:opacity-30 disabled:pointer-events-none [&_svg]:size-4"
+            class="grid size-11 sm:size-9 shrink-0 place-items-center rounded-lg border border-border bg-surface text-ink-muted transition-colors hover:bg-surface-sunken hover:text-ink disabled:opacity-30 disabled:pointer-events-none [&_svg]:size-5 sm:[&_svg]:size-4"
         >
             <ChevronLeft />
         </button>
@@ -72,7 +72,7 @@
             type="button"
             onclick={() => onselect(today)}
             class={cn(
-                'shrink-0 rounded-full border px-3 py-1.5 text-xs sm:text-sm font-medium transition-colors',
+                'shrink-0 rounded-full border px-3 py-1.5 min-h-touch sm:min-h-0 text-xs sm:text-sm font-medium transition-colors',
                 selected === today
                     ? 'border-primary-600 bg-primary-600 text-white'
                     : 'border-border bg-surface text-primary-700 hover:bg-primary-100'
@@ -98,7 +98,7 @@
                 data-key={date}
                 onclick={() => onselect(date)}
                 class={cn(
-                    'flex min-w-[3.25rem] shrink-0 flex-col items-center rounded-lg border px-2.5 py-1.5 text-center transition-colors',
+                    'flex min-w-[3.5rem] min-h-touch shrink-0 flex-col items-center justify-center rounded-lg border px-2.5 py-1.5 text-center transition-colors',
                     isSelected
                         ? 'border-primary-600 bg-primary-100 text-primary-700'
                         : 'border-border bg-surface text-ink-muted hover:bg-surface-sunken hover:text-ink'
@@ -120,7 +120,7 @@
                 data-key="ideas"
                 onclick={() => onselect(null)}
                 class={cn(
-                    'flex min-w-[3.25rem] shrink-0 flex-col items-center justify-center gap-0.5 rounded-lg border px-2.5 py-1.5 text-center transition-colors',
+                    'flex min-w-[3.5rem] min-h-touch shrink-0 flex-col items-center justify-center gap-0.5 rounded-lg border px-2.5 py-1.5 text-center transition-colors',
                     selected === null
                         ? 'border-accent-terracotta bg-accent-terracotta/10 text-accent-terracotta'
                         : 'border-border bg-surface text-ink-muted hover:bg-surface-sunken hover:text-ink'
@@ -138,7 +138,7 @@
             onclick={goNext}
             disabled={!canNext}
             aria-label="Next day"
-            class="grid size-9 shrink-0 place-items-center rounded-lg border border-border bg-surface text-ink-muted transition-colors hover:bg-surface-sunken hover:text-ink disabled:opacity-30 disabled:pointer-events-none [&_svg]:size-4"
+            class="grid size-11 sm:size-9 shrink-0 place-items-center rounded-lg border border-border bg-surface text-ink-muted transition-colors hover:bg-surface-sunken hover:text-ink disabled:opacity-30 disabled:pointer-events-none [&_svg]:size-5 sm:[&_svg]:size-4"
         >
             <ChevronRight />
         </button>

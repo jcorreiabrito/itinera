@@ -168,16 +168,18 @@
           {/if}
         </div>
 
-        <div class="flex items-center gap-1.5 shrink-0">
+        <div class="flex items-center gap-1 sm:gap-1.5 shrink-0">
           <SyncStatusPill />
-          <ThemeToggle />
+          <div class="hidden sm:block">
+            <ThemeToggle />
+          </div>
           {#if trip}
             <button
               type="button"
               onclick={() => (shareOpen = true)}
               aria-label="Share trip"
               title="Share trip"
-              class="grid size-9 place-items-center rounded-md text-ink-muted transition-colors hover:bg-surface-sunken hover:text-ink active:scale-95 [&_svg]:size-5"
+              class="hidden sm:grid size-9 place-items-center rounded-md text-ink-muted transition-colors hover:bg-surface-sunken hover:text-ink active:scale-95 [&_svg]:size-5"
             >
               <Share2 />
             </button>
@@ -192,12 +194,17 @@
             <Pencil />
           </button>
           {#if trip}
-            <TripDataMenu tripid={id} title={trip.title?.trim() || undefined} />
+            <TripDataMenu
+              tripid={id}
+              title={trip.title?.trim() || undefined}
+              onedit={openEditor}
+              onshare={() => (shareOpen = true)}
+            />
           {/if}
         </div>
       </header>
 
-      <main class="mx-auto w-full max-w-5xl flex-1 px-4 pb-28 pt-5 sm:px-6 lg:pb-12 animate-slide-up">
+      <main class="mx-auto w-full max-w-5xl flex-1 px-4 pb-[calc(7.5rem+env(safe-area-inset-bottom,0px))] pt-5 sm:px-6 lg:pb-12 animate-slide-up">
         {#if loaded && !trip}
           <div class="flex min-h-[50dvh] flex-col items-center justify-center text-center">
             <MapPinned class="size-10 text-ink-muted" aria-hidden="true" />

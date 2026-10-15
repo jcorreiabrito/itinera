@@ -54,13 +54,13 @@
 </script>
 
 <form
-    class="flex flex-wrap items-end gap-2 rounded-lg border border-border bg-surface p-3 shadow-soft"
+    class="grid grid-cols-2 gap-2.5 rounded-lg border border-border bg-surface p-3 shadow-soft sm:flex sm:flex-wrap sm:items-end sm:gap-2"
     onsubmit={(e) => {
         e.preventDefault();
         add();
     }}
 >
-    <div class="min-w-[6.5rem] flex-1">
+    <div class="col-span-1 min-w-0 sm:min-w-[6.5rem] sm:flex-1">
         <label for="quick-amount" class="mb-1 block text-xs font-medium text-ink-muted">
             Valor
         </label>
@@ -76,7 +76,7 @@
         />
     </div>
 
-    <div class="w-24 shrink-0">
+    <div class="col-span-1 min-w-0 sm:w-24 sm:shrink-0">
         <label for="quick-currency" class="mb-1 block text-xs font-medium text-ink-muted">Moeda</label>
         <Select
             id="quick-currency"
@@ -89,7 +89,7 @@
         </Select>
     </div>
 
-    <div class="min-w-[8rem] flex-1">
+    <div class="col-span-1 min-w-0 sm:min-w-[8rem] sm:flex-1">
         <label for="quick-category" class="mb-1 block text-xs font-medium text-ink-muted">Category</label>
         <Select
             id="quick-category"
@@ -102,7 +102,7 @@
         </Select>
     </div>
 
-    <div class="min-w-[8.5rem] flex-1">
+    <div class="col-span-1 min-w-0 sm:min-w-[8.5rem] sm:flex-1">
         <label for="quick-date" class="mb-1 block text-xs font-medium text-ink-muted">Day</label>
         <Input
             id="quick-date"
@@ -112,8 +112,10 @@
         />
     </div>
 
-    <Button type="submit" disabled={!valid || saving} class="shrink-0">
-        <Plus class="size-4" />
-        Add
-    </Button>
+    <div class="col-span-2 sm:col-span-1 sm:shrink-0">
+        <Button type="submit" disabled={!valid || saving} class="w-full sm:w-auto">
+            <Plus class="size-4" />
+            Add
+        </Button>
+    </div>
 </form>

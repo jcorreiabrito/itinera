@@ -68,7 +68,7 @@
             aria-haspopup="true"
             aria-expanded={isOpen}
             aria-label={`${current.label}.`}
-            class="relative inline-flex items-center gap-1.5 rounded-full glass-panel px-2.5 py-1 text-xs font-medium transition-colors hover:brightness-90 focus:visible:outline-none focus:visible:ring-2 focus:visible:ring-primary-600 focus:visible:ring-offset-2 focus:visible:ring-offset-bg"
+            class="relative inline-flex items-center gap-1.5 rounded-full glass-panel px-2 sm:px-2.5 py-1 text-xs font-medium transition-colors hover:brightness-90 focus:visible:outline-none focus:visible:ring-2 focus:visible:ring-primary-600 focus:visible:ring-offset-2 focus:visible:ring-offset-bg"
         >
             {#if $syncStatus.state === 'synced'}
                 <Check class="size-3.5" />
@@ -81,7 +81,7 @@
             {:else}
                 <CloudOff class="size-3.5" />
             {/if}
-            <span aria-label={current.label}>{current.label}</span>
+            <span class="hidden sm:inline" aria-label={current.label}>{current.label}</span>
             {#if $syncStatus.state === 'pending' && $syncStatus.pendingChanges}
                 <span class="absolute -right-0.5 -top-0.5 size-1.5 rounded-full bg-warning ring-1 ring-bg" aria-hidden="true"></span>
             {/if}

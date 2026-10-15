@@ -267,13 +267,13 @@
 
 <div
   bind:this={gridScrollContainer}
-  class="overflow-auto max-h-[calc(100vh-200px)] lg:max-h-[calc(100vh-250px)] min-h-[450px] w-full relative border border-border bg-surface rounded-xl shadow-card select-none animate-fade-in snap-x snap-mandatory scroll-smooth"
+  class="overflow-auto max-h-[calc(100vh-200px)] lg:max-h-[calc(100vh-250px)] min-h-[450px] w-full relative border border-border bg-surface rounded-xl shadow-card select-none animate-fade-in overscroll-x-contain sm:snap-x sm:snap-mandatory scroll-smooth"
 >
   <div class="flex flex-col min-w-max">
     <!-- Row 1: Sticky Header row containing day titles, to-dos and costs -->
     <div class="flex sticky top-0 z-40 border-b border-border bg-surface-sunken">
       <!-- TIME Corner Cell -->
-      <div class="w-12 sm:w-16 shrink-0 border-r border-border bg-surface-sunken sticky left-0 z-50 flex items-center justify-center text-[10px] font-bold tracking-wider text-ink-muted/80 h-[100px]">
+      <div class="w-12 sm:w-16 shrink-0 border-r border-border bg-surface-sunken sticky left-0 z-30 flex items-center justify-center text-[10px] font-bold tracking-wider text-ink-muted/80 h-[100px]">
         TIME
       </div>
       <!-- Day Headers Columns -->
