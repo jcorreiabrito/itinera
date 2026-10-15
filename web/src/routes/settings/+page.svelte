@@ -251,6 +251,29 @@
     }
   }
 
+  async function forceAppUpdate() {
+    try {
+      if (typeof navigator !== 'undefined' && 'serviceWorker' in navigator) {
+        const regs = await navigator.serviceWorker.getRegistrations();
+        for (const reg of regs) {
+          await reg.unregister();
+        }
+      }
+      if (typeof window !== 'undefined' && 'caches' in window) {
+        const keys = await caches.keys();
+        for (const key of keys) {
+          await caches.delete(key);
+        }
+      }
+      toast.success('Cache limpo! Recarregando...');
+      setTimeout(() => {
+        window.location.reload();
+      }, 500);
+    } catch {
+      window.location.reload();
+    }
+  }
+
   async function removeTemplate(t: ChecklistTemplate) {
     try {
       await checklist.templates.remove(t._id);
@@ -445,7 +468,7 @@
       {/if}
     </div>
 
-    <div class="mt-4 flex items-center gap-2">
+    <div class="mt-4 flex flex-wrap items-center gap-2">
       {#if persisted}
         <Badge variant="primary">
           <ShieldCheck class="size-3" /> {t('persistent_storage_on')}
@@ -457,6 +480,11 @@
           {persisting ? t('requesting') : t('persistent_storage')}
         </Button>
       {/if}
+
+      <Button variant="ghost" size="sm" onclick={forceAppUpdate} class="text-ink-muted hover:text-ink">
+        <RefreshCw class="size-3.5" />
+        Limpar Cache / Forçar Atualização
+      </Button>
     </div>
   </section>
 

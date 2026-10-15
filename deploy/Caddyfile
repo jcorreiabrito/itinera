@@ -55,6 +55,12 @@
     }
 
     # --- Static PWA with SPA fallback ---
+    @immutable path /_app/immutable/*
+    header @immutable Cache-Control "public, max-age=31536000, immutable"
+
+    @noCache path /service-worker.js /manifest.webmanifest /index.html /
+    header @noCache Cache-Control "no-cache, no-store, must-revalidate"
+
     handle {
         root * /srv
         encode zstd gzip

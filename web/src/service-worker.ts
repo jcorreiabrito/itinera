@@ -33,8 +33,7 @@ sw.addEventListener('install', (event) => {
       } catch {
         // Ignore: fallback index.html caching
       }
-      // Note: we intentionally do NOT skipWaiting here, so the client can show an
-      // "update available" prompt and apply it on demand (see src/lib/pwa.ts).
+      await sw.skipWaiting();
     })()
   );
 });
