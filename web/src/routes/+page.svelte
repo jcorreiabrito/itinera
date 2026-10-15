@@ -9,6 +9,7 @@
   import ConflictLogModal from '$lib/components/ui/ConflictLogModal.svelte';
   import TripTemplateModal from '$lib/components/trip/TripTemplateModal.svelte';
   import { DuplicateTripSheet, NewTripSheet, TripCard, TripFormSheet } from '$lib/components/trip';
+  import ItineraLogo from '$lib/components/brand/ItineraLogo.svelte';
   import { startLive } from '$lib/live';
 
   let sectionsData = $state<trips.TripSections | null>(null);
@@ -198,13 +199,12 @@
 <header class="pt-safe sticky top-0 z-30 glass-header animate-slide-down">
   <div class="mx-auto flex max-w-6xl flex-col gap-3 px-4 py-3 sm:px-6">
     <div class="flex items-center justify-between gap-3">
-      <div class="flex items-center gap-2">
-        <span
-          class="grid size-9 place-items-center rounded-md bg-primary-600 text-white animate-bounce-soft [&_svg]:size-5"
-        >
-          <Compass />
-        </span>
-        <h1 class="font-serif text-2xl font-semibold">{t('trips')}</h1>
+      <div class="flex items-center gap-2.5">
+        <ItineraLogo size={36} />
+        <div>
+          <span class="block text-[10px] font-semibold uppercase tracking-wider text-primary-700 dark:text-primary-400 font-sans leading-none">Itinera</span>
+          <h1 class="font-serif text-2xl font-semibold leading-tight text-ink">{t('trips')}</h1>
+        </div>
       </div>
       <div class="flex items-center gap-2">
         <SyncStatusPill />

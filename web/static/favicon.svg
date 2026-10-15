@@ -1,11 +1,73 @@
 <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" role="img" aria-label="Itinera">
-  <rect width="512" height="512" rx="112" fill="#2F684F" />
-  <g fill="#BFE1F1">
-    <circle cx="150" cy="362" r="43" />
-    <circle cx="196" cy="316" r="13" />
-    <circle cx="256" cy="256" r="13" />
-    <circle cx="316" cy="196" r="13" />
-    <circle cx="362" cy="150" r="43" />
+  <defs>
+    <radialGradient id="bg-radial" cx="40%" cy="35%" r="70%">
+      <stop offset="0%" stop-color="#2B614B" />
+      <stop offset="100%" stop-color="#163728" />
+    </radialGradient>
+    <linearGradient id="terracotta-l" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0%" stop-color="#E37351" />
+      <stop offset="100%" stop-color="#C85434" />
+    </linearGradient>
+    <linearGradient id="terracotta-r" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0%" stop-color="#F08C6D" />
+      <stop offset="100%" stop-color="#D66646" />
+    </linearGradient>
+    <linearGradient id="cream-l" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0%" stop-color="#F7F4EE" />
+      <stop offset="100%" stop-color="#E5DDD0" />
+    </linearGradient>
+    <linearGradient id="cream-r" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0%" stop-color="#DFD5C4" />
+      <stop offset="100%" stop-color="#C9BCAB" />
+    </linearGradient>
+    <filter id="soft-shadow" x="-10%" y="-10%" width="130%" height="130%">
+      <feDropShadow dx="0" dy="12" stdDeviation="16" flood-color="#081710" flood-opacity="0.5" />
+    </filter>
+  </defs>
+
+  <!-- Background tile with smooth squircle curvature -->
+  <rect width="512" height="512" rx="118" fill="url(#bg-radial)" />
+
+  <!-- Subtle compass dial / field ring -->
+  <circle cx="256" cy="256" r="184" fill="none" stroke="#3D785F" stroke-width="3" stroke-opacity="0.75" />
+  <circle cx="256" cy="256" r="154" fill="none" stroke="#F5EEDB" stroke-width="2" stroke-opacity="0.22" stroke-dasharray="3 7" />
+
+  <!-- Cardinal ticks on dial -->
+  <line x1="256" y1="64" x2="256" y2="82" stroke="#E5AA58" stroke-width="4.5" stroke-linecap="round" />
+  <line x1="256" y1="430" x2="256" y2="448" stroke="#90B8A4" stroke-width="3.5" stroke-linecap="round" stroke-opacity="0.6" />
+  <line x1="64" y1="256" x2="82" y2="256" stroke="#90B8A4" stroke-width="3.5" stroke-linecap="round" stroke-opacity="0.6" />
+  <line x1="430" y1="256" x2="448" y2="256" stroke="#90B8A4" stroke-width="3.5" stroke-linecap="round" stroke-opacity="0.6" />
+
+  <!-- Itinerary journey trail sweeping across -->
+  <path d="M 104 384 C 130 290 190 280 236 266 C 280 252 350 240 408 128" fill="none" stroke="#E5AA58" stroke-width="4.5" stroke-linecap="round" stroke-dasharray="9 11" stroke-opacity="0.85" />
+
+  <!-- Waypoint nodes on trail -->
+  <circle cx="104" cy="384" r="9" fill="#E5AA58" />
+  <circle cx="104" cy="384" r="4.5" fill="#163728" />
+  <circle cx="408" cy="128" r="11" fill="#F08C6D" />
+  <circle cx="408" cy="128" r="5.5" fill="#FFFDF9" />
+
+  <!-- Compass Star / Needle Group with craft shadowing -->
+  <g filter="url(#soft-shadow)">
+    <!-- North Pointer (Terracotta) -->
+    <path d="M 256 96 L 256 256 L 214 256 Z" fill="url(#terracotta-l)" />
+    <path d="M 256 96 L 298 256 L 256 256 Z" fill="url(#terracotta-r)" />
+
+    <!-- South Pointer (Parchment Cream) -->
+    <path d="M 256 416 L 214 256 L 256 256 Z" fill="url(#cream-r)" />
+    <path d="M 256 416 L 256 256 L 298 256 Z" fill="url(#cream-l)" />
+
+    <!-- West Wing (Muted Sage) -->
+    <path d="M 136 256 L 256 214 L 256 256 Z" fill="#3F765E" />
+    <path d="M 136 256 L 256 256 L 256 298 Z" fill="#2E5D49" />
+
+    <!-- East Wing (Muted Sage/Cream) -->
+    <path d="M 376 256 L 256 256 L 256 214 Z" fill="#5A967C" />
+    <path d="M 376 256 L 256 298 L 256 256 Z" fill="#477F67" />
+
+    <!-- Center Brass Pivot -->
+    <circle cx="256" cy="256" r="24" fill="#E5AA58" />
+    <circle cx="256" cy="256" r="16" fill="#C88E3E" />
+    <circle cx="256" cy="256" r="8" fill="#FFFDF9" />
   </g>
-  <circle cx="362" cy="150" r="18" fill="#2F684F" />
 </svg>

@@ -29,6 +29,7 @@
   } from '$lib/components/ui';
   import { relativeTime } from '$lib/format';
   import type { ChecklistTemplate, Settings } from '$lib/db';
+  import ItineraLogo from '$lib/components/brand/ItineraLogo.svelte';
 
   const CURRENCIES = [
     'EUR', 'USD', 'GBP', 'JPY', 'CHF', 'CAD', 'AUD', 'SEK', 'NOK', 'DKK', 'PLN', 'CZK', 'HUF',
@@ -542,6 +543,11 @@
       </ul>
     {/if}
   </section>
+
+  <footer class="mt-8 flex flex-col items-center justify-center gap-2 pb-6 text-center">
+    <ItineraLogo size={28} withText />
+    <p class="text-xs text-ink-muted">A cozy, offline-first personal travel planner.</p>
+  </footer>
 </main>
 
 <Dialog bind:open={renameOpen} title={t('rename_template')}>
