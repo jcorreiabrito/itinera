@@ -1,22 +1,87 @@
-/* Self-hosted, precached fonts (render offline). Body / UI = Inter. */
-@import '@fontsource/inter/400.css';
-@import '@fontsource/inter/500.css';
-@import '@fontsource/inter/600.css';
-@import '@fontsource/inter/700.css';
-
 /*
- * Headings use Fraunces (warm serif) per docs/13-ui-ux.md. The woff2 are bundled
- * by Vite into the app shell (`_app/immutable/`) and therefore precached by the
- * service worker alongside Inter, so headings render offline.
+ * Self-hosted, precached fonts (render offline). Body / UI = Inter, headings =
+ * Fraunces (warm serif) per docs/13-ui-ux.md. Vite bundles these into the app
+ * shell (`_app/immutable/`) and the service worker precaches the whole build, so
+ * every file named here is downloaded once and then available offline.
  *
- * NOTE: @fontsource/fraunces 404s on this machine's private npm mirror, so a
- * local `pnpm build` can't fetch it; it resolves in the Docker build via public
- * npm. The import + @font-face are correct as-is for that build.
+ * Declared by hand rather than `@import '@fontsource/inter/400.css'`, because the
+ * package's per-weight entrypoints pull in *every* subset it ships — Inter's
+ * `400.css` alone drags in cyrillic, cyrillic-ext, greek, greek-ext, latin,
+ * latin-ext and vietnamese, in both woff and woff2. That is 1.2 MB of files the
+ * service worker would cache forever to serve the ~170 KB the app can actually
+ * use: this UI ships `en` and `pt-BR` only, both entirely inside the `latin`
+ * subset, and no browser that can run the app needs the woff fallback.
+ *
+ * So: latin, woff2, four weights each. `scripts/check-bundle-budget.mjs` guards
+ * this — see the `fonts` budget there. Adding a locale outside latin means
+ * adding its subset here, not reverting to the package entrypoints.
+ *
+ * The paths are relative into `node_modules` on purpose: a bare specifier in
+ * `url()` that fails to resolve would quietly ship a 404, whereas a wrong
+ * relative path fails the build. NOTE: @fontsource/fraunces 404s on this
+ * machine's private npm mirror, so a local `pnpm build` may not refresh it; it
+ * resolves in the Docker build via public npm.
  */
-@import '@fontsource/fraunces/400.css';
-@import '@fontsource/fraunces/500.css';
-@import '@fontsource/fraunces/600.css';
-@import '@fontsource/fraunces/700.css';
+@font-face {
+	font-family: Inter;
+	font-style: normal;
+	font-display: swap;
+	font-weight: 400;
+	src: url('../node_modules/@fontsource/inter/files/inter-latin-400-normal.woff2') format('woff2');
+}
+@font-face {
+	font-family: Inter;
+	font-style: normal;
+	font-display: swap;
+	font-weight: 500;
+	src: url('../node_modules/@fontsource/inter/files/inter-latin-500-normal.woff2') format('woff2');
+}
+@font-face {
+	font-family: Inter;
+	font-style: normal;
+	font-display: swap;
+	font-weight: 600;
+	src: url('../node_modules/@fontsource/inter/files/inter-latin-600-normal.woff2') format('woff2');
+}
+@font-face {
+	font-family: Inter;
+	font-style: normal;
+	font-display: swap;
+	font-weight: 700;
+	src: url('../node_modules/@fontsource/inter/files/inter-latin-700-normal.woff2') format('woff2');
+}
+@font-face {
+	font-family: Fraunces;
+	font-style: normal;
+	font-display: swap;
+	font-weight: 400;
+	src: url('../node_modules/@fontsource/fraunces/files/fraunces-latin-400-normal.woff2')
+		format('woff2');
+}
+@font-face {
+	font-family: Fraunces;
+	font-style: normal;
+	font-display: swap;
+	font-weight: 500;
+	src: url('../node_modules/@fontsource/fraunces/files/fraunces-latin-500-normal.woff2')
+		format('woff2');
+}
+@font-face {
+	font-family: Fraunces;
+	font-style: normal;
+	font-display: swap;
+	font-weight: 600;
+	src: url('../node_modules/@fontsource/fraunces/files/fraunces-latin-600-normal.woff2')
+		format('woff2');
+}
+@font-face {
+	font-family: Fraunces;
+	font-style: normal;
+	font-display: swap;
+	font-weight: 700;
+	src: url('../node_modules/@fontsource/fraunces/files/fraunces-latin-700-normal.woff2')
+		format('woff2');
+}
 
 @tailwind base;
 @tailwind components;

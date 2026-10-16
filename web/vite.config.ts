@@ -46,7 +46,10 @@ export default defineConfig({
 	test: {
 		environment: 'jsdom',
 		globals: true,
-		include: ['src/**/*.{test,spec}.{js,ts}'],
+		// `scripts/` holds the build checks (budget, docs lint). They are ordinary
+		// modules with a CLI tail, so their logic is tested like any other code —
+		// see the `// @vitest-environment node` at the top of those test files.
+		include: ['src/**/*.{test,spec}.{js,ts}', 'scripts/**/*.test.mjs'],
 		exclude: ['e2e/**', 'node_modules/**']
 	}
 });

@@ -19,7 +19,9 @@
 		"format": "prettier --write .",
 		"test": "vitest run",
 		"test:unit": "vitest",
-		"test:e2e": "playwright test"
+		"test:e2e": "playwright test",
+		"check:budget": "node scripts/bundle-budget.mjs",
+		"check:docs": "node scripts/doc-refs.mjs"
 	},
 	"dependencies": {
 		"@fontsource/fraunces": "^5.0.0",

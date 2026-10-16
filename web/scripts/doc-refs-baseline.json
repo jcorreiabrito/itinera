@@ -1,0 +1,19 @@
+{
+	"note": "Citations to design documents that do not exist yet. This is a debt ledger, not an approval: entries may only be removed, by writing the document or dropping the citation. New entries require --allow-new.",
+	"dangling": [
+		"docs/00-decision-log.md",
+		"docs/01-requirements.md",
+		"docs/02-architecture.md",
+		"docs/04-data-model.md",
+		"docs/05-offline-and-sync.md",
+		"docs/06-page-home.md",
+		"docs/07-page-trip-overview.md",
+		"docs/08-page-itinerary.md",
+		"docs/10-page-flights.md",
+		"docs/11-page-reservations.md",
+		"docs/12-page-costs-budget.md",
+		"docs/13-ui-ux.md",
+		"docs/14-roadmap.md",
+		"docs/99-page-checklist.md"
+	]
+}
