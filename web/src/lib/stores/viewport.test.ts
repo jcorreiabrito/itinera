@@ -112,4 +112,50 @@ describe('ViewportState', () => {
     expect(mockVV.removeEventListener).toHaveBeenCalledWith('scroll', viewport.update);
     expect(windowRemoveSpy).toHaveBeenCalledWith('resize', viewport.update);
   });
+
+  it('clamps keyboardInset to 0 when visualViewport height is greater than window.innerHeight', () => {
+    const mockVV = {
+      height: 900,
+      width: 400,
+      addEventListener: vi.fn(),
+      removeEventListener: vi.fn()
+    };
+    Object.defineProperty(window, 'innerHeight', { value: 800, writable: true, configurable: true });
+    Object.defineProperty(window, 'visualViewport', {
+      value: mockVV,
+      writable: true,
+      configurable: true
+    });
+
+    viewport.init();
+    expect(viewport.keyboardInset).toBe(0);
+    expect(document.documentElement.style.getPropertyValue('--keyboard-inset-bottom')).toBe('0px');
+  });
+
+  it('safely handles destroy when not initialized', () => {
+    expect(() => viewport.destroy()).not.toThrow();
+  });
+
+  it('updates CSS custom properties on window resize when visualViewport is not available', () => {
+    Object.defineProperty(window, 'visualViewport', {
+      value: undefined,
+      writable: true,
+      configurable: true
+    });
+    Object.defineProperty(window, 'innerHeight', { value: 750, writable: true, configurable: true });
+    Object.defineProperty(window, 'innerWidth', { value: 380, writable: true, configurable: true });
+
+    viewport.init();
+    expect(viewport.height).toBe(750);
+    expect(viewport.width).toBe(380);
+
+    // Simulate window resize
+    Object.defineProperty(window, 'innerHeight', { value: 850, writable: true, configurable: true });
+    Object.defineProperty(window, 'innerWidth', { value: 420, writable: true, configurable: true });
+    viewport.update();
+
+    expect(viewport.height).toBe(850);
+    expect(viewport.width).toBe(420);
+    expect(document.documentElement.style.getPropertyValue('--visual-viewport-height')).toBe('850px');
+  });
 });

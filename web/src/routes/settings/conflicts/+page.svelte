@@ -123,7 +123,7 @@
       <a
         href="/settings"
         aria-label={t('settings')}
-        class="grid size-9 place-items-center rounded-md text-ink-muted transition-colors hover:bg-surface-sunken hover:text-ink [&_svg]:size-5"
+        class="grid size-11 sm:size-9 min-h-[44px] min-w-[44px] sm:min-h-0 sm:min-w-0 place-items-center rounded-md text-ink-muted transition-colors hover:bg-surface-sunken hover:text-ink active:scale-95 [&_svg]:size-5"
       >
         <ArrowLeft />
       </a>
@@ -133,7 +133,7 @@
   </div>
 </header>
 
-<main class="mx-auto w-full max-w-3xl flex-1 px-4 pb-28 pt-6 sm:px-6 lg:pb-12">
+<main id="page-content" class="mx-auto w-full max-w-3xl flex-1 px-4 pb-28 pt-6 sm:px-6 lg:pb-12">
   <p class="flex items-start gap-2 rounded-lg border border-border bg-surface px-4 py-3 text-sm text-ink-muted [&_svg]:mt-0.5 [&_svg]:size-4 [&_svg]:shrink-0 [&_svg]:text-primary-700">
     <Check />
     <span>

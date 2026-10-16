@@ -15,7 +15,7 @@
 <button
   type="button"
   onclick={toggleTheme}
-  class="inline-flex items-center justify-center rounded-md p-2 text-ink-muted hover:bg-surface-sunken hover:text-ink transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-primary-600"
+  class="inline-flex min-h-[44px] min-w-[44px] sm:min-h-0 sm:min-w-0 size-11 sm:size-9 items-center justify-center rounded-md text-ink-muted hover:bg-surface-sunken hover:text-ink transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-primary-600 active:scale-95 [&_svg]:size-5"
   title={`Theme: ${theme.current} (click to change)`}
   aria-label={`Current theme is ${theme.current}. Click to toggle.`}
 >

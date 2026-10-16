@@ -49,7 +49,10 @@
             // Trigger close animation then close
             closing = true;
             if (typeof document !== 'undefined') {
-                document.documentElement.style.overflow = '';
+                const openDialogs = document.querySelectorAll('dialog[open]');
+                if (openDialogs.length <= 1) {
+                    document.documentElement.style.overflow = '';
+                }
             }
             setTimeout(() => {
                 el.close();
@@ -58,14 +61,20 @@
         }
         return () => {
             if (typeof document !== 'undefined') {
-                document.documentElement.style.overflow = '';
+                const openDialogs = document.querySelectorAll('dialog[open]');
+                if (openDialogs.length <= 1) {
+                    document.documentElement.style.overflow = '';
+                }
             }
         };
     });
 
     function requestClose() {
         if (typeof document !== 'undefined') {
-            document.documentElement.style.overflow = '';
+            const openDialogs = document.querySelectorAll('dialog[open]');
+            if (openDialogs.length <= 1) {
+                document.documentElement.style.overflow = '';
+            }
         }
         open = false;
         onclose?.();
@@ -82,7 +91,7 @@
     aria-describedby={description ? descId : undefined}
     class={cn(
         'm-auto mb-0 sm:my-auto w-full sm:w-[min(92vw,32rem)] rounded-t-xl sm:rounded-xl max-sm:m-0 max-sm:mt-auto max-sm:max-h-[var(--visual-viewport-height,88dvh)] border border-border bg-surface p-0 text-ink shadow-sheet backdrop:bg-ink/40 backdrop:backdrop-blur-sm',
-        closing ? 'animate-pop-out' : 'open:animate-pop-in',
+        closing ? 'animate-pop-out max-sm:animate-slide-to-down' : 'open:animate-pop-in max-sm:open:animate-slide-up',
         className
     )}
     oncancel={(event) => {
@@ -106,7 +115,7 @@
                     type="button"
                     onclick={requestClose}
                     aria-label={closeLabel}
-                    class="grid size-11 sm:size-9 shrink-0 place-items-center rounded-md text-ink-muted transition-colors hover:bg-surface-sunken hover:text-ink active:scale-95"
+                    class="grid size-11 sm:size-9 min-h-[44px] min-w-[44px] sm:min-h-0 sm:min-w-0 shrink-0 place-items-center rounded-md text-ink-muted transition-colors hover:bg-surface-sunken hover:text-ink active:scale-95"
                 >
                     <X class="size-5" />
                 </button>

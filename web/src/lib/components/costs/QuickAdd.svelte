@@ -16,7 +16,7 @@
     let { tripId, homeCurrency, onsaved }: Props = $props();
 
     let amount = $state('');
-    let selectedCurrency = $state('');
+    let selectedCurrency = $state('EUR');
     let category = $state<ExpenseCategory>('food');
     let date = $state(todayIso());
     let saving = $state(false);
@@ -64,7 +64,7 @@
 >
     <div class="col-span-1 min-w-0 sm:min-w-[6.5rem] sm:flex-1">
         <label for="quick-amount" class="mb-1 block text-xs font-medium text-ink-muted">
-            Valor
+            Amount
         </label>
         <Input
             id="quick-amount"
@@ -79,7 +79,7 @@
     </div>
 
     <div class="col-span-1 min-w-0 sm:w-24 sm:shrink-0">
-        <label for="quick-currency" class="mb-1 block text-xs font-medium text-ink-muted">Moeda</label>
+        <label for="quick-currency" class="mb-1 block text-xs font-medium text-ink-muted">Currency</label>
         <Select
             id="quick-currency"
             value={selectedCurrency}

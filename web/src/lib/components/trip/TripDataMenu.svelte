@@ -170,7 +170,7 @@
             aria-haspopup="true"
             aria-expanded={isOpen}
             aria-label="Trip data and exports"
-            class="grid size-9 place-items-center rounded-md text-ink-muted transition-colors hover:bg-surface-sunken hover:text-ink"
+            class="grid size-11 sm:size-9 min-h-[44px] min-w-[44px] sm:min-h-0 sm:min-w-0 place-items-center rounded-md text-ink-muted transition-colors hover:bg-surface-sunken hover:text-ink active:scale-95 [&_svg]:size-5 sm:[&_svg]:size-4"
         >
             <MoreVertical />
         </button>

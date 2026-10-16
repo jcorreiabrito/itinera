@@ -162,7 +162,7 @@
                     aria-label="Item actions"
                     aria-haspopup="true"
                     aria-expanded={open}
-                    class="grid size-8 shrink-0 place-items-center rounded-md text-ink-muted transition-colors hover:bg-surface-sunken"
+                    class="grid size-11 sm:size-8 min-h-[44px] min-w-[44px] sm:min-h-0 sm:min-w-0 shrink-0 place-items-center rounded-md text-ink-muted transition-colors hover:bg-surface-sunken [&_svg]:size-5 sm:[&_svg]:size-4"
                 >
                     <MoreVertical />
                 </button>

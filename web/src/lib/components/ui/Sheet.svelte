@@ -56,7 +56,10 @@
         } else if (!open && el.open && !closing) {
             closing = true;
             if (typeof document !== 'undefined') {
-                document.documentElement.style.overflow = '';
+                const openDialogs = document.querySelectorAll('dialog[open]');
+                if (openDialogs.length <= 1) {
+                    document.documentElement.style.overflow = '';
+                }
             }
             setTimeout(() => {
                 el.close();
@@ -65,14 +68,20 @@
         }
         return () => {
             if (typeof document !== 'undefined') {
-                document.documentElement.style.overflow = '';
+                const openDialogs = document.querySelectorAll('dialog[open]');
+                if (openDialogs.length <= 1) {
+                    document.documentElement.style.overflow = '';
+                }
             }
         };
     });
 
     function requestClose() {
         if (typeof document !== 'undefined') {
-            document.documentElement.style.overflow = '';
+            const openDialogs = document.querySelectorAll('dialog[open]');
+            if (openDialogs.length <= 1) {
+                document.documentElement.style.overflow = '';
+            }
         }
         open = false;
         onclose?.();
@@ -116,12 +125,12 @@
 
     const openAnimation: Record<SheetSide, string> = {
         bottom: 'open:animate-slide-up',
-        right: 'open:animate-slide-from-right'
+        right: 'open:animate-slide-from-right max-sm:open:animate-slide-up'
     };
 
     const closeAnimation: Record<SheetSide, string> = {
         bottom: 'animate-slide-to-down',
-        right: 'animate-slide-to-right'
+        right: 'animate-slide-to-right max-sm:animate-slide-to-down'
     };
 </script>
 
@@ -143,17 +152,15 @@
     onclick={onBackdropClick}
 >
     <div class={cn('flex flex-col', side === 'right' ? 'h-full max-sm:h-auto max-sm:max-h-[var(--visual-viewport-height,90dvh)]' : 'max-h-[var(--visual-viewport-height,85dvh)]')}>
-        {#if side === 'bottom'}
-            <div
-                class="flex justify-center pt-3 pb-1 cursor-grab touch-none"
-                aria-hidden="true"
-                ontouchstart={handleTouchStart}
-                ontouchmove={handleTouchMove}
-                ontouchend={handleTouchEnd}
-            >
-                <span class="h-1.5 w-10 rounded-full bg-border transition-[width,background-color] duration-200 hover:w-14 hover:bg-border/70"></span>
-            </div>
-        {/if}
+        <div
+            class={cn('justify-center pt-3 pb-1 cursor-grab touch-none', side === 'bottom' ? 'flex' : 'hidden max-sm:flex')}
+            aria-hidden="true"
+            ontouchstart={handleTouchStart}
+            ontouchmove={handleTouchMove}
+            ontouchend={handleTouchEnd}
+        >
+            <span class="h-1.5 w-10 rounded-full bg-border transition-[width,background-color] duration-200 hover:w-14 hover:bg-border/70"></span>
+        </div>
 
         {#if title || description}
             <!-- svelte-ignore a11y_no_static_element_interactions -->
@@ -175,7 +182,7 @@
                     type="button"
                     onclick={requestClose}
                     aria-label={closeLabel}
-                    class="grid size-11 sm:size-9 shrink-0 place-items-center rounded-md text-ink-muted transition-colors hover:bg-surface-sunken hover:text-ink active:scale-95"
+                    class="grid size-11 sm:size-9 min-h-[44px] min-w-[44px] sm:min-h-0 sm:min-w-0 shrink-0 place-items-center rounded-md text-ink-muted transition-colors hover:bg-surface-sunken hover:text-ink active:scale-95"
                 >
                     <X class="size-5" />
                 </button>

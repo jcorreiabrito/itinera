@@ -116,7 +116,7 @@
                 aria-label="Activity actions"
                 aria-haspopup="true"
                 aria-expanded={open}
-                class="grid size-9 shrink-0 place-items-center rounded-md text-ink-muted transition-colors hover:bg-surface-sunken hover:text-ink [&_svg]:size-4"
+                class="grid size-11 sm:size-9 min-h-[44px] min-w-[44px] sm:min-h-0 sm:min-w-0 shrink-0 place-items-center rounded-md text-ink-muted transition-colors hover:bg-surface-sunken hover:text-ink [&_svg]:size-5 sm:[&_svg]:size-4"
             >
                 <MoreVertical />
             </button>
@@ -187,7 +187,7 @@
                         {/if}
                     </p>
                 </div>
-                <div class="sm:hidden shrink-0 -mr-1 -mt-1">
+                <div class="shrink-0 -mr-1 -mt-1">
                     {@render activityMenu(item)}
                 </div>
             </div>
@@ -240,10 +240,6 @@
                     {@html renderMarkdown(item.notes)}
                 </div>
             {/if}
-        </div>
-
-        <div class="hidden sm:block">
-            {@render activityMenu(item)}
         </div>
     </li>
 {:else if entry.kind === 'flight' && entry.flight}

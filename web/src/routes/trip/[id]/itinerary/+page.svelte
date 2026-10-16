@@ -274,8 +274,8 @@
         <div class="relative flex-1">
           <Input
             value={itinerarySearch}
-            placeholder="Buscar atividade, lugar, restaurante..."
-            class="pl-9 pr-10 text-sm"
+            placeholder={t('search_placeholder')}
+            class="pl-9 pr-11 text-sm"
             oninput={(e) => (itinerarySearch = e.currentTarget.value)}
           />
           <Search class="absolute left-3 top-1/2 -translate-y-1/2 size-4 text-ink-muted/50 pointer-events-none" />
@@ -283,7 +283,7 @@
             <button
               type="button"
               aria-label="Clear search"
-              class="absolute right-1 top-1/2 -translate-y-1/2 size-9 min-h-[36px] min-w-[36px] rounded grid place-items-center text-ink-muted hover:text-ink active:scale-95"
+              class="absolute right-0.5 top-1/2 -translate-y-1/2 size-11 sm:size-9 min-h-[44px] min-w-[44px] sm:min-h-0 sm:min-w-0 rounded grid place-items-center text-ink-muted hover:text-ink active:scale-95"
               onclick={() => (itinerarySearch = '')}
             >
               <X class="size-4" />
@@ -292,7 +292,13 @@
         </div>
 
         <div class="flex items-center gap-1 overflow-x-auto pb-1 sm:pb-0">
-          {#each [['all', 'Todas'], ['sightseeing', 'Passeios'], ['food', 'Comida'], ['transport', 'Transporte'], ['lodging', 'Hospedagem']] as [catVal, catLabel]}
+          {#each [
+            ['all', t('filter_all')],
+            ['sightseeing', t('cat_sightseeing')],
+            ['food', t('cat_food')],
+            ['transport', t('cat_transport')],
+            ['lodging', t('cat_lodging')]
+          ] as [catVal, catLabel]}
             <button
               type="button"
               class={cn(
@@ -312,13 +318,13 @@
       {#if searchFilteredItems !== null}
         <div class="flex flex-col gap-3">
           <div class="flex items-center justify-between text-xs text-ink-muted px-1">
-            <span>{searchFilteredItems.length} atividades encontradas</span>
+            <span>{searchFilteredItems.length} {t('cat_activities').toLowerCase()}</span>
             <button
               type="button"
               class="text-primary-600 hover:underline font-medium"
               onclick={() => { itinerarySearch = ''; itineraryCategory = 'all'; }}
             >
-              Limpar filtros
+              Clear filters
             </button>
           </div>
 
@@ -339,7 +345,7 @@
                   <div class="flex-1 min-w-0">
                     <div class="flex items-center gap-2 mb-1">
                       <span class="text-xs font-semibold px-2 py-0.5 rounded bg-primary-100 text-primary-700">
-                        {itm.date || 'Ideias'}
+                        {itm.date || t('ideas')}
                       </span>
                       {#if itm.startTime}
                         <span class="text-xs text-ink-muted flex items-center gap-1">
@@ -356,7 +362,7 @@
                       </div>
                     {/if}
                   </div>
-                  <Button variant="ghost" size="sm" class="shrink-0 text-xs">Editar</Button>
+                  <Button variant="ghost" size="sm" class="shrink-0 text-xs">{t('edit')}</Button>
                 </div>
               {/each}
             </div>
