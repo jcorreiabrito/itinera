@@ -117,7 +117,7 @@
     class="group relative flex flex-col min-w-0 overflow-hidden glass-panel hover-lift animate-slide-up {trip.stage === 'planning' ? 'border-dashed border-amber-400/50 dark:border-amber-500/30 ring-1 ring-inset ring-amber-400/20' : ''}"
     style="animation-delay: {animationDelay}ms"
 >
-    <div class="relative aspect-[3/2] w-full overflow-hidden rounded-t-lg">
+    <div class="relative aspect-[16/9] sm:aspect-[3/2] w-full overflow-hidden rounded-t-lg">
         <div class="absolute inset-0 transition-transform duration-500 ease-out group-hover:scale-105">
             <TripCover
                 attId={trip.coverImageAttId}
@@ -213,13 +213,17 @@
             {#snippet trigger({ toggle, open })}
                 <button
                     type="button"
-                    onclick={toggle}
+                    onclick={(e) => {
+                        e.stopPropagation();
+                        e.preventDefault();
+                        toggle();
+                    }}
                     aria-label="Actions for {title}"
                     aria-haspopup="true"
                     aria-expanded={open}
-                    class="grid size-8 place-items-center rounded-full bg-surface/80 text-ink shadow-soft backdrop-blur transition-[colors,transform] duration-200 hover:bg-surface hover:rotate-90 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary-600"
+                    class="grid size-11 place-items-center rounded-full bg-surface/80 text-ink shadow-soft backdrop-blur transition-[colors,transform] duration-200 hover:bg-surface hover:rotate-90 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary-600"
                 >
-                    <MoreVertical class="size-4" />
+                    <MoreVertical class="size-5" />
                 </button>
             {/snippet}
             <MenuItem icon={SquareArrowOutUpRight} {href}>{t('open')}</MenuItem>

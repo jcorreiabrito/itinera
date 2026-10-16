@@ -28,6 +28,8 @@
         step?: string | number;
         inputmode?: 'text' | 'numeric' | 'decimal' | 'email' | 'search' | 'tel' | 'url';
         maxlength?: number;
+        autocapitalize?: 'on' | 'off' | 'none' | 'sentences' | 'words' | 'characters' | null;
+        spellcheck?: boolean | 'true' | 'false';
         invalid?: boolean;
         class?: string;
         oninput?: (event: Event & { currentTarget: HTMLInputElement }) => void;
@@ -37,7 +39,7 @@
     }
 
     let {
-        value = '',
+        value = $bindable(''),
         type = 'text',
         invalid = false,
         class: className,
@@ -47,10 +49,10 @@
 
 <input
     {type}
-    value={value ?? ''}
+    bind:value
     aria-invalid={invalid || undefined}
     class={cn(
-        'h-9 w-full rounded-md border bg-surface px-3 text-base text-ink shadow-sm transition-colors placeholder:text-ink-muted/60 focus:border-primary-600 focus:outline-none focus:ring-2 focus:ring-primary-600/30 disabled:cursor-not-allowed disabled:opacity-60',
+        'min-h-[44px] h-11 sm:h-9 sm:min-h-0 w-full rounded-md border bg-surface px-3 text-base sm:text-sm text-ink shadow-sm transition-colors placeholder:text-ink-muted/60 focus:border-primary-600 focus:outline-none focus:ring-2 focus:ring-primary-600/30 disabled:cursor-not-allowed disabled:opacity-60',
         invalid ? 'border-danger' : 'border-border',
         className
     )}

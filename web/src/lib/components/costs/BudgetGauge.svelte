@@ -39,7 +39,7 @@
 
 <div class="flex flex-col items-center">
     <div class="relative w-full max-w-[15rem]" aria-hidden="true">
-        <svg viewBox="0 0 120 60" class="w-full">
+        <svg viewBox="0 0 120 68" class="w-full">
             <path
                 d="M 10 60 A 50 50 0 0 1 110 60"
                 fill="none"

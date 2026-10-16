@@ -69,7 +69,7 @@
     </span>
 
     <div class="min-w-0 flex-1 rounded-lg border border-border bg-surface p-3 shadow-soft">
-        <div class="flex items-start gap-2">
+        <div class="flex items-start justify-between gap-2">
             <div class="min-w-0 flex-1">
                 <p class="flex flex-wrap items-center gap-x-2 gap-y-1 font-medium text-ink">
                     <span class="break-words">{name}</span>
@@ -86,10 +86,29 @@
                     {#if summary}<span aria-hidden="true">·</span><span class="truncate">{summary}</span>{/if}
                 </p>
             </div>
+
+            <div class="shrink-0 -mr-1 -mt-1">
+                <Popover bind:open={menuOpen} label="Reservation actions" align="end">
+                    {#snippet trigger({ toggle, open })}
+                        <button
+                            type="button"
+                            onclick={toggle}
+                            aria-label="Reservation actions"
+                            aria-haspopup="true"
+                            aria-expanded={open}
+                            class="grid size-9 sm:size-8 shrink-0 place-items-center rounded-md text-ink-muted transition-colors hover:bg-surface-sunken hover:text-ink [&_svg]:size-4"
+                        >
+                            <MoreVertical />
+                        </button>
+                    {/snippet}
+                    <MenuItem icon={Pencil} onclick={() => act(onedit)}>Edit</MenuItem>
+                    <MenuItem icon={Trash2} tone="danger" onclick={() => act(ondelete)}>Delete</MenuItem>
+                </Popover>
+            </div>
         </div>
 
-        {#if reservation.location?.name || reservation.confirmation || reservation.cost != null || attachmentCount > 0 || contact?.url}
-            <div class="mt-1.5 flex flex-wrap items-center gap-1.5">
+        {#if reservation.location?.name || reservation.confirmation || reservation.cost != null || attachmentCount > 0 || contact?.url || contact?.phone}
+            <div class="mt-2 flex flex-wrap items-center gap-1.5">
                 {#if reservation.location?.name}
                     <Badge variant="neutral">{reservation.location.name}</Badge>
                 {/if}
@@ -110,7 +129,7 @@
                         href={contact.url}
                         target="_blank"
                         rel="noopener noreferrer"
-                        class="inline-flex items-center gap-1 text-xs font-medium text-primary-700 hover:underline [&_svg]:size-3.5"
+                        class="inline-flex min-h-[44px] sm:min-h-0 items-center gap-1.5 px-2 py-1 rounded-md text-xs font-medium text-primary-700 hover:bg-primary-100 hover:underline [&_svg]:size-3.5"
                     >
                         <ExternalLink /> Website
                     </a>
@@ -118,7 +137,7 @@
                 {#if contact?.phone}
                     <a
                         href={`tel:${contact.phone}`}
-                        class="inline-flex items-center gap-1 text-xs font-medium text-primary-700 hover:underline [&_svg]:size-3.5"
+                        class="inline-flex min-h-[44px] sm:min-h-0 items-center gap-1.5 px-2 py-1 rounded-md text-xs font-medium text-primary-700 hover:bg-primary-100 hover:underline [&_svg]:size-3.5"
                     >
                         <Phone /> Call
                     </a>
@@ -126,21 +145,4 @@
             </div>
         {/if}
     </div>
-
-    <Popover bind:open={menuOpen} label="Reservation actions" align="end">
-        {#snippet trigger({ toggle, open })}
-            <button
-                type="button"
-                onclick={toggle}
-                aria-label="Reservation actions"
-                aria-haspopup="true"
-                aria-expanded={open}
-                class="grid size-8 shrink-0 place-items-center rounded-md text-ink-muted transition-colors hover:bg-surface-sunken hover:text-ink [&_svg]:size-4"
-            >
-                <MoreVertical />
-            </button>
-        {/snippet}
-        <MenuItem icon={Pencil} onclick={() => act(onedit)}>Edit</MenuItem>
-        <MenuItem icon={Trash2} tone="danger" onclick={() => act(ondelete)}>Delete</MenuItem>
-    </Popover>
 </li>

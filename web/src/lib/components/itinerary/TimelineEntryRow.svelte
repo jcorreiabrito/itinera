@@ -104,13 +104,45 @@
     }
 </script>
 
+{#snippet activityMenu(item: ItineraryItem)}
+    <Popover bind:open={menuOpen} label="Activity actions" align="end">
+        {#snippet trigger({ toggle, open })}
+            <button
+                type="button"
+                onclick={(e) => {
+                    e.stopPropagation();
+                    toggle();
+                }}
+                aria-label="Activity actions"
+                aria-haspopup="true"
+                aria-expanded={open}
+                class="grid size-9 shrink-0 place-items-center rounded-md text-ink-muted transition-colors hover:bg-surface-sunken hover:text-ink [&_svg]:size-4"
+            >
+                <MoreVertical />
+            </button>
+        {/snippet}
+        <MenuItem icon={Pencil} onclick={() => act(onedit)}>Edit</MenuItem>
+        <MenuItem icon={ArrowUp} disabled={!canMoveUp} onclick={() => act(onmoveup)}>
+            Move up
+        </MenuItem>
+        <MenuItem icon={ArrowDown} disabled={!canMoveDown} onclick={() => act(onmovedown)}>
+            Move down
+        </MenuItem>
+        <MenuItem icon={CalendarDays} onclick={() => act(onmovetoday)}>Move to day...</MenuItem>
+        {#if item.estCost != null}
+            <MenuItem icon={Wallet} onclick={() => act(onaddexpense)}>Add as expense</MenuItem>
+        {/if}
+        <MenuItem icon={Trash2} tone="danger" onclick={() => act(ondelete)}>Delete</MenuItem>
+    </Popover>
+{/snippet}
+
 {#if entry.kind === 'item' && entry.item}
     {@const item = entry.item}
     {@const meta = categoryMeta(item.category)}
     {@const Icon = meta.icon}
-    <li class="relative flex items-start gap-3">
+    <li class="relative flex items-start gap-2 sm:gap-3">
         <span
-            class="w-12 shrink-0 pt-2 text-right text-[0.7rem] font-medium leading-tight tabular-nums text-ink-muted"
+            class="w-10 sm:w-12 shrink-0 pt-2 text-right text-[0.7rem] font-medium leading-tight tabular-nums text-ink-muted"
             aria-hidden="{!!gutterLabel}"
         >
             {gutterLabel}
@@ -121,8 +153,16 @@
         >
             <Icon />
         </span>
-        <div class="min-w-0 flex-1 rounded-lg border border-border bg-surface p-3 shadow-soft">
-            <div class="flex items-start gap-2">
+        <!-- svelte-ignore a11y_click_events_have_key_events -->
+        <!-- svelte-ignore a11y_no_static_element_interactions -->
+        <div
+            onclick={(e) => {
+                if ((e.target as HTMLElement)?.closest('button, a')) return;
+                onedit(item);
+            }}
+            class="min-w-0 flex-1 cursor-pointer rounded-lg border border-border bg-surface p-3 shadow-soft transition-colors hover:border-primary-600/40"
+        >
+            <div class="flex items-start justify-between gap-2">
                 <div class="min-w-0 flex-1">
                     <p class="font-medium text-ink">
                         {#if gutterLabel}<span class="sr-only">{gutterLabel} – </span>{/if}{item.title ?? 'Untitled'}
@@ -147,45 +187,53 @@
                         {/if}
                     </p>
                 </div>
-                {#if item.estCost != null || linkStatus || item.notes}
-                    <div class="mt-1.5 flex flex-wrap items-center gap-1.5">
-                        {#if item.estCost != null}
-                            {@const ccy = item.currency ?? homeCurrency}
-                            {@const costStr = formatMoney(item.estCost, ccy, { decimals: true })}
-                            <span title={travelerCount > 1 ? `Total: ${costStr} (${formatMoney(item.estCost / travelerCount, ccy, { decimals: true })} / person)` : costStr}>
-                                <Badge variant="neutral">
-                                    {costStr}
-                                    {#if travelerCount > 1}
-                                        <span class="ml-1 font-normal opacity-75 text-[0.7rem]">({formatMoney(item.estCost / travelerCount, ccy, { decimals: true })}/p.p.)</span>
-                                    {/if}
-                                </Badge>
-                            </span>
-                        {/if}
-                        {#if linkStatus}
-                            {#if linkStatus.removed}
-                                <Badge variant="neutral" class="opacity-60">
-                                    <Link2Off class="size-3" /> booking removed
-                                </Badge>
-                            {:else if linkStatus}
-                                <a href={linkStatus.href} class="inline-flex">
-                                    <Badge variant="primary"><Link2 class="size-3" /> {linkStatus.label}</Badge>
-                                </a>
-                            {/if}
-                        {/if}
-                        {#if item.notes}
-                            <button
-                                type="button"
-                                onclick={() => (noteOpen = !noteOpen)}
-                                aria-expanded={noteOpen}
-                                aria-label={noteOpen ? 'Hide note' : 'Show note'}
-                                class="inline-flex items-center gap-1 rounded-full border border-border bg-surface-sunken px-2.5 py-0.5 text-xs font-medium text-ink-muted transition-colors hover:text-ink"
-                            >
-                                {noteOpen ? 'Hide note' : 'Note'}
-                            </button>
-                        {/if}
-                    </div>
-                {/if}
+                <div class="sm:hidden shrink-0 -mr-1 -mt-1">
+                    {@render activityMenu(item)}
+                </div>
             </div>
+
+            {#if item.estCost != null || linkStatus || item.notes}
+                <div class="mt-2 flex flex-wrap items-center gap-1.5">
+                    {#if item.estCost != null}
+                        {@const ccy = item.currency ?? homeCurrency}
+                        {@const costStr = formatMoney(item.estCost, ccy, { decimals: true })}
+                        <span title={travelerCount > 1 ? `Total: ${costStr} (${formatMoney(item.estCost / travelerCount, ccy, { decimals: true })} / person)` : costStr}>
+                            <Badge variant="neutral">
+                                {costStr}
+                                {#if travelerCount > 1}
+                                    <span class="ml-1 font-normal opacity-75 text-[0.7rem]">({formatMoney(item.estCost / travelerCount, ccy, { decimals: true })}/p.p.)</span>
+                                {/if}
+                            </Badge>
+                        </span>
+                    {/if}
+                    {#if linkStatus}
+                        {#if linkStatus.removed}
+                            <Badge variant="neutral" class="opacity-60">
+                                <Link2Off class="size-3" /> booking removed
+                            </Badge>
+                        {:else if linkStatus}
+                            <a href={linkStatus.href} class="inline-flex">
+                                <Badge variant="primary"><Link2 class="size-3" /> {linkStatus.label}</Badge>
+                            </a>
+                        {/if}
+                    {/if}
+                    {#if item.notes}
+                        <button
+                            type="button"
+                            onclick={(e) => {
+                                e.stopPropagation();
+                                noteOpen = !noteOpen;
+                            }}
+                            aria-expanded={noteOpen}
+                            aria-label={noteOpen ? 'Hide note' : 'Show note'}
+                            class="inline-flex items-center gap-1 rounded-full border border-border bg-surface-sunken px-2.5 py-0.5 text-xs font-medium text-ink-muted transition-colors hover:text-ink"
+                        >
+                            {noteOpen ? 'Hide note' : 'Note'}
+                        </button>
+                    {/if}
+                </div>
+            {/if}
+
             {#if noteOpen && item.notes}
                 <!-- svelte-ignore a11y_no_static_element_interactions -->
                 <div class="mt-2 space-y-1.5 border-t border-border pt-2 text-sm text-ink-muted">
@@ -194,40 +242,17 @@
             {/if}
         </div>
 
-        <Popover bind:open={menuOpen} label="Activity actions" align="end">
-            {#snippet trigger({ toggle, open })}
-                <button
-                    type="button"
-                    onclick={toggle}
-                    aria-label="Activity actions"
-                    aria-haspopup="true"
-                    aria-expanded={open}
-                    class="grid size-8 shrink-0 place-items-center rounded-md text-ink-muted transition-colors hover:bg-surface-sunken hover:text-ink [&_svg]:size-4"
-                >
-                    <MoreVertical />
-                </button>
-            {/snippet}
-            <MenuItem icon={Pencil} onclick={() => act(onedit)}>Edit</MenuItem>
-            <MenuItem icon={ArrowUp} disabled={!canMoveUp} onclick={() => act(onmoveup)}>
-                Move up
-            </MenuItem>
-            <MenuItem icon={ArrowDown} disabled={!canMoveDown} onclick={() => act(onmovedown)}>
-                Move down
-            </MenuItem>
-            <MenuItem icon={CalendarDays} onclick={() => act(onmovetoday)}>Move to day...</MenuItem>
-            {#if item.estCost != null}
-                <MenuItem icon={Wallet} onclick={() => act(onaddexpense)}>Add as expense</MenuItem>
-            {/if}
-            <MenuItem icon={Trash2} tone="danger" onclick={() => act(ondelete)}>Delete</MenuItem>
-        </Popover>
+        <div class="hidden sm:block">
+            {@render activityMenu(item)}
+        </div>
     </li>
 {:else if entry.kind === 'flight' && entry.flight}
     {@const seg = entry.flight.segment}
     {@const arrivalDayOffset = entry.flight.computed?.arrivalDayOffset ?? 0}
     {@const from = seg?.from?.code ?? seg?.from?.city ?? '–'}
     {@const to = seg?.to?.code ?? seg?.to?.city ?? '–'}
-    <li class="relative flex items-start gap-3">
-        <span class="w-12 shrink-0 pt-2 text-right text-xs font-medium tabular-nums text-ink-muted">
+    <li class="relative flex items-start gap-2 sm:gap-3">
+        <span class="w-10 sm:w-12 shrink-0 pt-2 text-right text-xs font-medium tabular-nums text-ink-muted">
             {timeLabel}
         </span>
         <span
@@ -272,8 +297,8 @@
         staying: 'Staying at',
         point: ''
     }[placement.placement ?? 'staying']}
-    <li class="relative flex items-start gap-3">
-        <span class="w-12 shrink-0 pt-2 text-right text-xs font-medium tabular-nums text-ink-muted">
+    <li class="relative flex items-start gap-2 sm:gap-3">
+        <span class="w-10 sm:w-12 shrink-0 pt-2 text-right text-xs font-medium tabular-nums text-ink-muted">
             {timeLabel}
         </span>
         <span

@@ -41,7 +41,7 @@
     title="Move to day"
     description={title ? `Where should "${title}" go?` : undefined}
 >
-    <ul class="flex flex-col gap-1.5">
+    <ul class="flex flex-col gap-1.5 max-h-[60dvh] overflow-y-auto pr-1">
         <li>
             <button type="button" class={rowClass(current === null)} onclick={() => choose(null)}>
                 <span class="flex items-center gap-2">

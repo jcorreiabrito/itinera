@@ -113,17 +113,17 @@
         onclick={ontogglePaid}
         aria-pressed={paid}
         aria-label={paid ? 'Paid – mark as unpaid' : 'Unpaid – mark as paid'}
-        class="flex w-20 shrink-0 flex-col items-center justify-center gap-1 border-l border-border px-2 text-xs font-medium transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-primary-600 [&_svg]:size-4
+        class="flex w-14 shrink-0 flex-col items-center justify-center gap-0.5 border-l border-border px-1 text-[11px] font-medium transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-primary-600 [&_svg]:size-4
             {paid
                 ? 'bg-success/10 text-success hover:bg-success/15'
                 : 'text-ink-muted hover:bg-surface-sunken'}"
     >
         {#if paid}
             <Check aria-hidden="true" />
-            Paid
+            <span>Paid</span>
         {:else}
             <Circle aria-hidden="true" />
-            Unpaid
+            <span>Unpaid</span>
         {/if}
     </button>
 </li>

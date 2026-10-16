@@ -15,15 +15,15 @@
         onchange?: (event: Event & { currentTarget: HTMLSelectElement }) => void;
     }
 
-    let { value = '', invalid = false, class: className, children, ...rest }: Props = $props();
+    let { value = $bindable(''), invalid = false, class: className, children, ...rest }: Props = $props();
 </script>
 
 <div class="relative">
     <select
-        {value}
+        bind:value
         aria-invalid={invalid || undefined}
         class={cn(
-            'h-9 w-full appearance-none rounded-md border bg-surface px-3 pr-9 text-base text-ink shadow-sm transition-colors focus:border-primary-600 focus:outline-none focus:ring-2 focus:ring-primary-600/30 disabled:cursor-not-allowed disabled:opacity-60',
+            'min-h-[44px] h-11 sm:h-9 sm:min-h-0 w-full appearance-none rounded-md border bg-surface px-3 pr-9 text-base sm:text-sm text-ink shadow-sm transition-colors focus:border-primary-600 focus:outline-none focus:ring-2 focus:ring-primary-600/30 disabled:cursor-not-allowed disabled:opacity-60',
             invalid ? 'border-danger' : 'border-border',
             className
         )}

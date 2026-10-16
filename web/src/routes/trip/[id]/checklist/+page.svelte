@@ -44,7 +44,7 @@
       }
     }
   import { t } from '$lib/i18n.svelte';
-  import { Badge, Button, EmptyState, ErrorState, MenuItem, Popover, ProgressBar, Skeleton, toast } from '$lib/components/ui';
+  import { Badge, Button, Dialog, EmptyState, ErrorState, MenuItem, Popover, ProgressBar, Skeleton, toast } from '$lib/components/ui';
   import {
     ApplyTemplateDialog,
     ChecklistGroup,
@@ -90,6 +90,8 @@
   let applyDialogOpen = $state(false);
   let saveDialogOpen = $state(false);
   let actionsMenuOpen = $state(false);
+  let confirmResetOpen = $state(false);
+  let confirmClearOpen = $state(false);
 
   const customGroups = $derived(groupView.map((g) => g.group));
 
@@ -234,7 +236,7 @@
 {:else if loadError}
   <ErrorState title={t('could_not_load_checklist')} onretry={retry} />
 {:else}
-  <div class="flex flex-col gap-4">
+  <div class="flex flex-col gap-4 pb-28">
     <!-- Header Controls -->
     <div class="flex flex-wrap items-center justify-between gap-3 border-b border-border/60 pb-4">
       <nav
@@ -279,10 +281,10 @@
           <MenuItem icon={Upload} onclick={() => { actionsMenuOpen = false; saveDialogOpen = true; }}>
             {t('save_as_template_ellipsis')}
           </MenuItem>
-          <MenuItem icon={RotateCcw} onclick={() => { actionsMenuOpen = false; resetList(); }}>
+          <MenuItem icon={RotateCcw} onclick={() => { actionsMenuOpen = false; confirmResetOpen = true; }}>
             {t('reset_checklist')}
           </MenuItem>
-          <MenuItem icon={Trash2} tone="danger" onclick={() => { actionsMenuOpen = false; cleanCompleted(); }}>
+          <MenuItem icon={Trash2} tone="danger" onclick={() => { actionsMenuOpen = false; confirmClearOpen = true; }}>
             {t('clear_completed')}
           </MenuItem>
         </Popover>
@@ -430,7 +432,7 @@
 {/if}
 
 <!-- Floating add button (mobile) -->
-{#if loaded && (groupView.length > 0 || dayView.length > 0 || buyItems.length > 0)}
+{#if loaded}
   <button
     type="button"
     onclick={() => handleAdd()}
@@ -474,3 +476,27 @@
   suggestedName={trip?.title ? `${trip.title} checklist` : undefined}
   onsaved={() => loadAll(id)}
 />
+
+<Dialog bind:open={confirmResetOpen} title={t('reset_checklist')}>
+  <p class="text-sm text-ink-muted">
+    Are you sure you want to uncheck all items in this checklist?
+  </p>
+  <div class="mt-4 flex justify-end gap-2">
+    <Button variant="ghost" onclick={() => (confirmResetOpen = false)}>{t('cancel')}</Button>
+    <Button variant="destructive" onclick={() => { confirmResetOpen = false; resetList(); }}>
+      {t('reset_checklist')}
+    </Button>
+  </div>
+</Dialog>
+
+<Dialog bind:open={confirmClearOpen} title={t('clear_completed')}>
+  <p class="text-sm text-ink-muted">
+    Are you sure you want to permanently clear all completed checklist items?
+  </p>
+  <div class="mt-4 flex justify-end gap-2">
+    <Button variant="ghost" onclick={() => (confirmClearOpen = false)}>{t('cancel')}</Button>
+    <Button variant="destructive" onclick={() => { confirmClearOpen = false; cleanCompleted(); }}>
+      {t('clear_completed')}
+    </Button>
+  </div>
+</Dialog>

@@ -79,7 +79,10 @@
                     id={fid('no')}
                     value={leg.flightNumber}
                     placeholder="LH388"
-                    oninput={(e) => (leg.flightNumber = e.currentTarget.value)}
+                    class="uppercase"
+                    autocapitalize="characters"
+                    spellcheck={false}
+                    oninput={(e) => (leg.flightNumber = e.currentTarget.value.toUpperCase())}
                 />
             </Field>
         </div>

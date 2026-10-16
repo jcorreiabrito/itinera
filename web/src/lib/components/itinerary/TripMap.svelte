@@ -24,7 +24,7 @@
   let mapLoaded = $state(false);
   let mapError = $state(false);
   let isExpanded = $state(false);
-  let isCollapsed = $state(false);
+  let isCollapsed = $state(typeof window !== 'undefined' ? window.innerWidth < 640 : false);
   let selectedIndex = $state<number | null>(null);
 
   // Quick Add Pin Dialog State
@@ -249,6 +249,12 @@
     }
   }
 
+  $effect(() => {
+    if (!isCollapsed && leafMap) {
+      setTimeout(() => leafMap?.invalidateSize(), 150);
+    }
+  });
+
   async function initMap() {
     if (!mapContainer) return;
 
@@ -256,8 +262,13 @@
       leafMap = L.map(mapContainer, {
         zoomControl: false,
         attributionControl: false,
+        dragging: !L.Browser.mobile,
       }).setView([20, 0], 2);
 
+      L.control.attribution({
+        prefix: false,
+        position: 'bottomleft',
+      }).addTo(leafMap);
       L.control.zoom({ position: 'bottomright' }).addTo(leafMap);
       updateTileLayer();
 

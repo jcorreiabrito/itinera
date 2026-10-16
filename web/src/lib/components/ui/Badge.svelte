@@ -22,11 +22,11 @@
 
     const variants: Record<BadgeVariant, string> = {
         neutral: 'border-border bg-surface-sunken text-ink-muted',
-        primary: 'border-primary-100 bg-primary-100 text-primary-700',
-        success: 'border-success/20 bg-success/10 text-success',
-        warning: 'border-warning/20 bg-warning/10 text-warning',
-        danger: 'border-danger/20 bg-danger/10 text-danger',
-        info: 'border-info/20 bg-info/10 text-info',
+        primary: 'border-primary-100 bg-primary-100 text-primary-700 dark:border-primary-700/40 dark:bg-primary-900/30 dark:text-primary-300',
+        success: 'border-success/30 bg-success/10 text-success dark:border-emerald-500/30 dark:bg-emerald-500/15 dark:text-emerald-400',
+        warning: 'border-amber-700/30 bg-amber-500/15 text-amber-900 dark:border-amber-400/30 dark:bg-amber-400/15 dark:text-amber-300',
+        danger: 'border-danger/30 bg-danger/10 text-danger dark:border-rose-500/30 dark:bg-rose-500/15 dark:text-rose-400',
+        info: 'border-info/30 bg-info/10 text-info dark:border-sky-500/30 dark:bg-sky-500/15 dark:text-sky-300',
     };
 </script>
 

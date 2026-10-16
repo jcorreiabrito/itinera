@@ -3,6 +3,7 @@
     import type { Flight } from '$lib/db';
     import {
         ArrowRight,
+        Copy,
         ExternalLink,
         MoreVertical,
         Paperclip,
@@ -11,7 +12,8 @@
         Trash2,
         TriangleAlert
     } from 'lucide-svelte';
-    import { Badge, MenuItem, Popover } from '$lib/components/ui';
+    import { Badge, MenuItem, Popover, toast } from '$lib/components/ui';
+    import { t } from '$lib/i18n.svelte';
     import { formatMoney, formatTime, formatWeekdayDate } from '$lib/format';
     import {
         airlineLabel,
@@ -84,7 +86,7 @@
                     aria-label="Flight actions"
                     aria-haspopup="true"
                     aria-expanded={open}
-                    class="grid size-8 shrink-0 place-items-center rounded-md text-ink-muted transition-colors hover:bg-surface-sunken hover:text-ink [&_svg]:size-4"
+                    class="grid size-11 sm:size-9 min-h-[44px] min-w-[44px] sm:min-h-0 sm:min-w-0 shrink-0 place-items-center rounded-md text-ink-muted transition-colors hover:bg-surface-sunken hover:text-ink [&_svg]:size-5 sm:[&_svg]:size-4"
                 >
                     <MoreVertical />
                 </button>
@@ -108,21 +110,28 @@
                     {/if}
                 </div>
 
-                <div class="mt-1.5 flex items-center gap-2 text-sm">
-                    <span class="font-semibold tabular-nums text-ink">{endpointCode(seg.from)}</span>
-                    <span class="tabular-nums text-ink-muted">{formatTime(seg.departLocal)}</span>
-                    <span class="h-px flex-1 border-t border-dashed border-border" aria-hidden="true"></span>
-                    <ArrowRight class="size-3.5 shrink-0 text-ink-muted" aria-hidden="true" />
-                    <span class="font-semibold tabular-nums text-ink">{endpointCode(seg.to)}</span>
-                    <span class="tabular-nums text-ink-muted">{formatTime(seg.arriveLocal)}</span>
-                    {#if seg.arrivalDayOffset > 0}
-                        <span
-                            class="rounded-full bg-accent-terracotta/15 px-1.5 py-0.5 text-[0.65rem] font-semibold text-accent-terracotta"
-                            title={`Arrives ${seg.arrivalDayOffset} day after departure`}
-                        >
-                            +{seg.arrivalDayOffset}
-                        </span>
-                    {/if}
+                <div class="mt-1.5 grid grid-cols-[auto_1fr_auto] items-center gap-2 text-sm">
+                    <div class="flex items-baseline gap-1.5">
+                        <span class="font-semibold tabular-nums text-ink">{endpointCode(seg.from)}</span>
+                        <span class="tabular-nums text-xs text-ink-muted">{formatTime(seg.departLocal)}</span>
+                    </div>
+                    <div class="flex items-center gap-1 min-w-0 px-1">
+                        <span class="h-px flex-1 border-t border-dashed border-border" aria-hidden="true"></span>
+                        <ArrowRight class="size-3.5 shrink-0 text-ink-muted" aria-hidden="true" />
+                        <span class="h-px flex-1 border-t border-dashed border-border" aria-hidden="true"></span>
+                    </div>
+                    <div class="flex items-baseline gap-1.5">
+                        <span class="font-semibold tabular-nums text-ink">{endpointCode(seg.to)}</span>
+                        <span class="tabular-nums text-xs text-ink-muted">{formatTime(seg.arriveLocal)}</span>
+                        {#if seg.arrivalDayOffset > 0}
+                            <span
+                                class="rounded-full bg-accent-terracotta/15 px-1.5 py-0.5 text-[0.65rem] font-semibold text-accent-terracotta"
+                                title={`Arrives ${seg.arrivalDayOffset} day after departure`}
+                            >
+                                +{seg.arrivalDayOffset}
+                            </span>
+                        {/if}
+                    </div>
                 </div>
 
                 {#if seg.seat || seg.terminal || seg.gate || seg.baggage}
@@ -155,7 +164,22 @@
     {#if flight.bookingRef || flight.cost != null || attachmentCount > 0 || flight.checkInUrl || bookingNotes}
         <footer class="mt-4 flex flex-wrap items-center gap-x-3 gap-y-1.5 border-t border-border pt-3 text-xs text-ink-muted">
             {#if flight.bookingRef}
-                <span>PNR <b class="font-semibold text-ink">{flight.bookingRef}</b></span>
+                <button
+                    type="button"
+                    onclick={async () => {
+                        try {
+                            await navigator.clipboard.writeText(flight.bookingRef!);
+                            toast.success(t('copied_to_clipboard') || 'Copied PNR');
+                        } catch {
+                            toast.info(flight.bookingRef!);
+                        }
+                    }}
+                    title="Click to copy PNR"
+                    class="inline-flex min-h-[36px] sm:min-h-0 items-center gap-1 rounded-md px-1.5 py-0.5 hover:bg-surface-sunken transition-colors active:scale-95"
+                >
+                    <span>PNR <b class="font-semibold text-ink">{flight.bookingRef}</b></span>
+                    <Copy class="size-3 text-ink-muted" />
+                </button>
             {/if}
             {#if flight.cost != null}
                 <Badge variant="neutral">{formatMoney(flight.cost, flight.currency ?? homeCurrency)}</Badge>
@@ -171,7 +195,7 @@
                     href={flight.checkInUrl}
                     target="_blank"
                     rel="noopener noreferrer"
-                    class="inline-flex items-center gap-1 font-medium text-primary-700 hover:underline [&_svg]:size-3.5"
+                    class="inline-flex min-h-[44px] sm:min-h-0 items-center gap-1.5 px-2 py-1 rounded-md font-medium text-primary-700 hover:bg-primary-100 hover:underline [&_svg]:size-3.5"
                 >
                     <ExternalLink /> Check in
                 </a>

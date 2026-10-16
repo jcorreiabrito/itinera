@@ -42,17 +42,31 @@
         if (open && !el.open) {
             closing = false;
             el.showModal();
+            if (typeof document !== 'undefined') {
+                document.documentElement.style.overflow = 'hidden';
+            }
         } else if (!open && el.open && !closing) {
             // Trigger close animation then close
             closing = true;
+            if (typeof document !== 'undefined') {
+                document.documentElement.style.overflow = '';
+            }
             setTimeout(() => {
                 el.close();
                 closing = false;
             }, 180);
         }
+        return () => {
+            if (typeof document !== 'undefined') {
+                document.documentElement.style.overflow = '';
+            }
+        };
     });
 
     function requestClose() {
+        if (typeof document !== 'undefined') {
+            document.documentElement.style.overflow = '';
+        }
         open = false;
         onclose?.();
     }
@@ -67,7 +81,7 @@
     aria-labelledby={title ? titleId : undefined}
     aria-describedby={description ? descId : undefined}
     class={cn(
-        'm-auto w-[min(92vw,32rem)] rounded-xl border border-border bg-surface p-0 text-ink shadow-sheet backdrop:bg-ink/40 backdrop:backdrop-blur-sm',
+        'm-auto mb-0 sm:my-auto w-full sm:w-[min(92vw,32rem)] rounded-t-xl sm:rounded-xl max-sm:m-0 max-sm:mt-auto max-sm:max-h-[var(--visual-viewport-height,88dvh)] border border-border bg-surface p-0 text-ink shadow-sheet backdrop:bg-ink/40 backdrop:backdrop-blur-sm',
         closing ? 'animate-pop-out' : 'open:animate-pop-in',
         className
     )}
@@ -77,7 +91,7 @@
     }}
     onclick={onBackdropClick}
 >
-    <div class="flex max-h-[80dvh] flex-col">
+    <div class="flex max-h-[80dvh] max-sm:max-h-[var(--visual-viewport-height,88dvh)] flex-col">
         {#if title || description}
             <header class="flex items-start justify-between gap-4 border-b border-border px-5 py-4">
                 <div class="min-w-0">
@@ -92,7 +106,7 @@
                     type="button"
                     onclick={requestClose}
                     aria-label={closeLabel}
-                    class="grid size-9 shrink-0 place-items-center rounded-md text-ink-muted transition-colors hover:bg-surface-sunken hover:text-ink active:scale-95"
+                    class="grid size-11 sm:size-9 shrink-0 place-items-center rounded-md text-ink-muted transition-colors hover:bg-surface-sunken hover:text-ink active:scale-95"
                 >
                     <X class="size-5" />
                 </button>

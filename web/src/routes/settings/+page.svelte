@@ -301,7 +301,7 @@
   </div>
 </header>
 
-<main class="mx-auto w-full max-w-3xl flex-1 px-4 pb-28 pt-6 sm:px-6 lg:pb-12 animate-slide-up">
+<main id="page-content" class="mx-auto w-full max-w-3xl flex-1 px-4 pb-28 pt-6 sm:px-6 lg:pb-12">
   <section class="rounded-lg border border-border bg-surface p-5">
     <h2 class="text-base font-semibold">{t('settings_title')}</h2>
     <p class="mt-1 text-sm text-ink-muted">{t('home_currency_desc')}</p>
@@ -335,7 +335,13 @@
         <Select
           id="settings-language"
           value={language}
-          onchange={(e) => (language = e.currentTarget.value as Language)}
+          onchange={async (e) => {
+            language = e.currentTarget.value as Language;
+            setLanguage(language);
+            try {
+              await settings.update({ language });
+            } catch {}
+          }}
         >
           <option value="en">English</option>
           <option value="pt-BR">Português (Brasil)</option>
@@ -428,7 +434,7 @@
       {:else}
         <ul class="mt-2 divide-y divide-border rounded-md border border-border">
           {#each backups as b (b.name)}
-            <li class="flex items-center justify-between gap-3 px-3 py-2.5">
+            <li class="flex flex-col sm:flex-row sm:items-center justify-between gap-1 sm:gap-3 px-3 py-2.5">
               <div class="min-w-0">
                 <p class="truncate text-sm font-medium text-ink">
                   {b.createdAt ? relativeTime(b.createdAt) : b.name}
@@ -437,7 +443,7 @@
                   {t('records_count', { n: String(b.docCount ?? 0) })} · {formatBytes(b.sizeBytes ?? null)}
                 </p>
               </div>
-              <span class="shrink-0 font-mono text-[0.7rem] text-ink-muted">{b.name}</span>
+              <span class="shrink-0 font-mono text-[0.7rem] text-ink-muted max-w-full sm:max-w-[12rem] truncate">{b.name}</span>
             </li>
           {/each}
         </ul>

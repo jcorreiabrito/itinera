@@ -16,13 +16,15 @@
     let { tripId, homeCurrency, onsaved }: Props = $props();
 
     let amount = $state('');
-    let selectedCurrency = $state(homeCurrency);
+    let selectedCurrency = $state('');
     let category = $state<ExpenseCategory>('food');
     let date = $state(todayIso());
     let saving = $state(false);
 
     $effect(() => {
-        selectedCurrency = homeCurrency;
+        if (homeCurrency) {
+            selectedCurrency = homeCurrency;
+        }
     });
 
     const amountNum = $derived(Number(amount));

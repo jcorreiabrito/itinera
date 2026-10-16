@@ -21,11 +21,11 @@
     type State = 'synced' | 'syncing' | 'offline' | 'pending' | 'error';
 
     const config: Record<State, { labelKey: string; tone: string }> = {
-        synced: { labelKey: 'synced', tone: 'border-primary-100 bg-primary-100 text-success' },
-        syncing: { labelKey: 'syncing', tone: 'border-info/20 bg-info/10 text-info' },
-        pending: { labelKey: 'pending', tone: 'border-warning/20 bg-warning/10 text-warning' },
+        synced: { labelKey: 'synced', tone: 'border-primary-100 bg-primary-100 text-primary-700 dark:border-primary-700/40 dark:bg-primary-900/30 dark:text-emerald-400' },
+        syncing: { labelKey: 'syncing', tone: 'border-info/20 bg-info/10 text-info dark:text-sky-300' },
+        pending: { labelKey: 'pending', tone: 'border-warning/20 bg-warning/10 text-amber-900 dark:text-amber-300' },
         offline: { labelKey: 'offline', tone: 'border-border bg-surface-sunken text-ink-muted' },
-        error: { labelKey: 'sync_error', tone: 'border-danger/20 bg-danger/10 text-danger' },
+        error: { labelKey: 'sync_error', tone: 'border-danger/20 bg-danger/10 text-danger dark:text-rose-400' },
     };
 
     const current = $derived({
@@ -68,7 +68,10 @@
             aria-haspopup="true"
             aria-expanded={isOpen}
             aria-label={`${current.label}.`}
-            class="relative inline-flex items-center gap-1.5 rounded-full glass-panel px-2 sm:px-2.5 py-1 text-xs font-medium transition-colors hover:brightness-90 focus:visible:outline-none focus:visible:ring-2 focus:visible:ring-primary-600 focus:visible:ring-offset-2 focus:visible:ring-offset-bg"
+            class={cn(
+                'relative inline-flex min-h-[44px] min-w-[44px] sm:min-h-0 sm:min-w-0 h-11 sm:h-7 items-center justify-center sm:justify-start gap-1.5 rounded-full border px-3 sm:px-2.5 py-1 text-xs font-medium transition-colors hover:brightness-95 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary-600 focus-visible:ring-offset-2 focus-visible:ring-offset-bg',
+                current.tone
+            )}
         >
             {#if $syncStatus.state === 'synced'}
                 <Check class="size-3.5" />
@@ -83,7 +86,7 @@
             {/if}
             <span class="hidden sm:inline" aria-label={current.label}>{current.label}</span>
             {#if $syncStatus.state === 'pending' && $syncStatus.pendingChanges}
-                <span class="absolute -right-0.5 -top-0.5 size-1.5 rounded-full bg-warning ring-1 ring-bg" aria-hidden="true"></span>
+                <span class="absolute -right-0.5 -top-0.5 size-2 rounded-full bg-warning ring-1 ring-bg" aria-hidden="true"></span>
             {/if}
         </button>
     {/snippet}

@@ -213,7 +213,7 @@
           onclick={() => (conflictOpen = true)}
           aria-label="View sync conflict history"
           title="View sync conflict history"
-          class="grid size-9 place-items-center rounded-md text-ink-muted transition-colors hover:bg-surface-sunken hover:text-ink active:scale-95 [&_svg]:size-4"
+          class="hidden sm:grid size-9 place-items-center rounded-md text-ink-muted transition-colors hover:bg-surface-sunken hover:text-ink active:scale-95 [&_svg]:size-4"
         >
           <History />
         </button>
@@ -225,7 +225,7 @@
         >
           <Settings />
         </a>
-        <Button variant="ghost" size="sm" onclick={() => (templateOpen = true)}>
+        <Button variant="ghost" size="sm" class="hidden sm:inline-flex" onclick={() => (templateOpen = true)}>
           <Sparkles class="size-4" />
           <span>{t('templates')}</span>
         </Button>
@@ -272,7 +272,7 @@
   </div>
 </header>
 
-<main class="mx-auto w-full max-w-6xl flex-1 px-4 pb-28 pt-5 sm:px-6 lg:pb-12">
+<main id="page-content" class="mx-auto w-full max-w-6xl flex-1 px-4 pb-28 pt-5 sm:px-6 lg:pb-12">
   <ErrorBoundary>
     {#if loading && !sectionsData}
       <div class="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
@@ -335,7 +335,7 @@
                 aria-expanded={archiveOpen}
                 class="mb-3 flex items-center gap-2 text-sm font-semibold text-ink-muted transition-colors hover:text-ink"
               >
-                <ChevronDown class="size-4 transition-transform ${archiveOpen ? '' : '-rotate-90'}" />
+                <ChevronDown class="size-4 transition-transform {archiveOpen ? '' : '-rotate-90'}" />
                 {t('archived')}
               </button>
               {#if archiveOpen}

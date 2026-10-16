@@ -50,14 +50,19 @@
 
     let menuOpen = $state(false);
     let noteOpen = $state(false);
+    let localDone = $state(false);
+
+    $effect(() => {
+        localDone = item.done;
+    });
 
     const cbId = $derived(`chk-${item._id}`);
 
     const dueInfo = $derived.by(() => {
         if (!item.dueDate) return null;
         const delta = dayDelta(todayIso(), item.dueDate);
-        const overdue = !item.done && delta < 0;
-        const near = !item.done && delta >= 0 && delta <= 3;
+        const overdue = !localDone && delta < 0;
+        const near = !localDone && delta >= 0 && delta <= 3;
         return { label: formatDate(item.dueDate), amber: overdue || near, overdue };
     });
 
@@ -71,13 +76,18 @@
         if (item.quantity && item.quantity > 1) parts.push(`quantity ${item.quantity}`);
         if (item.important) parts.push('important');
         if (item.dueDate) parts.push(`due ${formatDate(item.dueDate)}${dueInfo?.overdue ? ', overdue' : ''}`);
-        parts.push(item.done ? 'done' : 'not done');
+        parts.push(localDone ? 'done' : 'not done');
         return parts.join(', ');
     });
 
     function action(fn?: (item: ChecklistItem) => void) {
         menuOpen = false;
         fn?.(item);
+    }
+
+    function handleToggle() {
+        localDone = !localDone;
+        ontoggle({ ...item, done: localDone });
     }
 </script>
 
@@ -87,8 +97,8 @@
             <input
                 id={cbId}
                 type="checkbox"
-                checked={item.done}
-                onchange={() => ontoggle(item)}
+                checked={localDone}
+                onchange={handleToggle}
                 aria-label={ariaLabel}
                 class={cn(
                     'rounded border-border text-primary-600 focus:ring-2 focus:ring-primary-600/30',
@@ -98,16 +108,17 @@
         </label>
         <div class="min-w-0 flex-1 pt-1 sm:pt-0.5">
             <div class="flex flex-wrap items-center gap-x-2 gap-y-1">
-                <label
-                    for={cbId}
+                <button
+                    type="button"
+                    onclick={() => onedit(item)}
                     class={cn(
-                        'cursor-pointer font-medium',
+                        'text-left font-medium transition-colors hover:text-primary-700',
                         large ? 'text-base' : 'text-sm',
-                        item.done ? 'text-ink-muted line-through' : 'text-ink'
+                        localDone ? 'text-ink-muted line-through' : 'text-ink'
                     )}
                 >
                     {item.text ?? 'Untitled'}
-                </label>
+                </button>
                 {#if item.important}
                     <Star class="size-4 shrink-0 fill-accent-amber text-accent-amber" aria-label="Important" />
                 {/if}

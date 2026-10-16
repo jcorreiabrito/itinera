@@ -14,6 +14,7 @@
   import OfflineBanner from '$lib/components/OfflineBanner.svelte';
 
   import { theme } from '$lib/stores/theme.svelte';
+  import { viewport } from '$lib/stores/viewport.svelte';
 
   import * as dbRepo from '$lib/db';
 
@@ -21,6 +22,7 @@
 
   onMount(() => {
     theme.init();
+    viewport.init();
     if (booted) return;
     booted = true;
     // Load language preference from settings
@@ -42,7 +44,7 @@
 </script>
 
 <a
-  href="#main-content"
+  href="#page-content"
   class="sr-only focus:not-sr-only focus:absolute focus:z-50 focus:p-4 focus:bg-surface focus:text-ink focus:border focus:border-border focus:shadow-md"
 >
   Skip to main content

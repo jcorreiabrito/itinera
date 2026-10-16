@@ -143,11 +143,15 @@
 
       const titleMatch = item.title?.toLowerCase().includes(q);
       const notesMatch = item.notes?.toLowerCase().includes(q);
-      const locMatch =
-        typeof item.location === 'string'
-          ? item.location.toLowerCase().includes(q)
-          : (item.location?.name?.toLowerCase().includes(q) ||
-             item.location?.address?.toLowerCase().includes(q));
+      let locMatch = false;
+      if (typeof item.location === 'string') {
+        locMatch = (item.location as string).toLowerCase().includes(q);
+      } else if (item.location && typeof item.location === 'object') {
+        const loc = item.location as { name?: string; address?: string };
+        locMatch = Boolean(
+          loc.name?.toLowerCase().includes(q) || loc.address?.toLowerCase().includes(q)
+        );
+      }
       return Boolean(titleMatch || notesMatch || locMatch);
     });
   });
@@ -194,7 +198,7 @@
   <title>{t('itinerary')} – {trip?.title ?? 'Trip'}</title>
 </svelte:head>
 
-<section aria-labelledby="itinerary-heading">
+<section aria-labelledby="itinerary-heading" class="pb-28">
   <h1 id="itinerary-heading" class="sr-only">{t('itinerary')}</h1>
 
   {#if !loaded}
@@ -271,17 +275,18 @@
           <Input
             value={itinerarySearch}
             placeholder="Buscar atividade, lugar, restaurante..."
-            class="pl-9 pr-8 text-sm"
+            class="pl-9 pr-10 text-sm"
             oninput={(e) => (itinerarySearch = e.currentTarget.value)}
           />
           <Search class="absolute left-3 top-1/2 -translate-y-1/2 size-4 text-ink-muted/50 pointer-events-none" />
           {#if itinerarySearch}
             <button
               type="button"
-              class="absolute right-2.5 top-1/2 -translate-y-1/2 size-5 rounded grid place-items-center text-ink-muted hover:text-ink"
+              aria-label="Clear search"
+              class="absolute right-1 top-1/2 -translate-y-1/2 size-9 min-h-[36px] min-w-[36px] rounded grid place-items-center text-ink-muted hover:text-ink active:scale-95"
               onclick={() => (itinerarySearch = '')}
             >
-              <X class="size-3.5" />
+              <X class="size-4" />
             </button>
           {/if}
         </div>
@@ -291,7 +296,7 @@
             <button
               type="button"
               class={cn(
-                'px-2.5 py-1 text-xs font-medium rounded-lg shrink-0 transition-colors',
+                'min-h-[44px] sm:min-h-0 min-w-[44px] px-3 py-2 sm:py-1 text-xs font-medium rounded-lg shrink-0 transition-colors flex items-center justify-center',
                 itineraryCategory === catVal
                   ? 'bg-primary-600 text-white shadow-soft'
                   : 'bg-surface-sunken text-ink-muted hover:text-ink hover:bg-surface-sunken/80'

@@ -275,7 +275,7 @@
 <Sheet
     bind:open
     side="right"
-    title={mode === 'create' ? t('add_flight') : t('edit_expense')}
+    title={mode === 'create' ? t('add_flight') : t('edit_flight')}
     description="One booking can hold every leg – outbound, return and connections."
 >
     <form
@@ -292,7 +292,10 @@
                     id={fid('ref')}
                     value={bookingRef}
                     placeholder="ABC123"
-                    oninput={(e) => (bookingRef = e.currentTarget.value)}
+                    class="uppercase"
+                    autocapitalize="characters"
+                    spellcheck={false}
+                    oninput={(e) => (bookingRef = e.currentTarget.value.toUpperCase())}
                 />
             </Field>
             <Field label="Online check-in URL" for={fid('ci')}>

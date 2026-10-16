@@ -95,7 +95,7 @@ export default {
         },
         'slide-to-down': {
           from: { opacity: '1', transform: 'translateY(0)' },
-          to: { opacity: '0', transform: 'translateY(16px)' }
+          to: { opacity: '0', transform: 'translateY(100%)' }
         },
         'pop-in': {
           from: { opacity: '0', transform: 'scale(0.92)' },

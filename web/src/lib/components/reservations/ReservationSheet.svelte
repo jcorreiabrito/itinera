@@ -367,7 +367,7 @@
 <Sheet
     bind:open
     side="right"
-    title={mode === 'create' ? t('add_reservation') : t('edit_expense')}
+    title={mode === 'create' ? t('add_reservation') : t('edit_reservation')}
     description="Name and type get you a row fast – refine the details anytime."
 >
     <form
@@ -396,7 +396,7 @@
         </Field>
 
         <!-- Start / End + date + optional time (no time = shows as all-day). -->
-        <div class="grid grid-cols-[1fr_7rem] gap-3">
+        <div class="grid grid-cols-1 sm:grid-cols-[1fr_7rem] gap-3">
             <Field label={`${meta.startLabel} date`} for={fid('sd')}>
                 <Input id={fid('sd')} type="date" value={form.startDate} oninput={(e) => (form.startDate = e.currentTarget.value)} />
             </Field>
@@ -406,7 +406,7 @@
         </div>
 
         {#if showEnd}
-            <div class="grid grid-cols-[1fr_7rem] gap-3">
+            <div class="grid grid-cols-1 sm:grid-cols-[1fr_7rem] gap-3">
                 <Field label={`${meta.endLabel} date`} for={fid('ed')} error={errors.endDate}>
                     <Input id={fid('ed')} type="date" value={form.endDate} invalid={!!errors.endDate} oninput={(e) => (form.endDate = e.currentTarget.value)} />
                 </Field>
