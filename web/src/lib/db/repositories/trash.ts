@@ -9,6 +9,7 @@
 
 import { getDoc, listDeleted, purgeDoc, purgeManyDocs, restoreDoc } from '../base';
 import type { AnyDoc } from '../schemas';
+import * as settings from './settings';
 import * as trips from './trips';
 
 /** A soft-deleted document summarised for the Trash list. */
@@ -185,4 +186,40 @@ export async function empty(): Promise<number> {
 	const entries = await list();
 	await purgeMany(entries.map((e) => e.id));
 	return entries.length;
+}
+
+/**
+ * Permanently delete everything that has been in the Trash for longer than
+ * `retentionDays`.
+ *
+ * Off by default, and off when the number is not a positive one: purging is the
+ * only irreversible thing this app does, so a device that has never been told
+ * how long to keep deleted documents keeps them forever. The setting is what
+ * turns it on (Settings → Data & backups).
+ *
+ * `deletedAt` is an ISO-8601 UTC timestamp, so lexicographic order is chronological
+ * order and the cutoff needs no date parsing per document.
+ */
+export async function purgeExpired(retentionDays: number, now: Date = new Date()): Promise<number> {
+	if (!Number.isFinite(retentionDays) || retentionDays <= 0) return 0;
+	const cutoff = new Date(now.getTime() - retentionDays * 24 * 60 * 60 * 1000).toISOString();
+	const expired = (await list()).filter((entry) => entry.deletedAt && entry.deletedAt < cutoff);
+	if (!expired.length) return 0;
+	// `purgeMany` cascades: an expired trip takes its children with it, which is
+	// the same shape of deletion the user asked for and keeps the Trash free of
+	// orphans a later purge would never reach.
+	await purgeMany(expired.map((entry) => entry.id));
+	return expired.length;
+}
+
+/**
+ * Apply the retention window from settings, if the user has set one.
+ *
+ * Called once on app start. Returns how many documents were purged, which the
+ * caller may report; a failure here must never stop the app from booting, since
+ * the documents are, by construction, ones the user already deleted.
+ */
+export async function runRetention(now: Date = new Date()): Promise<number> {
+	const days = (await settings.get()).trashRetentionDays ?? 0;
+	return purgeExpired(days, now);
 }

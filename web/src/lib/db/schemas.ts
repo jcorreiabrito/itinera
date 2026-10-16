@@ -376,7 +376,13 @@ export const settingsSchema = z
 		theme: themePrefSchema.optional(),
 		firstDayOfWeek: z.number().int().optional(),
 		language: z.string().optional(),
-		cartoApiKey: z.string().optional()
+		cartoApiKey: z.string().optional(),
+		/**
+		 * Days a deleted document is kept in the Trash before it is purged for
+		 * good. `0` — the default, and what an absent field means — keeps
+		 * everything: purging is irreversible, so it stays opt-in.
+		 */
+		trashRetentionDays: z.number().int().min(0).optional()
 	})
 	.passthrough();
 export type Settings = z.infer<typeof settingsSchema>;

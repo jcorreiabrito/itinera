@@ -18,6 +18,7 @@ export interface SettingsPatch {
 	firstDayOfWeek?: number;
 	language?: string;
 	cartoApiKey?: string;
+	trashRetentionDays?: number;
 }
 
 const DEFAULTS = {
@@ -26,6 +27,8 @@ const DEFAULTS = {
 	theme: 'system' as ThemePref,
 	firstDayOfWeek: 1,
 	cartoApiKey: '',
+	// Keep deleted documents forever until the user says otherwise.
+	trashRetentionDays: 0,
 	get language() {
 		if (typeof navigator !== 'undefined' && navigator.language?.toLowerCase().startsWith('pt')) {
 			return 'pt-BR';

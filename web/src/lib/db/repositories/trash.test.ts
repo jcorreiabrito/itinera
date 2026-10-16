@@ -5,6 +5,7 @@ import { configureDb } from '../pouch';
 import { getDoc, listDeleted, softDeleteDoc } from '../base';
 import * as trash from './trash';
 import * as trips from './trips';
+import * as settings from './settings';
 import type { AnyDoc } from '../schemas';
 
 /**
@@ -251,5 +252,69 @@ describe('trash listing', () => {
 
 		const entries = await trash.list();
 		expect(entries.map((entry) => entry.id)).toEqual(['exp:T1:A', 'chk:T1:A']);
+	});
+});
+
+describe('trash retention', () => {
+	beforeEach(() => {
+		freshDb();
+		return seed();
+	});
+
+	/** Backdate a document's deletion so a retention window can reach it. */
+	async function setDeletedAt(id: string, iso: string): Promise<void> {
+		const db = (await import('../pouch')).getDb();
+		const doc = (await db.get(id)) as never as Record<string, unknown>;
+		await db.put({ ...doc, deletedAt: iso } as never);
+	}
+
+	const NOW = new Date('2026-10-16T12:00:00.000Z');
+
+	it('keeps everything when no window is set', async () => {
+		await trips.softDelete('trip:T1');
+		await setDeletedAt('trip:T1', '2020-01-01T00:00:00.000Z');
+
+		expect(await trash.purgeExpired(0, NOW)).toBe(0);
+		expect(await ids()).toHaveLength(8);
+	});
+
+	it('keeps a document that is still inside the window', async () => {
+		await trips.softDelete('trip:T1');
+		await setDeletedAt('trip:T1', '2026-10-10T00:00:00.000Z');
+
+		expect(await trash.purgeExpired(30, NOW)).toBe(0);
+		expect(await ids()).toHaveLength(8);
+	});
+
+	it('purges what is past the window, cascading for a trip', async () => {
+		await trips.softDelete('trip:T1');
+		await setDeletedAt('trip:T1', '2026-08-01T00:00:00.000Z');
+
+		expect(await trash.purgeExpired(30, NOW)).toBe(1);
+		// The trip's day was deleted with it and carries a fresh `deletedAt`, so
+		// the cascade — not the clock — is what removes it.
+		expect(await ids()).toEqual([]);
+	});
+
+	it('reads the window from settings, and does nothing without one', async () => {
+		await trips.softDelete('trip:T1');
+		await setDeletedAt('trip:T1', '2026-08-01T00:00:00.000Z');
+
+		// The settings document is created with the default: keep forever.
+		expect(await trash.runRetention(NOW)).toBe(0);
+		expect(await ids()).toHaveLength(8);
+
+		await settings.update({ trashRetentionDays: 30 });
+		expect(await trash.runRetention(NOW)).toBe(1);
+		expect(await ids()).toEqual([]);
+	});
+
+	it('treats a nonsense window as "keep"', async () => {
+		await trips.softDelete('trip:T1');
+		await setDeletedAt('trip:T1', '2020-01-01T00:00:00.000Z');
+
+		expect(await trash.purgeExpired(Number.NaN, NOW)).toBe(0);
+		expect(await trash.purgeExpired(-7, NOW)).toBe(0);
+		expect(await ids()).toHaveLength(8);
 	});
 });

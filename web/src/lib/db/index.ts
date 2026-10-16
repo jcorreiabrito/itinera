@@ -117,6 +117,7 @@ import {
 import { ensureIndexes } from './indexers';
 import { runMigrations } from './base';
 import { startSync } from './sync';
+import { runRetention } from './repositories/trash';
 
 /** Options for `@link initDb`. */
 export interface InitOptions extends DbOptions {
@@ -136,30 +137,24 @@ export interface InitOptions extends DbOptions {
  * Safe to call once at app start. Returns the local database handle.
  */
 export async function initDb(options: InitOptions = {}): Promise<Database> {
-	console.log('initDb: start bootstrap');
 	const { sync, ...dbOptions } = options;
 	if (Object.keys(dbOptions).length > 0) configureDb(dbOptions);
 
-	console.log('initDb: creating local db');
 	const db = createLocalDb();
-	console.log('initDb: local db created');
-
-	console.log('initDb: requesting storage persistence');
 	await requestPersistentStorage();
-	console.log('initDb: storage persistence done');
-
-	console.log('initDb: ensuring indexes');
 	await ensureIndexes(db);
-	console.log('initDb: indexes ensured');
-
-	console.log('initDb: running migrations');
 	await runMigrations(db);
-	console.log('initDb: migrations done');
 
-	if (sync !== false) {
-		console.log('initDb: starting sync');
-		startSync(db);
-		console.log('initDb: sync started');
-	}
+	/*
+	 * Empty the Trash of anything past the retention window, if one is set.
+	 *
+	 * Deliberately not awaited and deliberately swallowed: this is housekeeping
+	 * for documents the user already deleted, and a retention pass that fails (a
+	 * locked database, a half-written settings document) must not be the reason
+	 * the app does not start.
+	 */
+	void runRetention().catch(() => {});
+
+	if (sync !== false) startSync(db);
 	return db;
 }

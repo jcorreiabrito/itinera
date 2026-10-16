@@ -249,6 +249,8 @@ class Settings(CouchDoc):
     )
     theme: ThemePref | None = None
     first_day_of_week: int | None = Field(default=None, alias="firstDayOfWeek")
+    #: Days a deleted document is kept in the Trash; unset means "keep forever".
+    trash_retention_days: int | None = Field(default=None, alias="trashRetentionDays")
 
 
 # --- Registry + lenient parser -----------------------------------------------
