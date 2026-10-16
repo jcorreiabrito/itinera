@@ -36,8 +36,10 @@ export * from './ids';
 // --- Pure helpers (date/time, money, airports, conflict policy) -----------
 export * from './datetime';
 export * from './money';
+export * from './pace';
 export * from './airport';
 export * from './conflicts';
+export * from './feasibility';
 
 // --- Constants ------------------------------------------------------------
 export {
