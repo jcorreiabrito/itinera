@@ -5,6 +5,12 @@
 <script lang="ts">
 	import { attachments } from '$lib/db';
 	import type { Attachment } from '$lib/db';
+	import {
+		AttachmentTooLargeError,
+		MAX_ATTACHMENT_LABEL,
+		StorageQuotaError
+	} from '$lib/db/repositories/attachments';
+	import { t } from '$lib/i18n.svelte';
 	import { Paperclip, Plus } from 'lucide-svelte';
 	import { Button, toast } from '$lib/components/ui';
 	import AttachmentThumb from './AttachmentThumb.svelte';
@@ -38,8 +44,12 @@
 		onchange,
 		disabled = false,
 		accept = 'image/*,application/pdf',
-		label = 'Attachments'
+		label: labelProp
 	}: Props = $props();
+
+	/** Both call sites pass their own label (boarding passes, vouchers); this is
+	 *  the fallback, translated like every other string. */
+	const label = $derived(labelProp ?? t('attachments'));
 
 	const uid = ++nextId;
 	let fileInput = $state<HTMLInputElement>();
@@ -59,8 +69,19 @@
 				await link(att._id);
 			}
 			onchange?.();
-		} catch {
-			toast.error('Could not add that file. Please try again.');
+		} catch (err) {
+			/*
+			 * The repository tells these two apart by type, so the UI never has to
+			 * match on message text: "too large" is fixable by picking another file,
+			 * "out of storage" only by freeing space – "try again" helps with neither.
+			 */
+			if (err instanceof AttachmentTooLargeError) {
+				toast.error(t('attachment_too_large', { max: MAX_ATTACHMENT_LABEL }));
+			} else if (err instanceof StorageQuotaError) {
+				toast.error(t('storage_full_remove_files'));
+			} else {
+				toast.error(t('could_not_add_file'));
+			}
 		} finally {
 			uploading = false;
 		}
@@ -77,7 +98,7 @@
 			await attachments.remove(att._id);
 			onchange?.();
 		} catch {
-			toast.error('Could not remove that file. Please try again.');
+			toast.error(t('could_not_remove_file'));
 		}
 	}
 </script>
@@ -92,7 +113,7 @@
 			disabled={disabled || uploading}
 		>
 			<Plus class="size-4" />
-			{uploading ? 'Adding...' : 'Add file'}
+			{uploading ? t('adding_file') : t('add_file')}
 		</Button>
 	</div>
 
@@ -104,7 +125,7 @@
 		multiple
 		class="sr-only"
 		onchange={onFiles}
-		aria-label={`Add ${label.toLowerCase()}`}
+		aria-label={t('add_named', { name: label })}
 	/>
 
 	{#if items.length === 0}
@@ -112,7 +133,7 @@
 			class="rounded-md border border-dashed border-border bg-surface-sunken px-3 py-4 text-center text-xs"
 		>
 			<Paperclip class="mx-auto mb-1 size-4" />
-			No files yet. Boarding passes and vouchers are stored offline.
+			{t('no_files_yet')}
 		</p>
 	{:else}
 		<ul class="grid grid-cols-3 gap-3 sm:grid-cols-4">

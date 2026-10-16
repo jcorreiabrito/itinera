@@ -173,9 +173,26 @@ export async function moveToDay(
 	return item;
 }
 
-/** Reorder items within a day by assigning sequential `order` values. */
-export async function reorderWithinDay(orderedIds: string[]): Promise<void> {
-	await Promise.all(orderedIds.map((id, index) => patchDoc<ItineraryItem>(id, { order: index })));
+/**
+ * Trade two items' places in a day.
+ *
+ * A day is not one list but two: the all-day lane follows `order`, and the timed
+ * lane follows the clock (`buildDay`). That makes "move up" mean two different
+ * things, and the previous `reorderWithinDay(ids)` could express only the first
+ * — so on a day whose items all have distinct times, which is nearly every real
+ * day, it moved nothing. Here the two items swap whichever field decides their
+ * place: `startTime` when their times differ, `order` when they do not. A timed
+ * item moved above an untimed one hands over its time and becomes untimed, which
+ * is exactly the trade the person sees on screen.
+ *
+ * `patchDoc` rather than `update`: a move changes no cost, and `update` re-links
+ * the item's expense on every call.
+ */
+export async function swapPlacement(a: ItineraryItem, b: ItineraryItem): Promise<void> {
+	await Promise.all([
+		patchDoc<ItineraryItem>(a._id, { startTime: b.startTime, order: b.order ?? 0 }),
+		patchDoc<ItineraryItem>(b._id, { startTime: a.startTime, order: a.order ?? 0 })
+	]);
 }
 
 /** Link an item to a flight and/or reservation (shown on the timeline). */
@@ -445,6 +462,32 @@ function buildDay(date: string, data: TripData): DayTimeline {
 export async function dayTimeline(tripid: string, date: string): Promise<DayTimeline> {
 	const data = await gather(tripid);
 	return buildDay(date, data);
+}
+
+/**
+ * The item a move up/down trades places with, or `null` at the end of its lane.
+ *
+ * This is the one place that knows what "the lane" is, so the move buttons and
+ * the timeline can never disagree about what "up" means. Flights and reservations
+ * are on the timeline but are not items and cannot be reordered, so they are
+ * skipped: an item moves past the next *item*, wherever that sits in the lane.
+ *
+ * Pure, and takes the timeline the caller already rendered, so it cannot drift
+ * from what is on screen.
+ */
+export function laneNeighbour(
+	day: DayTimeline,
+	item: ItineraryItem,
+	dir: 'up' | 'down'
+): ItineraryItem | null {
+	const lane = item.allDay
+		? day.allDay
+		: day.timed
+				.filter((entry) => entry.kind === 'item' && entry.item)
+				.map((entry) => entry.item as ItineraryItem);
+	const index = lane.findIndex((other) => other._id === item._id);
+	if (index < 0) return null;
+	return lane[dir === 'up' ? index - 1 : index + 1] ?? null;
 }
 
 /** The Unscheduled bucket as a pseudo-timeline (items only). */

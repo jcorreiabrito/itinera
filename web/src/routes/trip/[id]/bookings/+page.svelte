@@ -22,11 +22,11 @@
 </svelte:head>
 
 <section aria-labelledby="bookings-heading">
-	<h1 id="bookings-heading" class="sr-only">{t('bookings')}</h1>
+	<h2 id="bookings-heading" class="sr-only">{t('bookings')}</h2>
 
 	<nav
 		class="mt-4 flex w-full rounded-lg border border-border bg-surface-sunken p-1 text-sm sm:inline-flex"
-		aria-label="Bookings type"
+		aria-label={t('bookings_type_label')}
 	>
 		<a
 			href={resolve(`/trip/${id}/bookings?tab=flights`)}

@@ -406,6 +406,7 @@ export const en = {
 
 	// Bookings
 	bookings_title: 'Bookings',
+	bookings_type_label: 'Bookings type',
 	flights_tab: 'Flights',
 	reservations_tab: 'Reservations',
 
@@ -1046,5 +1047,36 @@ export const en = {
 	keep_editing: 'Keep editing',
 
 	// Itinerary search field (trip/[id]/itinerary).
-	clear_search: 'Clear search'
+	clear_search: 'Clear search',
+
+	// Settings page auto-save note and the "Data safety" summary panel.
+	settings_autosave_hint: 'Changes are saved as you make them.',
+	data_safety_title: 'Data safety',
+	data_safety_desc: 'The short answer to "is my data safe right now?"',
+	data_safety_storage_label: 'Device storage',
+	data_safety_storage_off: 'Not persistent',
+	data_safety_storage_off_desc: 'The browser may delete it if your device runs low on space.',
+	data_safety_pending_desc: 'Changes made here that have not reached your home server yet.',
+	last_backup: 'Last backup',
+	data_safety_backup_desc: 'Your newest copy on the home server. It keeps your files too.',
+	data_safety_never: 'Never',
+
+	// Toast close button (ui/Toaster).
+	dismiss_notification: 'Dismiss notification',
+
+	/*
+	 * Attachment guardrails (attachments repository, AttachmentField,
+	 * CoverImageField). "Too large" and "out of storage" are the two failures the
+	 * user can act on, so both say what to do; anything else keeps generic retry copy.
+	 */
+	attachment_too_large: 'That file is too large. The limit is {max}.',
+	storage_full_remove_files:
+		'This device is out of storage. Remove some files or free up space, then try again.',
+	could_not_add_file: 'Could not add that file. Please try again.',
+	could_not_remove_file: 'Could not remove that file. Please try again.',
+	add_file: 'Add file',
+	adding_file: 'Adding…',
+	no_files_yet: 'No files yet. Boarding passes and vouchers are stored offline.',
+	add_named: 'Add {name}',
+	checklist_view_label: 'Checklist view'
 } satisfies Record<string, string>;

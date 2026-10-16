@@ -1,5 +1,5 @@
 <script lang="ts">
-	import { onMount } from 'svelte';
+	import { onDestroy, onMount } from 'svelte';
 	import { resolve } from '$app/paths';
 	import {
 		checklist,
@@ -18,11 +18,11 @@
 		HardDrive,
 		Pencil,
 		RefreshCw,
+		Server,
 		ShieldCheck,
 		Sparkles,
 		Star,
-		Trash2,
-		WifiOff
+		Trash2
 	} from 'lucide-svelte';
 	import {
 		Badge,
@@ -71,12 +71,20 @@
 		{ v: 6, key: 'weekday_saturday' }
 	];
 
-	let current = $state<Settings | null>(null);
+	/** The settings fields this page writes; everything else in the doc is not ours. */
+	type PageSettings = Pick<
+		Settings,
+		'homeCurrencyDefault' | 'firstDayOfWeek' | 'language' | 'cartoApiKey'
+	>;
+
 	let homeCurrency = $state('EUR');
 	let firstDayOfWeek = $state(1);
 	let language = $state<Language>('en');
 	let cartoApiKey = $state('');
-	let saving = $state(false);
+
+	/** The key as last written to the settings doc, so an unchanged field is not re-saved. */
+	let savedCartoKey = '';
+	let cartoKeyTimer: ReturnType<typeof setTimeout> | null = null;
 
 	let templates = $state<ChecklistTemplate[]>([]);
 	let renameOpen = $state(false);
@@ -152,7 +160,6 @@
 	onMount(async () => {
 		try {
 			const s = await settings.get();
-			current = s;
 			homeCurrency = s.homeCurrencyDefault ?? 'EUR';
 			firstDayOfWeek = s.firstDayOfWeek ?? 1;
 			language = (s.language as Language) ?? 'en';
@@ -161,6 +168,7 @@
 				(typeof localStorage !== 'undefined'
 					? (localStorage.getItem('itinera_carto_api_key') ?? '')
 					: '');
+			savedCartoKey = cartoApiKey.trim();
 		} catch {
 			toast.error(t('could_not_load_settings'));
 		}
@@ -176,6 +184,27 @@
 		usage != null && quota != null ? Math.min(100, Math.round((usage / quota) * 100)) : null
 	);
 
+	/*
+	 * The newest server backup, for the data-safety panel. `listBackups` documents
+	 * newest-first, but the panel is a claim about safety, so it picks the maximum
+	 * itself rather than trusting the order (and tolerating entries with no date).
+	 */
+	const lastBackup = $derived(
+		backups.reduce<BackupSummary | null>(
+			(newest, b) => (!newest || (b.createdAt ?? '') > (newest.createdAt ?? '') ? b : newest),
+			null
+		)
+	);
+
+	/*
+	 * `--` rather than "never" while the list has not loaded: offline we simply do
+	 * not know whether a backup exists, and a false "never" would be alarming.
+	 */
+	const lastBackupLabel = $derived.by(() => {
+		if (!lastBackup) return backupsLoaded ? t('data_safety_never') : '--';
+		return relativeTime(lastBackup.createdAt ?? '') || lastBackup.name;
+	});
+
 	function formatBytes(n: number | null): string {
 		if (n == null) return '--';
 		if (n < 1024) return `${n} B`;
@@ -189,26 +218,65 @@
 		return `${v.toFixed(v < 10 ? 1 : 0)} ${units[i]}`;
 	}
 
-	async function save() {
-		saving = true;
+	/**
+	 * Every field on this page is written the moment it changes, and there is no
+	 * Save button. That is deliberate. Every other settings surface already saves
+	 * on change — the Trash retention select, the template dialogs, the theme
+	 * toggle — so this page was the only place in the app where a *finished*
+	 * interaction (a currency picked out of a list) could be silently thrown away
+	 * by tapping the back arrow. It also mixed the two models: the language select
+	 * saved itself while the fields above it waited for the button, so whether an
+	 * edit survived a Back depended on which field it was in.
+	 *
+	 * `quiet` suppresses the success toast for the free-text field: it confirms
+	 * itself by staying on screen, and a toast every time typing pauses is noise.
+	 * A failure is never swallowed, in either case.
+	 */
+	async function persist(patch: Partial<PageSettings>, quiet = false): Promise<boolean> {
 		try {
-			await settings.update({
-				homeCurrencyDefault: homeCurrency,
-				firstDayOfWeek,
-				language,
-				cartoApiKey: cartoApiKey.trim()
-			});
-			if (typeof localStorage !== 'undefined') {
-				localStorage.setItem('itinera_carto_api_key', cartoApiKey.trim());
-			}
-			setLanguage(language);
-			toast.success(t('settings_saved'));
+			await settings.update(patch);
+			if (!quiet) toast.success(t('settings_saved'));
+			return true;
 		} catch {
 			toast.error(t('could_not_save_settings'));
-		} finally {
-			saving = false;
+			return false;
 		}
 	}
+
+	/** Writing per keystroke would put a document revision behind every character. */
+	const CARTO_KEY_DEBOUNCE_MS = 400;
+
+	function onCartoKeyInput(value: string) {
+		cartoApiKey = value;
+		if (cartoKeyTimer) clearTimeout(cartoKeyTimer);
+		cartoKeyTimer = setTimeout(() => {
+			cartoKeyTimer = null;
+			void saveCartoKey();
+		}, CARTO_KEY_DEBOUNCE_MS);
+	}
+
+	async function saveCartoKey() {
+		const key = cartoApiKey.trim();
+		if (key === savedCartoKey) return;
+		if (await persist({ cartoApiKey: key }, true)) {
+			savedCartoKey = key;
+			// The map reads this straight from localStorage so it can style tiles
+			// before the settings document has loaded.
+			if (typeof localStorage !== 'undefined') {
+				localStorage.setItem('itinera_carto_api_key', key);
+			}
+		}
+	}
+
+	onDestroy(() => {
+		// Navigating away inside the debounce window must not drop the edit — that
+		// is the same silent loss this page was just rid of.
+		if (cartoKeyTimer) {
+			clearTimeout(cartoKeyTimer);
+			cartoKeyTimer = null;
+			void saveCartoKey();
+		}
+	});
 
 	async function makePersistent() {
 		persisting = true;
@@ -353,7 +421,11 @@
 				<Select
 					id="settings-currency"
 					value={homeCurrency}
-					onchange={(e) => (homeCurrency = e.currentTarget.value)}
+					onchange={(e) => {
+						const value = e.currentTarget.value;
+						homeCurrency = value;
+						void persist({ homeCurrencyDefault: value });
+					}}
 				>
 					{#each currencyOptions as code (code)}
 						<option value={code}>{code}</option>
@@ -365,7 +437,11 @@
 				<Select
 					id="settings-week-start"
 					value={String(firstDayOfWeek)}
-					onchange={(e) => (firstDayOfWeek = Number(e.currentTarget.value))}
+					onchange={(e) => {
+						const value = Number(e.currentTarget.value);
+						firstDayOfWeek = value;
+						void persist({ firstDayOfWeek: value });
+					}}
 				>
 					{#each WEEK_START as day (day.v)}
 						<option value={String(day.v)}>{t(day.key)}</option>
@@ -377,15 +453,13 @@
 				<Select
 					id="settings-language"
 					value={language}
-					onchange={async (e) => {
-						language = e.currentTarget.value as Language;
-						setLanguage(language);
-						try {
-							await settings.update({ language });
-						} catch {
-							/* the language is already applied and persisted locally; the
-                 settings doc syncs when the server is reachable again */
-						}
+					onchange={(e) => {
+						const value = e.currentTarget.value as Language;
+						language = value;
+						// Applied before the write: the whole page re-renders in the new
+						// language, including the toast that confirms this change.
+						setLanguage(value);
+						void persist({ language: value });
 					}}
 				>
 					<option value="en">English</option>
@@ -400,7 +474,7 @@
 						type="text"
 						placeholder={t('carto_api_key_placeholder')}
 						value={cartoApiKey}
-						oninput={(e) => (cartoApiKey = e.currentTarget.value)}
+						oninput={(e) => onCartoKeyInput(e.currentTarget.value)}
 					/>
 				</Field>
 				<p class="mt-1.5 text-xs leading-relaxed text-ink-muted">
@@ -417,11 +491,8 @@
 			</div>
 		</div>
 
-		<div class="mt-5">
-			<Button onclick={save} disabled={saving || !current}>
-				{saving ? t('saving') : t('save')}
-			</Button>
-		</div>
+		<!-- No Save button: every field above is written as it changes. -->
+		<p class="mt-5 text-xs text-ink-muted">{t('settings_autosave_hint')}</p>
 	</section>
 
 	<!-- Data & Backups (NFR-5: data ownership). These run on the home server. -->
@@ -435,10 +506,11 @@
 		</p>
 
 		{#if online}
+			<!-- The hint says "you're online", so the icon must not be an offline one. -->
 			<div
 				class="mt-4 flex items-start gap-2 rounded-md bg-surface-sunken px-3 py-2.5 text-sm text-ink-muted [&_svg]:mt-0.5 [&_svg]:size-4 [&_svg]:shrink-0"
 			>
-				<WifiOff />
+				<Server />
 				<span>{t('online_server_hint')}</span>
 			</div>
 		{/if}
@@ -558,6 +630,56 @@
 				{t('clear_cache_force_update')}
 			</Button>
 		</div>
+	</section>
+
+	<!--
+		Data safety: the one place that answers "is my data safe right now?".
+		It makes no network call of its own — every value is already loaded above,
+		or comes from the sync store the header pill reads.
+	-->
+	<section class="mt-4 rounded-lg border border-border bg-surface p-5">
+		<div class="flex items-center gap-2">
+			<ShieldCheck class="size-4 text-primary-700" />
+			<h2 class="text-base font-semibold">{t('data_safety_title')}</h2>
+		</div>
+		<p class="mt-1 text-sm text-ink-muted">{t('data_safety_desc')}</p>
+
+		<ul class="mt-4 divide-y divide-border rounded-md border border-border">
+			<li class="px-3 py-2.5">
+				<div class="flex items-center justify-between gap-3">
+					<span class="text-sm text-ink-muted">{t('data_safety_storage_label')}</span>
+					<Badge variant={persisted ? 'primary' : 'warning'}>
+						{t(persisted ? 'persistent_storage_on' : 'data_safety_storage_off')}
+					</Badge>
+				</div>
+				<p class="mt-1 text-xs leading-relaxed text-ink-muted">
+					{t(persisted ? 'browser_wont_evict' : 'data_safety_storage_off_desc')}
+				</p>
+			</li>
+
+			<li class="px-3 py-2.5">
+				<div class="flex items-center justify-between gap-3">
+					<!-- The same count the header pill calls "pending". -->
+					<span class="text-sm text-ink-muted">{t('unsynced_changes')}</span>
+					<Badge variant={$syncStatus.pendingCount > 0 ? 'warning' : 'success'}>
+						{$syncStatus.pendingCount}
+					</Badge>
+				</div>
+				<p class="mt-1 text-xs leading-relaxed text-ink-muted">
+					{t('data_safety_pending_desc')}
+				</p>
+			</li>
+
+			<li class="px-3 py-2.5">
+				<div class="flex items-center justify-between gap-3">
+					<span class="text-sm text-ink-muted">{t('last_backup')}</span>
+					<Badge variant="neutral">{lastBackupLabel}</Badge>
+				</div>
+				<p class="mt-1 text-xs leading-relaxed text-ink-muted">
+					{backupsLoaded ? t('data_safety_backup_desc') : t('connect_see_backups')}
+				</p>
+			</li>
+		</ul>
 	</section>
 
 	<!-- Quick links to the data-ownership screens. -->

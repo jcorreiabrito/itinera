@@ -46,3 +46,28 @@ export function isCacheableResponse(url: URL, response: Response): boolean {
 	if (!response.ok) return false;
 	return CACHEABLE_HOSTS.some((host) => url.hostname === host || url.hostname.endsWith(`.${host}`));
 }
+
+/** Extensions whose content the browser will execute or apply, never read. */
+const CODE_EXTENSIONS = ['.js', '.mjs', '.css'];
+
+/**
+ * Whether a response is a rewritten document standing in for a file that is
+ * gone.
+ *
+ * The same static-host rewrite that poisoned the cache also reaches the network
+ * path: mid-deploy, a tab running the previous build asks for a chunk the
+ * server no longer has, gets `index.html` back with a 200, and the dynamic
+ * import parses a page of markup as JavaScript. "Unexpected token '<'" names
+ * the wrong problem and points at the wrong file. Handing back a failed fetch
+ * instead produces "Failed to fetch dynamically imported module", which is what
+ * a chunk-load handler — or a person reading the console — can act on.
+ *
+ * Only same-origin responses are considered: a third-party host is entitled to
+ * answer however it likes, and our own assets are the ones a rewrite can reach.
+ */
+export function isShellRewrite(url: URL, response: Response, origin: string): boolean {
+	if (url.origin !== origin) return false;
+	const path = url.pathname.toLowerCase();
+	if (!CODE_EXTENSIONS.some((extension) => path.endsWith(extension))) return false;
+	return (response.headers.get('content-type') ?? '').toLowerCase().includes('text/html');
+}

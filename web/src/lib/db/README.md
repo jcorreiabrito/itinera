@@ -61,7 +61,7 @@ Each is a namespace import: `import { trips, itinerary, ... } from '$lib/db'`.
 
 ### `itinerary`
 
-`byTrip` · `byDay` · `unscheduled` · `dayList` · `create` · `update` · `softDelete` / `restore` · `moveToDay` · `reorderWithinDay` · `link(id, {flightId})` · `addAsExpense(itemId)` · `getDay` / `setDayMeta` (TripDay title/notes) · `dayTimeline(tripId, date)` / `tripTimeline(tripId)` → merged `DayTimeline` (all-day + timed entries combining items, flight legs, reservation placements; daily to-dos; per-day cost `subtotal`).
+`byTrip` · `byDay` · `unscheduled` · `dayList` · `create` · `update` · `softDelete` / `restore` · `moveToDay` · `swapPlacement(a, b)` / `laneNeighbour(day, item, dir)` (move up/down) · `link(id, {flightId})` · `addAsExpense(itemId)` · `getDay` / `setDayMeta` (TripDay title/notes) · `dayTimeline(tripId, date)` / `tripTimeline(tripId)` → merged `DayTimeline` (all-day + timed entries combining items, flight legs, reservation placements; daily to-dos; per-day cost `subtotal`).
 
 ### `checklist`
 

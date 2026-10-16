@@ -1,5 +1,8 @@
 <script lang="ts">
-	import { onMount } from 'svelte';
+	import { onMount, untrack } from 'svelte';
+	import { pushState, replaceState } from '$app/navigation';
+	import { resolve } from '$app/paths';
+	import { page } from '$app/state';
 	import { expenses, trips } from '$lib/db';
 	import type { Expense, Trip } from '$lib/db';
 	import { Plus, Wallet } from 'lucide-svelte';
@@ -8,6 +11,14 @@
 	import { startLive } from '$lib/live';
 	import { t, type TranslationKey } from '$lib/i18n.svelte';
 	import { cn } from '$lib/utils';
+	import {
+		costsUrl,
+		onlyTextFilterChanged,
+		readCostsParams,
+		type CostsPaidFilter,
+		type CostsSort,
+		type CostsView
+	} from '$lib/utils/url-state';
 	import SummaryHeader from './SummaryHeader.svelte';
 	import QuickAdd from './QuickAdd.svelte';
 	import ByDayView from './ByDayView.svelte';
@@ -26,8 +37,6 @@
 	const shell = getTripShellContext();
 	const reloadSignal = shell.reloadSignal;
 
-	type View = 'day' | 'category' | 'list';
-
 	let loaded = $state(false);
 	let loadError = $state(false);
 	let everLoaded = false;
@@ -37,14 +46,73 @@
 	let categories = $state<expenses.CategoryBudgetRow[]>([]);
 	let explist = $state<Expense[]>([]);
 
-	let view = $state<View>('day');
-	let unpaidOnly = $state(false);
+	/*
+	 * Which view is showing, the unpaid-only toggle, the expense list's filters
+	 * and the open expense are what a reload should come back to, so the URL
+	 * carries them — read at initialisation, so the first frame is already the
+	 * linked one, and mirrored back by the effect below.
+	 *
+	 * The list's own filters live here rather than in `ListView` because they
+	 * outlive it: switching to another view unmounts the list, and its filters
+	 * must survive both that and a reload.
+	 */
+	const fromUrl = readCostsParams(page.url.searchParams);
+	let view = $state<CostsView>(fromUrl.view);
+	let unpaidOnly = $state(fromUrl.unpaidOnly);
+	let listSearch = $state(fromUrl.query);
+	let listPaid = $state<CostsPaidFilter>(fromUrl.paid);
+	let listSort = $state<CostsSort>(fromUrl.sort);
+
+	/**
+	 * The trip the URL's open expense has been applied for, if any. Reactive, not
+	 * a plain flag: the URL-sync effect keys off it, and has to wake up when the
+	 * first load finishes initialising.
+	 */
+	let initForId = $state('');
 
 	let sheetOpen = $state(false);
 	let sheetMode = $state<'create' | 'edit'>('create');
 	let sheetExpense = $state<Expense | null>(null);
 	let sheetDefaultDate = $state<string | undefined>(undefined);
 	let budgetOpen = $state(false);
+
+	/** The URL this pane owns, for the popstate guard in `onMount`. */
+	const ownPath = $derived(resolve('/trip/[id]/costs', { id: tripId }));
+
+	/**
+	 * Reopen the expense a link points at.
+	 *
+	 * A reload — a phone reclaiming the tab, a shared link — should land the user
+	 * back on the expense they were editing. An id that no longer names a live
+	 * expense is ignored; the URL-sync effect drops it from the address bar.
+	 */
+	function openExpenseByUrlId(expenseId: string) {
+		const target = explist.find((e) => e._id === expenseId);
+		if (!target) return;
+		sheetMode = 'edit';
+		sheetExpense = target;
+		sheetOpen = true;
+	}
+
+	/**
+	 * Take the view state from a query string.
+	 *
+	 * Used for Back/Forward, which move between the history entries the effect
+	 * below pushes: by the time the event fires the browser is already on the
+	 * other URL, so applying it here is what makes Back show the previous view
+	 * instead of leaving the current one on screen.
+	 */
+	function applyUrlState(params: URLSearchParams) {
+		const state = readCostsParams(params);
+		view = state.view;
+		unpaidOnly = state.unpaidOnly;
+		listSearch = state.query;
+		listPaid = state.paid;
+		listSort = state.sort;
+		if (state.expense) openExpenseByUrlId(state.expense);
+		// An edit sheet whose expense the URL no longer names was closed by Back.
+		else if (sheetMode === 'edit') sheetOpen = false;
+	}
 
 	async function loadAll(tid: string) {
 		if (!tid) return;
@@ -61,6 +129,23 @@
 			byDay = d;
 			categories = c.categories;
 			explist = list;
+
+			/*
+			 * The expense in the URL can only be resolved once the expenses are
+			 * here.
+			 *
+			 * Wrapped in `untrack` because this runs inside the load effect:
+			 * reading `page.url` — or the list `openExpenseByUrlId` scans — as a
+			 * tracked dependency would tie the fetch to state it then writes.
+			 */
+			if (initForId !== tid) {
+				untrack(() => {
+					const urlExpense = readCostsParams(page.url.searchParams).expense;
+					if (urlExpense) openExpenseByUrlId(urlExpense);
+				});
+				initForId = tid;
+			}
+
 			everLoaded = true;
 			loadError = false;
 		} catch {
@@ -76,7 +161,77 @@
 		loadAll(tid);
 	});
 
-	onMount(() => startLive(() => loadAll(tripId)));
+	/*
+	 * Keep the address bar in step with what is on screen, so a view, the filters
+	 * and the open expense can all be linked, bookmarked, shared and reloaded —
+	 * the same shape as the itinerary's effect.
+	 *
+	 * The current URL is read from `window.location`, not from `page.url`: the
+	 * latter would make this effect depend on its own writes, and the write
+	 * would then have to be idempotent to terminate.
+	 *
+	 * Typing in the list's search box only *replaces* the current entry, so a
+	 * five-letter search is not five Back presses; every other change is a
+	 * deliberate one and pushes, so Back undoes it. The first pass normalises
+	 * whatever the URL already said and replaces for the same reason.
+	 */
+	let urlNormalised = false;
+	$effect(() => {
+		const tid = tripId;
+		const nextView = view;
+		const unpaid = unpaidOnly;
+		const query = listSearch;
+		const paid = listPaid;
+		const sort = listSort;
+		// Only an *existing* expense has a URL of its own: the create sheet is a
+		// transient form with nothing yet to point at.
+		const expense = sheetOpen && sheetExpense ? sheetExpense._id : null;
+		// Nothing to mirror until the URL has been read for this trip, open
+		// expense and all.
+		if (!tid || initForId !== tid) return;
+
+		const next = costsUrl(window.location.href, {
+			view: nextView,
+			unpaidOnly: unpaid,
+			query,
+			paid,
+			sort,
+			expense
+		});
+		const current = `${window.location.pathname}${window.location.search}`;
+		if (next === current) {
+			urlNormalised = true;
+			return;
+		}
+		/*
+		 * Built from the live location rather than a route literal, so the path is
+		 * already the resolved one and `resolve()` has nothing to add.
+		 */
+		/* eslint-disable svelte/no-navigation-without-resolve */
+		if (urlNormalised && !onlyTextFilterChanged(current, next)) pushState(next, {});
+		else replaceState(next, {});
+		/* eslint-enable svelte/no-navigation-without-resolve */
+		urlNormalised = true;
+	});
+
+	onMount(() => {
+		const stopLive = startLive(() => loadAll(tripId));
+		/*
+		 * The pathname is checked before applying: a Back that leaves this page
+		 * also fires here, and copying the next page's query string onto this
+		 * pane's state would mirror it straight back into the address bar,
+		 * fighting the navigation already under way.
+		 */
+		const onPopstate = () => {
+			if (window.location.pathname !== ownPath) return;
+			applyUrlState(new URLSearchParams(window.location.search));
+		};
+		window.addEventListener('popstate', onPopstate);
+		return () => {
+			stopLive();
+			window.removeEventListener('popstate', onPopstate);
+		};
+	});
 
 	const home = $derived(summary?.homeCurrency ?? trip?.homeCurrency ?? 'EUR');
 	const hasExpenses = $derived(explist.length > 0);
@@ -113,7 +268,7 @@
 		}
 	}
 
-	const TABS: { value: View; labelKey: TranslationKey }[] = [
+	const TABS: { value: CostsView; labelKey: TranslationKey }[] = [
 		{ value: 'day', labelKey: 'by_day' },
 		{ value: 'category', labelKey: 'by_category' },
 		{ value: 'list', labelKey: 'list' }
@@ -218,11 +373,15 @@
 				{:else if view === 'category'}
 					<ByCategoryView {categories} homeCurrency={home} {summary} {unpaidOnly} />
 				{:else if view === 'list'}
+					<!-- The list's filters are bound, not its own: they live in the URL. -->
 					<ListView
 						expenses={explist}
 						homeCurrency={home}
 						{unpaidOnly}
 						travelerCount={summary.travelerCount}
+						bind:search={listSearch}
+						bind:paidFilter={listPaid}
+						bind:sort={listSort}
 						onedit={openEdit}
 						ontogglePaid={togglePaid}
 					/>

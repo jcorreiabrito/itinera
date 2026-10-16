@@ -28,8 +28,14 @@
 		children
 	}: Props = $props();
 
+	/*
+	 * `app.css` turns off `-webkit-tap-highlight-color` globally, so a pressed
+	 * row has to say so itself. `active:scale-[0.99]` is the row-sized version of
+	 * the `active:scale-95` the app's buttons already use — subtle enough not to
+	 * read as a layout shift, but unmistakable under a fingertip.
+	 */
 	const base =
-		'flex w-full items-center gap-2.5 rounded-md px-2.5 py-2 text-left text-sm font-medium transition-colors disabled:pointer-events-none disabled:opacity-50 [&_svg]:size-4 [&_svg]:shrink-0';
+		'flex w-full items-center gap-2.5 rounded-md px-2.5 py-2 text-left text-sm font-medium transition-colors active:scale-[0.99] disabled:pointer-events-none disabled:opacity-50 [&_svg]:size-4 [&_svg]:shrink-0';
 	const tones: Record<MenuItemTone, string> = {
 		default: 'text-ink hover:bg-surface-sunken',
 		danger: 'text-danger hover:bg-danger/10'

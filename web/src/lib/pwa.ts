@@ -6,7 +6,6 @@ export const needRefresh = writable(false);
 export const offlineReady = writable(false);
 
 let waitingWorker: ServiceWorker | null = null;
-let updateApplied = false;
 let reloading = false;
 
 /**
@@ -38,7 +37,7 @@ export function registerServiceWorker(): void {
 	const hadController = !!navigator.serviceWorker.controller;
 
 	navigator.serviceWorker.addEventListener('controllerchange', () => {
-		if (!hadController || updateApplied || reloading) return;
+		if (!hadController || reloading) return;
 		reloading = true;
 		location.reload();
 	});
@@ -74,12 +73,19 @@ export function registerServiceWorker(): void {
 		});
 }
 
-/** Apply a waiting update and reload once it takes control. */
+/**
+ * Apply a waiting update and reload once it takes control.
+ *
+ * The reload is the `controllerchange` handler's job, not this function's: the
+ * new worker only owns the page after it activates, and reloading before that
+ * races the swap and can hand back the old shell — which is what "the Reload
+ * button does nothing" looked like. There used to be a flag here that
+ * suppressed that handler, so nothing ever reloaded at all.
+ */
 export function applyUpdate(): void {
-	updateApplied = true;
-	if (waitingWorker) {
-		waitingWorker.postMessage('SKIP_WAITING');
-	} else {
+	if (!waitingWorker) {
 		location.reload();
+		return;
 	}
+	waitingWorker.postMessage('SKIP_WAITING');
 }

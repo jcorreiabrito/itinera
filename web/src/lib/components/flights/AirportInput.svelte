@@ -200,7 +200,7 @@
 				onkeydown={onKeydown}
 				onfocus={() => (open = query.trim().length > 0)}
 				class={cn(
-					'h-11 w-full rounded-md border bg-surface pl-9 pr-9 text-base text-ink shadow-sm transition-colors placeholder:text-ink-muted/60 focus:border-primary-600 focus:outline-none focus:ring-2 focus:ring-primary-600/30',
+					'h-11 w-full rounded-md border bg-surface pl-9 pr-9 text-base text-ink shadow-sm transition-colors placeholder:text-ink-muted focus:border-primary-600 focus:outline-none focus:ring-2 focus:ring-primary-600/30',
 					invalid ? 'border-danger' : 'border-border'
 				)}
 			/>

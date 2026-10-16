@@ -5,15 +5,25 @@
 	import type { Expense } from '$lib/db';
 	import { Input, Select } from '$lib/components/ui';
 	import { t } from '$lib/i18n.svelte';
+	import type { CostsPaidFilter, CostsSort } from '$lib/utils/url-state';
 	import { categoryLabel } from './labels';
 	import ExpenseRow from './ExpenseRow.svelte';
 
+	/*
+	 * `search`, `paidFilter` and `sort` are bindable and owned by the pane, not
+	 * kept here: they outlive this component — switching to the day or category
+	 * view unmounts the list — and they live in the URL, which is what a reload
+	 * and a shared link carry.
+	 */
 	interface Props {
 		expenses: Expense[];
 		homeCurrency: string;
 		/** Global unpaid-only master toggle (overrides the local paid filter). */
 		unpaidOnly?: boolean;
 		travelerCount?: number;
+		search?: string;
+		paidFilter?: CostsPaidFilter;
+		sort?: CostsSort;
 		onedit: (expense: Expense) => void;
 		ontogglePaid: (expense: Expense) => void;
 	}
@@ -23,13 +33,12 @@
 		homeCurrency,
 		unpaidOnly = false,
 		travelerCount = 1,
+		search = $bindable(''),
+		paidFilter = $bindable<CostsPaidFilter>('all'),
+		sort = $bindable<CostsSort>('date'),
 		onedit,
 		ontogglePaid
 	}: Props = $props();
-
-	let search = $state('');
-	let paidFilter = $state<'all' | 'paid' | 'unpaid'>('all');
-	let sort = $state<'date' | 'amount'>('date');
 
 	const homeSpent = (e: Expense) => {
 		const base = expenseAmounts(e, homeCurrency).spent ?? 0;
@@ -125,7 +134,7 @@
 			<Select
 				value={sort}
 				class="h-9 w-auto"
-				onchange={(e) => (sort = e.currentTarget.value as 'date' | 'amount')}
+				onchange={(e) => (sort = e.currentTarget.value as CostsSort)}
 			>
 				<option value="date">{t('by_date')}</option>
 				<option value="amount">{t('by_amount')}</option>

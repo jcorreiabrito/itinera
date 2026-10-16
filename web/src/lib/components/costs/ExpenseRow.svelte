@@ -37,10 +37,11 @@
 <li
 	class="flex items-stretch overflow-hidden rounded-lg border border-border bg-surface shadow-soft"
 >
+	<!-- `-webkit-tap-highlight-color` is off app-wide (app.css), so a press has to be shown deliberately. -->
 	<button
 		type="button"
 		onclick={onedit}
-		class="flex flex-1 items-center gap-3 px-3.5 py-3 text-left transition-colors hover:bg-surface-sunken/60 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary-600"
+		class="flex flex-1 items-center gap-3 px-3.5 py-3 text-left transition-colors hover:bg-surface-sunken/60 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary-600 active:scale-[0.99]"
 	>
 		<span
 			class="grid size-9 shrink-0 place-items-center rounded-full bg-primary-100 text-primary-700 [&_svg]:size-4"
@@ -120,7 +121,7 @@
 		onclick={ontogglePaid}
 		aria-pressed={paid}
 		aria-label={paid ? 'Paid – mark as unpaid' : 'Unpaid – mark as paid'}
-		class="flex w-14 shrink-0 flex-col items-center justify-center gap-0.5 border-l border-border px-1 text-[11px] font-medium transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-primary-600 [&_svg]:size-4
+		class="flex w-14 shrink-0 flex-col items-center justify-center gap-0.5 border-l border-border px-1 text-[11px] font-medium transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-primary-600 active:scale-95 [&_svg]:size-4
             {paid
 			? 'bg-success/10 text-success hover:bg-success/15'
 			: 'text-ink-muted hover:bg-surface-sunken'}"

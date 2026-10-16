@@ -273,6 +273,102 @@ class TestShapeTripPdfContext:
 
 
 
+class TestLocalisedLabels:
+    """
+    Every closed-set value the document prints (a category, a reservation kind)
+    has to read the way the screen reads it: the server PDF used to print the
+    stored value, so a pt-BR document said "food" beside otherwise Portuguese
+    text.
+    """
+
+    def test_expense_category_is_translated(self):
+        ctx = shape_trip_pdf_context([_trip(), _expense("food", actual=10)], lang="pt-BR")
+        row = next(r for r in ctx["costs"]["rows"] if r["category"] == "food")
+        assert row["label"] == "Alimentação"
+
+    def test_expense_category_defaults_to_english(self):
+        ctx = shape_trip_pdf_context([_trip(), _expense("shopping", actual=10)])
+        row = next(r for r in ctx["costs"]["rows"] if r["category"] == "shopping")
+        assert row["label"] == "Shopping"
+
+    def test_itinerary_chip_uses_the_label(self):
+        docs = [_trip(), _item("2026-06-01", "Jantar", category="food")]
+        ctx = shape_trip_pdf_context(docs, lang="pt-BR")
+        day = next(b for b in ctx["days"] if b["date"] == "2026-06-01")
+        assert day["items"][0]["category_label"] == "Alimentação"
+
+    def test_itinerary_only_category_is_labelled(self):
+        # `sightseeing` is an itinerary category no expense shares, and the
+        # shared dictionary has no `cat_*` key for it.
+        docs = [_trip(), _item("2026-06-01", "Museu", category="sightseeing")]
+        ctx = shape_trip_pdf_context(docs, lang="pt-BR")
+        day = next(b for b in ctx["days"] if b["date"] == "2026-06-01")
+        assert day["items"][0]["category_label"] == "Passeios"
+
+    def test_uncategorised_item_gets_no_chip(self):
+        docs = [_trip(), _item("2026-06-01", "Siesta")]
+        ctx = shape_trip_pdf_context(docs, lang="pt-BR")
+        day = next(b for b in ctx["days"] if b["date"] == "2026-06-01")
+        assert "category_label" not in day["items"][0]
+
+    def test_unknown_category_prints_as_itself(self):
+        # A category from a newer client must not come out blank, or as the
+        # name of a key that does not exist.
+        ctx = shape_trip_pdf_context([_trip(), _expense("misc", actual=10)], lang="pt-BR")
+        row = next(r for r in ctx["costs"]["rows"] if r["category"] == "misc")
+        assert row["label"] == "misc"
+
+    def test_expense_without_a_category_reads_as_other(self):
+        docs = [_trip(), {"_id": "exp:01", "type": "expense", "amountActual": 10}]
+        ctx = shape_trip_pdf_context(docs, lang="pt-BR")
+        assert [r["label"] for r in ctx["costs"]["rows"]] == ["Outros"]
+
+    def test_reservation_kind_is_translated(self):
+        docs = [_trip(), {"_id": "res:01", "type": "reservation", "name": "Café", "kind": "restaurant"}]
+        ctx = shape_trip_pdf_context(docs, lang="pt-BR")
+        assert ctx["reservations"][0]["kind_label"] == "Restaurante"
+
+    def test_ungrouped_checklist_item_reads_as_other(self):
+        docs = [_trip(), {"_id": "chk:01", "type": "checklistItem", "text": "Passport"}]
+        ctx = shape_trip_pdf_context(docs, lang="pt-BR")
+        assert [g["name"] for g in ctx["checklist_groups"]] == ["Outros"]
+
+    def test_named_checklist_group_is_left_as_written(self):
+        docs = [
+            _trip(),
+            {"_id": "chk:01", "type": "checklistItem", "text": "Passport", "group": "Packing"},
+        ]
+        ctx = shape_trip_pdf_context(docs, lang="pt-BR")
+        assert [g["name"] for g in ctx["checklist_groups"]] == ["Packing"]
+
+    def test_rendered_html_prints_labels_not_stored_values(self):
+        docs = [
+            _trip(),
+            _item("2026-06-01", "Jantar", category="food"),
+            _expense("food", actual=10),
+        ]
+        html_page = render_trip_html(shape_trip_pdf_context(docs, lang="pt-BR"))
+        assert "Alimentação" in html_page
+        assert 'class="cat">food<' not in html_page
+        assert "<td>food</td>" not in html_page
+
+
+class TestDocumentLanguage:
+    """`?lang=` has to reach the document itself, metadata included."""
+
+    def test_html_declares_the_requested_language(self):
+        html_page = render_trip_html(shape_trip_pdf_context([_trip()], lang="pt-BR"))
+        assert '<html lang="pt-BR">' in html_page
+
+    def test_html_defaults_to_english(self):
+        html_page = render_trip_html(shape_trip_pdf_context([_trip()]))
+        assert '<html lang="en">' in html_page
+
+    def test_document_title_uses_the_localised_placeholder(self):
+        html_page = render_trip_html(shape_trip_pdf_context([_trip({"title": None})], lang="pt-BR"))
+        assert "<title>Viagem sem título" in html_page
+
+
 class TestRenderMarkdown:
     def test_renders_lists(self):
         text = "- Natal Luz, 41ª edição\n- Acendimento das Luzes"

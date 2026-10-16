@@ -20,6 +20,7 @@
 	import { t } from '$lib/i18n.svelte';
 	import { cn } from '$lib/utils';
 	import { itineraryUrl, readItineraryParams } from '$lib/utils/url-state';
+	import { matchShortcut } from '$lib/shortcuts';
 
 	const shell = getTripShellContext();
 	const reloadSignal = shell.reloadSignal;
@@ -258,14 +259,61 @@
 		sheetItem = item;
 		sheetOpen = true;
 	}
+
+	/**
+	 * Step through the day strip, including the Ideas bucket at either end.
+	 *
+	 * The strip's own arrow keys do this while focus is on a chip; these are for
+	 * the rest of the screen, where the user has been reading an item and wants
+	 * the next day without travelling back to the strip. `wrap` is deliberately
+	 * absent — stopping at the ends says "there is no more trip this way", where
+	 * wrapping silently jumps a fortnight.
+	 */
+	function stepDay(direction: 1 | -1) {
+		if (!hasDays) return;
+		const keys: (string | null)[] = ideasCount > 0 ? [...dates, null] : dates;
+		const index = keys.findIndex((key) => key === selectedDate);
+		if (index < 0) {
+			selectedDate = keys[0] ?? null;
+			return;
+		}
+		const next = index + direction;
+		if (next < 0 || next >= keys.length) return;
+		selectedDate = keys[next];
+	}
+
+	function onShortcut(event: KeyboardEvent) {
+		// A sheet owns the keyboard while it is open: its fields are guarded by
+		// `matchShortcut`, but its buttons are not, and `n` there would stack a
+		// second sheet behind the first.
+		if (sheetOpen || !loaded) return;
+		switch (matchShortcut(event)) {
+			case 'prev-day':
+				event.preventDefault();
+				stepDay(-1);
+				break;
+			case 'next-day':
+				event.preventDefault();
+				stepDay(1);
+				break;
+			case 'new-item':
+				event.preventDefault();
+				openAdd(selectedDate);
+				break;
+			default:
+				break;
+		}
+	}
 </script>
 
+<svelte:window onkeydown={onShortcut} />
+
 <svelte:head>
-	<title>{t('itinerary')} – {trip?.title ?? 'Trip'}</title>
+	<title>{t('itinerary')} – {trip?.title?.trim() || t('untitled_trip')}</title>
 </svelte:head>
 
 <section aria-labelledby="itinerary-heading" class="pb-28">
-	<h1 id="itinerary-heading" class="sr-only">{t('itinerary')}</h1>
+	<h2 id="itinerary-heading" class="sr-only">{t('itinerary')}</h2>
 
 	{#if !loaded}
 		<div class="space-y-4">
@@ -497,6 +545,7 @@
 		type="button"
 		onclick={() => openAdd()}
 		aria-label={t('add_activity')}
+		aria-keyshortcuts="n"
 		class="fixed bottom-[calc(4.5rem+env(safe-area-inset-bottom,0px))] right-4 z-40 inline-flex h-14 items-center gap-2 rounded-full bg-primary-600 px-5 text-base font-medium text-white shadow-card transition-colors hover:bg-primary-700 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary-600 focus-visible:ring-offset-2 focus-visible:ring-offset-bg lg:bottom-8 [&_svg]:size-5"
 	>
 		<Plus />

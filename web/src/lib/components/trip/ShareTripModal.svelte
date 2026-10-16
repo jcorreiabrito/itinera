@@ -4,7 +4,7 @@
 	import Button from '$lib/components/ui/Button.svelte';
 	import type { Trip } from '$lib/db';
 	import { getApiUrl } from '$lib/api';
-	import { t } from '$lib/i18n.svelte';
+	import { getLanguage, t } from '$lib/i18n.svelte';
 	import { copyToClipboard } from '$lib/utils/clipboard';
 	import { Printer, ExternalLink } from 'lucide-svelte';
 
@@ -22,10 +22,18 @@
 	 *
 	 * Both used to be presented as "the PDF", so an offline user clicked a link
 	 * that could not resolve and had no way to tell why.
+	 *
+	 * `?lang=` is part of the link, not an afterthought. The server renders the
+	 * document and has no other way to know this device's language, so without
+	 * it a pt-BR user copied a link to an English PDF. Pinning the *sender's*
+	 * language also makes the link stable: whoever opens it sees the same
+	 * document, whatever their own browser is set to.
 	 */
 	let shareUrl = $derived(
 		typeof window !== 'undefined'
-			? `${window.location.origin}${getApiUrl(`/trips/${encodeURIComponent(trip._id)}/print.pdf`)}`
+			? `${window.location.origin}${getApiUrl(
+					`/trips/${encodeURIComponent(trip._id)}/print.pdf?lang=${encodeURIComponent(getLanguage())}`
+				)}`
 			: ''
 	);
 

@@ -4,7 +4,7 @@
 /// <reference lib="webworker" />
 
 import { build, files, version } from '$service-worker';
-import { isCacheableResponse, shouldBypass } from '$lib/sw-policy';
+import { isCacheableResponse, isShellRewrite, shouldBypass } from '$lib/sw-policy';
 
 const sw = self as unknown as ServiceWorkerGlobalScope;
 
@@ -112,6 +112,13 @@ sw.addEventListener('fetch', (event) => {
 			// `isCacheableResponse` for why a same-origin response must not be.
 			try {
 				const response = await fetch(request);
+				// A rewritten document must not be handed to a script or a
+				// stylesheet — see `isShellRewrite`.
+				if (isShellRewrite(url, response, location.origin)) {
+					const cached = await cache.match(request);
+					if (cached) return cached;
+					return Response.error();
+				}
 				if (isCacheableResponse(url, response)) {
 					cache.put(request, response.clone());
 				}

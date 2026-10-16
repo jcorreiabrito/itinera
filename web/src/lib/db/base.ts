@@ -62,9 +62,26 @@ export async function getDoc<T extends AnyDoc>(
 	}
 }
 
+/**
+ * True for the objects {@link stripUndefined} may safely rebuild from their own
+ * keys.
+ *
+ * A `Blob`, a `File`, a `Date` or a `Uint8Array` all arrive at the same
+ * `typeof value === 'object'` branch, and rebuilding any of them out of
+ * `Object.entries` destroys it: a Blob has no enumerable own properties, so an
+ * attachment's bytes left this function as `{}` and PouchDB's FileReader then
+ * refused them — which meant `attachments.create()` could not store anything at
+ * all. Only plain objects are walked; everything else is passed by reference.
+ */
+function isPlainObject(value: object): boolean {
+	const proto = Object.getPrototypeOf(value) as object | null;
+	return proto === Object.prototype || proto === null;
+}
+
 function stripUndefined<T>(obj: T): T {
 	if (obj === null || typeof obj !== 'object') return obj;
 	if (Array.isArray(obj)) return obj.map(stripUndefined) as unknown as T;
+	if (!isPlainObject(obj)) return obj;
 	const result: Record<string, unknown> = {};
 	for (const [key, value] of Object.entries(obj as Record<string, unknown>)) {
 		if (value !== undefined) {

@@ -3,6 +3,11 @@
 
 <script lang="ts">
 	import { attachments, fullTripid, trips } from '$lib/db';
+	import {
+		AttachmentTooLargeError,
+		MAX_ATTACHMENT_LABEL,
+		StorageQuotaError
+	} from '$lib/db/repositories/attachments';
 	import { ImagePlus, Loader2, Trash2 } from 'lucide-svelte';
 	import { Button, toast } from '$lib/components/ui';
 	import { t } from '$lib/i18n.svelte';
@@ -49,8 +54,19 @@
 			localAttId = att._id;
 			onchange(att._id);
 			toast.success(t('cover_photo_updated'));
-		} catch {
-			toast.error(t('could_not_upload_image'));
+		} catch (err) {
+			/*
+			 * Typed failures, not message text: an oversized photo is the user's to fix
+			 * by picking another one, a full device only by freeing space — and neither
+			 * is helped by the generic "try another" copy.
+			 */
+			if (err instanceof AttachmentTooLargeError) {
+				toast.error(t('attachment_too_large', { max: MAX_ATTACHMENT_LABEL }));
+			} else if (err instanceof StorageQuotaError) {
+				toast.error(t('storage_full_remove_files'));
+			} else {
+				toast.error(t('could_not_upload_image'));
+			}
 		} finally {
 			uploading = false;
 			if (inputEl) inputEl.value = '';

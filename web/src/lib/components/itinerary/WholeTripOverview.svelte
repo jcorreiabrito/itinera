@@ -256,9 +256,17 @@
 	});
 </script>
 
+<!--
+	The floor must never out-rank the ceiling. A flat `min-h-[450px]` beat the
+	`max-h` on any viewport under 650px tall, so the grid overflowed the page
+	instead of scrolling inside it; clamping the floor to the same viewport
+	budget lets the max apply at every size. `overscroll-y-auto` is deliberate,
+	not a leftover: the vertical axis has to keep chaining to the page once the
+	grid's own scroll is exhausted, or the grid traps the swipe.
+-->
 <div
 	bind:this={gridScrollContainer}
-	class="relative max-h-[calc(100vh-200px)] min-h-[450px] w-full animate-fade-in select-none snap-x snap-mandatory overflow-auto overscroll-x-contain scroll-smooth rounded-xl border border-border bg-surface shadow-card lg:max-h-[calc(100vh-250px)]"
+	class="relative max-h-[calc(100vh-200px)] min-h-[min(450px,calc(100vh-200px))] w-full animate-fade-in select-none snap-x snap-mandatory overflow-auto overscroll-y-auto overscroll-x-contain scroll-smooth rounded-xl border border-border bg-surface shadow-card lg:max-h-[calc(100vh-250px)] lg:min-h-[min(450px,calc(100vh-250px))]"
 >
 	<div class="flex min-w-max flex-col">
 		<!-- Row 1: Sticky Header row containing day titles, to-dos and costs -->

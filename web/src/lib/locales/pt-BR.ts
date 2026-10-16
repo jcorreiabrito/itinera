@@ -405,6 +405,7 @@ export const ptBR: Record<string, string> = {
 
 	// Bookings
 	bookings_title: 'Reservas e Voos',
+	bookings_type_label: 'Tipo de reserva',
 	flights_tab: 'Voos',
 	reservations_tab: 'Reservas',
 
@@ -1056,5 +1057,36 @@ export const ptBR: Record<string, string> = {
 	keep_editing: 'Continuar editando',
 
 	// Itinerary search field (trip/[id]/itinerary).
-	clear_search: 'Limpar busca'
+	clear_search: 'Limpar busca',
+
+	// Settings page auto-save note and the "Data safety" summary panel.
+	settings_autosave_hint: 'As alterações são salvas conforme você as faz.',
+	data_safety_title: 'Segurança dos dados',
+	data_safety_desc: 'A resposta curta para "meus dados estão seguros agora?"',
+	data_safety_storage_label: 'Armazenamento no aparelho',
+	data_safety_storage_off: 'Não persistente',
+	data_safety_storage_off_desc: 'O navegador pode apagá-lo se o espaço do aparelho ficar apertado.',
+	data_safety_pending_desc: 'Alterações feitas aqui que ainda não chegaram ao seu servidor.',
+	last_backup: 'Último backup',
+	data_safety_backup_desc: 'Sua cópia mais recente no servidor. Ela também guarda seus arquivos.',
+	data_safety_never: 'Nunca',
+
+	// Toast close button (ui/Toaster).
+	dismiss_notification: 'Fechar notificação',
+
+	/*
+	 * Attachment guardrails (attachments repository, AttachmentField,
+	 * CoverImageField). "Too large" and "out of storage" are the two failures the
+	 * user can act on, so both say what to do; anything else keeps generic retry copy.
+	 */
+	attachment_too_large: 'Esse arquivo é grande demais. O limite é {max}.',
+	storage_full_remove_files:
+		'O armazenamento deste aparelho está cheio. Remova alguns arquivos ou libere espaço e tente novamente.',
+	could_not_add_file: 'Não foi possível adicionar esse arquivo. Tente novamente.',
+	could_not_remove_file: 'Não foi possível remover esse arquivo. Tente novamente.',
+	add_file: 'Adicionar arquivo',
+	adding_file: 'Adicionando…',
+	no_files_yet: 'Nenhum arquivo ainda. Cartões de embarque e vouchers ficam salvos offline.',
+	add_named: 'Adicionar {name}',
+	checklist_view_label: 'Visualização da checklist'
 };

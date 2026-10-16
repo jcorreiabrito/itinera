@@ -9,6 +9,18 @@
  * This is the only module (besides `sync.ts`) that pulls in the PouchDB runtime.
  * Pure logic modules avoid importing it so they stay unit-testable even where
  * `pouchdb-browser` cannot be installed.
+ *
+ * **Why it is still a static import (audit C4, accepted).** Measured on the
+ * 2026-10-16 build: this module's chunk is 504 KB raw / 153 KB gzip, the largest
+ * single file the app ships. Deferring it behind a dynamic `import()` was
+ * considered and rejected: the home screen's first content *is* the trip list, so
+ * the database is needed before anything can be rendered, and the shell would
+ * paint a skeleton and then wait the same wall-clock time for the same bytes.
+ * The one route that *could* have won from lazy loading was the map, and it
+ * already had — SvelteKit gives every route its own chunk, so Leaflet's ~300 KB
+ * was never on the trip list. Measured: the itinerary route chunk contains
+ * Leaflet whether `TripMap` is imported statically or through `import()`, and
+ * making it dynamic moved gzipped JS 500.4 KB → 501.2 KB. Reverted.
  */
 
 import PouchDBBrowser from 'pouchdb-browser';

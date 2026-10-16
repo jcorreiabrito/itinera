@@ -118,7 +118,7 @@
 				aria-label={t('activity_actions')}
 				aria-haspopup="true"
 				aria-expanded={open}
-				class="grid size-11 min-h-[44px] min-w-[44px] shrink-0 place-items-center rounded-md text-ink-muted transition-colors hover:bg-surface-sunken hover:text-ink sm:size-9 sm:min-h-0 sm:min-w-0 [&_svg]:size-5 sm:[&_svg]:size-4"
+				class="grid size-11 min-h-[44px] min-w-[44px] shrink-0 place-items-center rounded-md text-ink-muted transition-colors hover:bg-surface-sunken hover:text-ink active:scale-95 sm:size-9 sm:min-h-0 sm:min-w-0 [&_svg]:size-5 sm:[&_svg]:size-4"
 			>
 				<MoreVertical />
 			</button>
@@ -155,6 +155,7 @@
 		>
 			<Icon />
 		</span>
+		<!-- `-webkit-tap-highlight-color` is off app-wide (app.css), so the card shows its own press. -->
 		<!-- svelte-ignore a11y_click_events_have_key_events -->
 		<!-- svelte-ignore a11y_no_static_element_interactions -->
 		<div
@@ -162,7 +163,7 @@
 				if ((e.target as HTMLElement)?.closest('button, a')) return;
 				onedit(item);
 			}}
-			class="min-w-0 flex-1 cursor-pointer rounded-lg border border-border bg-surface p-3 shadow-soft transition-colors hover:border-primary-600/40"
+			class="min-w-0 flex-1 cursor-pointer rounded-lg border border-border bg-surface p-3 shadow-soft transition-colors hover:border-primary-600/40 active:scale-[0.99]"
 		>
 			<div class="flex items-start justify-between gap-2">
 				<div class="min-w-0 flex-1">
@@ -278,7 +279,7 @@
 		</span>
 		<a
 			href={links.flights}
-			class="group min-w-0 flex-1 rounded-lg border border-border bg-surface-sunken p-3 transition-colors hover:bg-surface"
+			class="group min-w-0 flex-1 rounded-lg border border-border bg-surface-sunken p-3 transition-colors hover:bg-surface active:scale-[0.99]"
 		>
 			<div class="flex items-center gap-2">
 				<div class="min-w-0 flex-1">
@@ -340,7 +341,7 @@
 		<a
 			href={links.reservations}
 			class={cn(
-				'group min-w-0 flex-1 rounded-lg border border-border p-3 transition-colors',
+				'group min-w-0 flex-1 rounded-lg border border-border p-3 transition-colors active:scale-[0.99]',
 				staying ? 'bg-transparent hover:bg-surface-sunken' : 'bg-surface-sunken hover:bg-surface'
 			)}
 		>

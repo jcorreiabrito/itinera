@@ -132,12 +132,13 @@
 
 <section class="rounded-lg border border-border bg-surface">
 	<div class="flex items-center gap-2 px-2 pr-3">
+		<!-- `-webkit-tap-highlight-color` is off app-wide (app.css), so the row shows its own press. -->
 		<button
 			type="button"
 			onclick={() => (open = !open)}
 			aria-expanded={open}
 			aria-controls={panelId}
-			class="flex min-h-touch flex-1 items-center gap-2.5 rounded-md px-1.5 py-2 text-left"
+			class="flex min-h-touch flex-1 items-center gap-2.5 rounded-md px-1.5 py-2 text-left active:scale-[0.99]"
 		>
 			<ChevronDown
 				class={cn('size-4 shrink-0 text-ink-muted transition-transform', !open && '-rotate-90')}
@@ -162,7 +163,7 @@
 				onclick={checkAll}
 				aria-label={t('check_all_in_group', { group: group.group })}
 				title={t('check_all')}
-				class="grid size-9 shrink-0 place-items-center rounded-md text-ink-muted transition-colors hover:bg-surface-sunken"
+				class="grid size-9 shrink-0 place-items-center rounded-md text-ink-muted transition-colors hover:bg-surface-sunken active:scale-95"
 			>
 				<CheckCheck />
 			</button>

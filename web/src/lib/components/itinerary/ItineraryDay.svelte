@@ -84,9 +84,9 @@
 	const todosDone = $derived(day.todos.filter((t) => t.done).length);
 	let todosOpen = $state(true);
 
-	// The merged timeline does not sort the all-day lane by `order` for dated days,
-	// so sort it here to keep "move up/down" visibly consistent.
-	const allDayItems = $derived([...day.allDay].sort((a, b) => (a.order ?? 0) - (b.order ?? 0)));
+	// Already in `order` sequence: `buildDay` sorts the all-day lane, and
+	// `laneNeighbour` reads that same array to decide what "up" means.
+	const allDayItems = $derived(day.allDay);
 
 	// --- Day title + notes editor ----------------------------------------------
 	let metaOpen = $state(false);
@@ -132,43 +132,18 @@
 	}
 
 	// --- Reorder (accessible move up/down) ------------------------------------
-	function dayItemIds(): string[] {
-		const ids: string[] = [];
-		for (const id of allDayItems) ids.push(id._id);
-		for (const entry of day.timed)
-			if (entry.kind === 'item' && entry.item) ids.push(entry.item._id);
-		return ids;
-	}
-
-	function siblingIds(item: ItineraryItem): string[] {
-		if (item.allDay) return allDayItems.map((i) => i._id);
-		const items = day.timed
-			.filter((e) => e.kind === 'item' && e.item)
-			.map((e) => e.item as ItineraryItem);
-		// Reordering is only meaningful within a start-time group, so an
-		// untimed item compares against the other untimed items.
-		return items.filter((i) => i.startTime === item.startTime).map((i) => i._id);
-	}
+	// Which item is "next" is `laneNeighbour`'s call, not this component's, so the
+	// buttons and the lane the user is looking at cannot disagree.
 
 	function canMove(item: ItineraryItem, dir: 'up' | 'down'): boolean {
-		const sib = siblingIds(item);
-		const i = sib.indexOf(item._id);
-		if (i < 0) return false;
-		return dir === 'up' ? i > 0 : i < sib.length - 1;
+		return itinerary.laneNeighbour(day, item, dir) !== null;
 	}
 
 	async function move(item: ItineraryItem, dir: 'up' | 'down') {
-		const sib = siblingIds(item);
-		const i = sib.indexOf(item._id);
-		const j = dir === 'up' ? i - 1 : i + 1;
-		if (j < 0 || j >= sib.length) return;
-		const all = dayItemIds();
-		const ai = all.indexOf(sib[i]);
-		const aj = all.indexOf(sib[j]);
-		if (ai < 0 || aj < 0) return;
-		[all[ai], all[aj]] = [all[aj], all[ai]];
+		const other = itinerary.laneNeighbour(day, item, dir);
+		if (!other) return;
 		try {
-			await itinerary.reorderWithinDay(all);
+			await itinerary.swapPlacement(item, other);
 			onchanged();
 		} catch {
 			toast.error(t('could_not_reorder'));

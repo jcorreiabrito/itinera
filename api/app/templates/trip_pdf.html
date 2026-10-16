@@ -2,7 +2,7 @@
 <html lang="{{ lang }}">
 <head>
     <meta charset="utf-8" />
-    <title>{{ trip.title or i18n.untitled_trip }} – Itinera</title>
+    <title>{{ i18n.doc_title.format(title=trip.title or i18n.untitled_trip) }}</title>
     <style>
         {{ font_face_css | safe }}
 
@@ -462,7 +462,7 @@
                         </div>
                         <div>
                             <span class="title">{{ it.title or i18n.untitled }}</span>
-                            {% if it.category %}<span class="cat">{{ it.category }}</span>{% endif %}
+                            {% if it.category_label %}<span class="cat">{{ it.category_label }}</span>{% endif %}
                             {% if it.formatted_cost %}<span class="cat" style="background: #e6f4ea; color: #1e7e34; font-weight: 600;">{{ it.formatted_cost }}{% if it.formatted_cost_pp %} ({{ it.formatted_cost_pp }}/{{ i18n.per_person }}){% endif %}</span>{% endif %}
                             {% if it.location and it.location.name %}<div class="where">{{ it.location.name }}</div>{% endif %}
                             {% if it.notes %}<div class="note">{{ it.notes | markdown | safe }}</div>{% endif %}
@@ -511,7 +511,7 @@
         {% if reservations %}
             {% for r in reservations %}
             <div class="card">
-                <div class="head">{{ r.name or i18n.reservation }}{% if r.kind %} <span class="cat">{{ r.kind }}</span>{% endif %}</div>
+                <div class="head">{{ r.name or i18n.reservation }}{% if r.kind_label %} <span class="cat">{{ r.kind_label }}</span>{% endif %}</div>
                 <div class="sub">
                     {% if r.location and r.location.name %}{{ r.location.name }}{% endif %}
                     {% if r.start %} • {{ r.start }}{% if r.end %} → {{ r.end }}{% endif %}{% endif %}
@@ -559,7 +559,7 @@
             <tbody>
                 {% for row in costs.rows %}
                 <tr>
-                    <td>{{ row.category }}</td>
+                    <td>{{ row.label }}</td>
                     <td class="num">{{ row.estimate or "—" }}</td>
                     <td class="num">{{ row.actual or "—" }}</td>
                 </tr>

@@ -5,13 +5,17 @@
  * `$lib/db`; this module reaches the FastAPI service (proxied by Caddy under
  * `/api`), permitted by the `connect-src 'self'` CSP purely for the
  * data-ownership features that genuinely need the home server: JSON / PDF
- * exports and server-side backups (`docs/14-roadmap.md`, NFR-5).
+ * exports and server-side backups (`docs/14-roadmap.md`, NFR-5). Because the
+ * server renders the PDF, the language this device is showing travels on the
+ * request itself — read from `$lib/i18n.svelte`, never re-derived here.
  *
  * These calls REQUIRE connectivity. Callers should gate the relevant controls
  * with `@link apiReachable` (and the `$syncStatus` store) and surface failures
  * with a toast + retry – every function here rejects with an `@link ApiError`
  * rather than throwing opaque network errors, and never crashes the app.
  */
+
+import { getLanguage, type Language } from '$lib/i18n.svelte';
 
 export const API_BASE = '/api/v1';
 
@@ -124,10 +128,22 @@ export function downloadAllExport(): Promise<void> {
 	return downloadFrom(`/export/all.json`, 'itinera-export.json');
 }
 
-/** Download a trip's printable PDF. */
-export function downloadTripPdf(tripid: string): Promise<void> {
+/**
+ * Download a trip's printable PDF, in the language the app is showing.
+ *
+ * The document is rendered on the server, which cannot see this device's
+ * language setting, so the language has to travel with the request — without
+ * `?lang=`, a pt-BR user downloaded an English PDF. Defaulting to
+ * `getLanguage()` rather than taking the language from each caller keeps
+ * `$lib/i18n.svelte` the single source of truth and means a call site added
+ * later cannot forget it.
+ */
+export function downloadTripPdf(tripid: string, lang: Language = getLanguage()): Promise<void> {
 	const slug = encodeURIComponent(tripid);
-	return downloadFrom(`/trips/${slug}/print.pdf`, `itinera-${tripid.replace(/:/g, '-')}.pdf`);
+	return downloadFrom(
+		`/trips/${slug}/print.pdf?lang=${encodeURIComponent(lang)}`,
+		`itinera-${tripid.replace(/:/g, '-')}.pdf`
+	);
 }
 
 /** Read JSON from `/api`, normalising failures to `@link ApiError`. */

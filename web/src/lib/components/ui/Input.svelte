@@ -44,7 +44,12 @@
 	bind:value
 	aria-invalid={invalid || undefined}
 	class={cn(
-		'h-11 min-h-[44px] w-full rounded-md border bg-surface px-3 text-base text-ink shadow-sm transition-colors placeholder:text-ink-muted/60 focus:border-primary-600 focus:outline-none focus:ring-2 focus:ring-primary-600/30 disabled:cursor-not-allowed disabled:opacity-60 sm:h-9 sm:min-h-0 sm:text-sm',
+		/*
+		 * Placeholder at full `ink-muted`: the 60% alpha it used to carry
+		 * measured 2.50:1 on the light surface and 3.45:1 on the dark one, both
+		 * under the 4.5:1 WCAG 1.4.3 floor. The solid token is 5.62:1 / 7.10:1.
+		 */
+		'h-11 min-h-[44px] w-full rounded-md border bg-surface px-3 text-base text-ink shadow-sm transition-colors placeholder:text-ink-muted focus:border-primary-600 focus:outline-none focus:ring-2 focus:ring-primary-600/30 disabled:cursor-not-allowed disabled:opacity-60 sm:h-9 sm:min-h-0 sm:text-sm',
 		invalid ? 'border-danger' : 'border-border',
 		className
 	)}

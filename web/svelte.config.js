@@ -23,11 +23,18 @@ const config = {
 		serviceWorker: {
 			register: false
 		},
-		// Strict CSP for the installable PWA. The static adapter cannot mint per-request
-		// nonces, so `mode: 'hash'` embeds stable hashes of SvelteKit's inline hydration
-		// bootstrap into a `meta http-equiv="content-security-policy"` in the prerendered
-		// shell/fallback – satisfying `script-src 'self'` WITHOUT `unsafe-inline`.
-		// Caddy stops sending a content CSP header, so this <meta> is the single source of truth.
+		// CSP for the installable PWA, emitted as a `<meta http-equiv>` in the
+		// built shell (`build/index.html`). Caddy sends no CSP header, so that
+		// <meta> is the single source of truth. `mode: 'hash'` is what a static
+		// adapter can do — there is no server to mint a per-request nonce.
+		//
+		// `unsafe-inline` is in both `script-src` and `style-src` on purpose:
+		// the pre-paint theme/language script in `src/app.html` runs before
+		// `%sveltekit.head%`, reads localStorage and must not flash, so it
+		// cannot be an external module; and Tailwind's inline `style` attributes
+		// (map sizes, progress bars) plus Leaflet's runtime styles need the
+		// style half. Read the emitted `<meta>` — not this comment and not the
+		// `mode` — as the statement of what the policy actually allows.
 		csp: {
 			mode: 'hash',
 			directives: {

@@ -118,7 +118,7 @@
 </script>
 
 <svelte:head>
-	<title>{tripWD?.title ?? 'Trip'} – Itinera</title>
+	<title>{tripWD?.title?.trim() || t('untitled_trip')} – Itinera</title>
 </svelte:head>
 
 {#if !loaded}

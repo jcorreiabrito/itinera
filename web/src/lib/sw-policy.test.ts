@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { isCacheableResponse, shouldBypass } from './sw-policy';
+import { isCacheableResponse, isShellRewrite, shouldBypass } from './sw-policy';
 
 /**
  * Two rules the service worker gets wrong quietly. Bypassing the wrong path
@@ -99,5 +99,41 @@ describe('isCacheableResponse', () => {
 				new Response('', { status: 500 })
 			)
 		).toBe(false);
+	});
+});
+
+describe('isShellRewrite', () => {
+	const html = () => ok('<!doctype html>', 'text/html; charset=utf-8');
+
+	it('catches a chunk request answered with the shell', () => {
+		// Mid-deploy: the previous build's chunk is gone and the host rewrites the
+		// path to index.html. The import must fail as a fetch, not parse markup.
+		expect(isShellRewrite(url('/_app/immutable/chunks/BozSl6Mm.js'), html(), ORIGIN)).toBe(true);
+		expect(isShellRewrite(url('/_app/immutable/entry/start.mjs'), html(), ORIGIN)).toBe(true);
+		expect(isShellRewrite(url('/_app/immutable/assets/app.css'), html(), ORIGIN)).toBe(true);
+	});
+
+	it('ignores a content type that carries no charset or has odd casing', () => {
+		expect(isShellRewrite(url('/x.js'), ok('', 'TEXT/HTML'), ORIGIN)).toBe(true);
+	});
+
+	it('leaves a real script alone', () => {
+		expect(isShellRewrite(url('/x.js'), ok('export{}', 'text/javascript'), ORIGIN)).toBe(false);
+		expect(isShellRewrite(url('/x.css'), ok('a{}', 'text/css'), ORIGIN)).toBe(false);
+	});
+
+	it('does not treat a missing script as a rewrite', () => {
+		// A plain 404 is the honest answer and must pass through unchanged.
+		expect(isShellRewrite(url('/x.js'), new Response('', { status: 404 }), ORIGIN)).toBe(false);
+	});
+
+	it('does not police a document request', () => {
+		// A navigation legitimately receives HTML; that is the app working.
+		expect(isShellRewrite(url('/trip/abc/itinerary'), html(), ORIGIN)).toBe(false);
+		expect(isShellRewrite(url('/'), html(), ORIGIN)).toBe(false);
+	});
+
+	it('does not police another origin', () => {
+		expect(isShellRewrite(url('https://cdn.example/x.js'), html(), ORIGIN)).toBe(false);
 	});
 });

@@ -10,8 +10,7 @@ import Sheet from './Sheet.svelte';
  * testing the button covers the routing and these tests cover the decision.
  */
 
-const text = (value: string) =>
-	createRawSnippet(() => ({ render: () => `<span>${value}</span>` }));
+const text = (value: string) => createRawSnippet(() => ({ render: () => `<span>${value}</span>` }));
 
 function open(props: Record<string, unknown> = {}) {
 	return render(Sheet, {

@@ -685,7 +685,7 @@
 						rows="10"
 						spellcheck="false"
 						autocomplete="off"
-						class="w-full resize-none rounded-md border border-border bg-surface p-3 font-mono text-xs text-ink transition-[box-shadow] placeholder:text-ink-muted/60 focus:border-primary-600 focus:outline-none focus:ring-2 focus:ring-primary-600/30 {pasteText.trim() &&
+						class="w-full resize-none rounded-md border border-border bg-surface p-3 font-mono text-xs text-ink transition-[box-shadow] placeholder:text-ink-muted focus:border-primary-600 focus:outline-none focus:ring-2 focus:ring-primary-600/30 {pasteText.trim() &&
 						pasteJsonError
 							? 'border-destructive ring-1 ring-destructive/30'
 							: ''}"></textarea>

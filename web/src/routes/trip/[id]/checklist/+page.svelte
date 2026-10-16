@@ -1,5 +1,7 @@
 <script lang="ts">
-	import { onMount } from 'svelte';
+	import { onMount, untrack } from 'svelte';
+	import { pushState, replaceState } from '$app/navigation';
+	import { resolve } from '$app/paths';
 	import { page } from '$app/state';
 	import { checklist, trash, trips } from '$lib/db';
 	import type { ChecklistItem, Trip } from '$lib/db';
@@ -60,12 +62,11 @@
 	import { getTripShellContext } from '$lib/trip-context';
 	import { startLive } from '$lib/live';
 	import { cn } from '$lib/utils';
+	import { checklistUrl, readChecklistParams, type ChecklistView } from '$lib/utils/url-state';
 
 	const shell = getTripShellContext();
 	const reloadSignal = shell.reloadSignal;
 	const id = $derived(page.params.id ?? '');
-
-	type View = 'group' | 'day' | 'buy';
 
 	let loaded = $state(false);
 	let loadError = $state(false);
@@ -81,8 +82,23 @@
 	});
 	let dates = $state<string[]>([]);
 
-	let view = $state<View>('group');
-	let hideCompleted = $state(false);
+	/*
+	 * Which view is on screen and whether completed items are hidden are part of
+	 * "what the user is looking at", so the URL carries them: a shared or
+	 * bookmarked link opens the same view, and a reload does not drop the user
+	 * back on the default one. Read at initialisation rather than in an effect,
+	 * so the first frame is already the linked view.
+	 */
+	const fromUrl = readChecklistParams(page.url.searchParams);
+	let view = $state<ChecklistView>(fromUrl.view);
+	let hideCompleted = $state(fromUrl.hideCompleted);
+
+	/**
+	 * The trip the URL's open item has been applied for, if any. Reactive, not a
+	 * plain flag: the URL-sync effect below keys off it, and has to wake up when
+	 * the first load for a trip finishes initialising.
+	 */
+	let initForId = $state('');
 
 	// Sheets & dialogs.
 	let itemSheetOpen = $state(false);
@@ -98,12 +114,55 @@
 
 	const customGroups = $derived(groupView.map((g) => g.group));
 
-	async function loadAll(tripId: string) {
+	/** The URL this page owns, for the popstate guard in `onMount`. */
+	const ownPath = $derived(resolve('/trip/[id]/checklist', { id }));
+
+	/**
+	 * Reopen the item a link points at.
+	 *
+	 * A reload — a phone reclaiming the tab, a shared link — should land the user
+	 * back on the item they were editing. An id that no longer names a live item
+	 * is ignored; the URL-sync effect drops it from the address bar on its first
+	 * pass.
+	 *
+	 * Resolved against the loaded views rather than a fresh read: `groupView`
+	 * hides completed items when the filter is on, but `byDay` and `toBuy` are
+	 * unfiltered, so the item is usually found even then.
+	 */
+	function openItemByUrlId(itemId: string) {
+		const target =
+			groupView.flatMap((g) => g.items).find((i) => i._id === itemId) ??
+			dayView.flatMap((d) => d.items).find((i) => i._id === itemId) ??
+			buyItems.find((i) => i._id === itemId);
+		if (!target) return;
+		activeItem = target;
+		itemSheetMode = 'edit';
+		itemSheetOpen = true;
+	}
+
+	/**
+	 * Take the view state from a query string.
+	 *
+	 * Used for Back/Forward, which move between the history entries the effect
+	 * below pushes: by the time the event fires the browser is already on the
+	 * other URL, so applying it here is what makes Back show the previous view
+	 * instead of leaving the current one on screen.
+	 */
+	function applyUrlState(params: URLSearchParams) {
+		const state = readChecklistParams(params);
+		view = state.view;
+		hideCompleted = state.hideCompleted;
+		if (state.item) openItemByUrlId(state.item);
+		// An edit sheet whose item the URL no longer names was closed by Back.
+		else if (itemSheetMode === 'edit') itemSheetOpen = false;
+	}
+
+	async function loadAll(tripId: string, hide = hideCompleted) {
 		if (!tripId) return;
 		try {
 			const [t, gv, dv, bi, prg] = await Promise.all([
 				trips.get(tripId),
-				checklist.groups(tripId, { hideCompleted }),
+				checklist.groups(tripId, { hideCompleted: hide }),
 				checklist.byDay(tripId),
 				checklist.toBuy(tripId),
 				checklist.progress(tripId)
@@ -119,6 +178,22 @@
 			} else {
 				dates = [];
 			}
+
+			/*
+			 * The item in the URL can only be resolved once the items are here.
+			 *
+			 * Wrapped in `untrack` because this runs inside the load effect:
+			 * reading `page.url` — or the views `openItemByUrlId` scans — as a
+			 * tracked dependency would tie the fetch to state it then writes.
+			 */
+			if (initForId !== tripId) {
+				untrack(() => {
+					const urlItem = readChecklistParams(page.url.searchParams).item;
+					if (urlItem) openItemByUrlId(urlItem);
+				});
+				initForId = tripId;
+			}
+
 			everLoaded = true;
 			loadError = false;
 		} catch (e) {
@@ -129,20 +204,89 @@
 		}
 	}
 
+	/*
+	 * One load per navigation. The trip id and the shell's reload signal are the
+	 * triggers, plus the hide-completed filter — an argument to
+	 * `checklist.groups`, not a client-side filter, so changing it needs the
+	 * refetch.
+	 *
+	 * This used to be two effects, the second calling `loadAll` again once an
+	 * `everLoaded` flag the first one set was true: a second fetch per
+	 * navigation, and a trap for whoever next made that flag reactive. One
+	 * effect, with every trigger read in its own body, is the whole fix.
+	 */
 	$effect(() => {
 		const tid = id;
 		void $reloadSignal;
-		loadAll(tid);
+		loadAll(tid, hideCompleted);
 	});
 
-	// Reload when hideCompleted changes
+	/*
+	 * Keep the address bar in step with what is on screen, so a view, the
+	 * hide-completed filter and the open item can all be linked, bookmarked,
+	 * shared and reloaded — the same shape as the itinerary's effect.
+	 *
+	 * The current URL is read from `window.location`, not from `page.url`: the
+	 * latter would make this effect depend on its own writes, and the write
+	 * would then have to be idempotent to terminate.
+	 *
+	 * A change *pushes* a history entry rather than replacing the current one,
+	 * because Back is how a user undoes a filter they did not mean. The first
+	 * pass replaces instead: it only normalises whatever the URL already said
+	 * (a hand-edited view, an item that has since been deleted), which is not a
+	 * user action and must not become a Back press of its own.
+	 */
+	let urlNormalised = false;
 	$effect(() => {
-		if (everLoaded) {
-			loadAll(id);
+		const tid = id;
+		const nextView = view;
+		const hide = hideCompleted;
+		// Only an *existing* item has a URL of its own: the create sheet is a
+		// transient form with nothing yet to point at.
+		const item = itemSheetOpen && activeItem ? activeItem._id : null;
+		// Nothing to mirror until the URL has been read for *this* trip, open
+		// item and all.
+		if (!tid || initForId !== tid) return;
+
+		const next = checklistUrl(window.location.href, {
+			view: nextView,
+			hideCompleted: hide,
+			item
+		});
+		const current = `${window.location.pathname}${window.location.search}`;
+		if (next === current) {
+			urlNormalised = true;
+			return;
 		}
+		/*
+		 * Built from the live location rather than a route literal, so the path is
+		 * already the resolved one and `resolve()` has nothing to add.
+		 */
+		/* eslint-disable svelte/no-navigation-without-resolve */
+		if (urlNormalised) pushState(next, {});
+		else replaceState(next, {});
+		/* eslint-enable svelte/no-navigation-without-resolve */
+		urlNormalised = true;
 	});
 
-	onMount(() => startLive(() => loadAll(page.params.id ?? '')));
+	onMount(() => {
+		const stopLive = startLive(() => loadAll(page.params.id ?? ''));
+		/*
+		 * The pathname is checked before applying: a Back that leaves this page
+		 * also fires here, and copying the next page's query string onto this
+		 * page's state would mirror it straight back into the address bar,
+		 * fighting the navigation already under way.
+		 */
+		const onPopstate = () => {
+			if (window.location.pathname !== ownPath) return;
+			applyUrlState(new URLSearchParams(window.location.search));
+		};
+		window.addEventListener('popstate', onPopstate);
+		return () => {
+			stopLive();
+			window.removeEventListener('popstate', onPopstate);
+		};
+	});
 
 	function retry() {
 		loadError = false;
@@ -262,7 +406,7 @@
 </script>
 
 <svelte:head>
-	<title>Checklist – Itinera</title>
+	<title>{t('checklist')} – Itinera</title>
 </svelte:head>
 
 {#if !loaded}
@@ -280,7 +424,7 @@
 		<div class="flex flex-wrap items-center justify-between gap-3 border-b border-border/60 pb-4">
 			<nav
 				class="inline-flex rounded-lg border border-border bg-surface-sunken p-1 text-sm"
-				aria-label="Checklist view"
+				aria-label={t('checklist_view_label')}
 			>
 				<button type="button" class={segClass(view === 'group')} onclick={() => (view = 'group')}>
 					{t('groups')}

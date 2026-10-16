@@ -535,8 +535,16 @@
 	</div>
 
 	{#if !isCollapsed}
+		<!--
+			The inline map is viewport-clamped: a flat 20rem is over 80% of a phone
+			held in landscape. `min()` keeps it at exactly 20rem on any desktop
+			viewport (45dvh only binds below ~711px of height). The expanded path is
+			left alone — it is `fixed inset-4` and fills through `flex-1`.
+		-->
 		<div
-			class={`relative w-full ${isExpanded ? 'flex-1' : 'h-80'} flex flex-col bg-surface-sunken`}
+			class={`relative w-full ${
+				isExpanded ? 'flex-1' : 'h-[min(20rem,45dvh)]'
+			} flex flex-col bg-surface-sunken`}
 		>
 			<div
 				bind:this={mapContainer}

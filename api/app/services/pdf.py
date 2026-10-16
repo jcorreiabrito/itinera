@@ -151,6 +151,52 @@ def _money(amount: float | None, ccy: str, lang: str = "en") -> str | None:
     return f"-{text}" if amount < 0 else text
 
 
+# Labels for the values that live in a closed set — an itinerary item's or an
+# expense's `category`, a reservation's `kind`. The screens label these through
+# `t('cat_food')` &c.; the shared dictionary (`app/i18n.py`) already carries a
+# `cat_*` key for most of them, and the ones it has no key for are here, next to
+# the template that prints them. Keep this in step with
+# `web/src/lib/components/itinerary/categories.ts`, `costs/labels.ts` and
+# `reservations/kinds.ts`: the paper and the screen using different words for
+# the same category is the bug this table exists to prevent.
+EXTRA_TERM_LABELS: dict[str, dict[str, str]] = {
+    "en": {
+        "sightseeing": "Sightseeing",
+        "activity": "Activity",
+        "free": "Free time",
+        "car": "Car rental",
+        "restaurant": "Restaurant",
+    },
+    "pt-BR": {
+        "sightseeing": "Passeios",
+        "activity": "Atividade",
+        "free": "Tempo livre",
+        "car": "Aluguel de carro",
+        "restaurant": "Restaurante",
+    },
+}
+
+
+def _term_label(value: Any, lang: str, i18n_dict: dict[str, str]) -> str:
+    """
+    The label a stored category/kind prints as, in the document's language.
+
+    Resolution order: the shared dictionary's `cat_<value>` key first, because
+    that is where the screens' labels live and where a new category should get
+    one; then `EXTRA_TERM_LABELS`, for the closed-set values with no key there;
+    then the stored value itself, so a category written by a newer client prints
+    as itself rather than as an empty chip or the key name.
+
+    An empty value reads as the localised "Other" — the same word the costs
+    rollup uses for an expense with no category.
+    """
+    raw = str(value).strip() if value is not None and value != "" else ""
+    if not raw:
+        return i18n_dict["other"]
+    key = raw.lower()
+    return i18n_dict.get(f"cat_{key}") or EXTRA_TERM_LABELS.get(lang, {}).get(key) or raw
+
+
 def _inline(raw: str) -> str:
     t = html.escape(raw)
 
@@ -337,6 +383,11 @@ def shape_trip_pdf_context(
         by_day.setdefault(item.get("date") or "__unscheduled__", []).append(item)
     for day_items in by_day.values():
         day_items.sort(key=lambda x: (x.get("order") or 0, x.get("startTime") or ""))
+        for item in day_items:
+            # Labelled only where there IS a category: falling through to the
+            # "Other" default would put a chip on every uncategorised item.
+            if item.get("category"):
+                item["category_label"] = _term_label(item["category"], effective_lang, i18n_dict)
 
     ordered = _date_range(trip.get("startDate"), trip.get("endDate"))
     seen = set(ordered)
@@ -357,12 +408,20 @@ def shape_trip_pdf_context(
     # --- Flights & reservations ---
     flights = sorted(_active("flight"), key=lambda x: x.get("order") or 0)
     reservations = sorted(_active("reservation"), key=lambda x: x.get("order") or 0)
+    for res in reservations:
+        # `kind` is an enum, not user text: the template used to print the
+        # stored value, so a Portuguese document said "restaurant".
+        if res.get("kind"):
+            res["kind_label"] = _term_label(res["kind"], effective_lang, i18n_dict)
 
     # --- Checklist grouped ---
     checklist = _active("checklistItem")
     groups: dict[str, list[dict[str, Any]]] = {}
     for citem in checklist:
-        groups.setdefault(citem.get("group") or "Other", []).append(citem)
+        # The group name is the user's own text and stays as written; only the
+        # fallback for an ungrouped item is translated — it used to be the
+        # English word "Other", which a pt-BR checklist printed verbatim.
+        groups.setdefault(citem.get("group") or i18n_dict["other"], []).append(citem)
     checklist_groups = []
     for name in sorted(groups):
         rows = sorted(groups[name], key=lambda x: (x.get("order") or 0))
@@ -401,7 +460,10 @@ def shape_trip_pdf_context(
     budget_total = (trip.get("budget") or {}).get("total")
     cost_rows = [
         {
+            # `category` stays the raw rollup key (it is what the table sorts
+            # and groups by); `label` is what the document prints.
             "category": cat,
+            "label": _term_label(cat, effective_lang, i18n_dict),
             "estimate": _money(vals["estimate"], home_ccy, effective_lang),
             "actual": _money(vals["actual"], home_ccy, effective_lang),
         }
@@ -691,6 +753,10 @@ async def build_trip_pdf(
         raise TripNotFound(trip_id)
     context = shape_trip_pdf_context(docs, lang=lang)
     pdf_bytes = html_to_pdf(render_trip_html(context))
+    # The filename deliberately does not carry the language: it names the trip,
+    # and the language already travels in the `?lang=` the caller asked with, in
+    # the document's own `/Lang` and in the `<html lang>` a screen reader
+    # follows. A `-pt-BR` suffix would only outlive the download in a folder.
     title = (context["trip"].get("title") or "trip").strip().lower().replace(" ", "-")
     safe_title = "".join(ch for ch in title if ch.isalnum() or ch in "-_") or "trip"
     return pdf_bytes, f"itinera-{safe_title}.pdf"

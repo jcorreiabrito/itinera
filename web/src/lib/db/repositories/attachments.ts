@@ -5,7 +5,10 @@
  * bytes in CouchDB `_attachments`, so large binaries replicate for offline
  * viewing without forcing frequently-edited docs to re-sync (see
  * `docs/05-offline-and-sync.md`). Large images are **client-resized** before
- * save: covers get both a `full` (~1600px) and `thumb` (~480px) blob.
+ * save: covers get both a `full` (~1600px) and `thumb` (~480px) blob. Everything
+ * is capped at {@link MAX_ATTACHMENT_BYTES}, and a write the browser rejects for
+ * want of room comes back as {@link StorageQuotaError} – the two failures the UI
+ * must explain rather than swallow.
  *
  * Bytes are read back as object URLs for offline viewing. Because a `blob:` URL
  * inherits the app origin, the **view path coerces the URL's MIME** to the
@@ -28,6 +31,96 @@ export const COVER_FULL_EDGE = 1600;
 export const COVER_THUMB_EDGE = 480;
 /** Skip resizing images already smaller than this many bytes. */
 const RESIZE_BYTE_THRESHOLD = 200_000;
+
+/**
+ * Hard ceiling on one attachment's bytes, enforced *before* anything reads them.
+ *
+ * 25 MB is chosen for what this app actually stores – photos and boarding-pass
+ * PDFs, not video. Images above {@link RESIZE_BYTE_THRESHOLD} are downscaled
+ * client-side, so no legitimate photo comes near it; a huge JPEG or PNG is
+ * shrunk long before the write. What does come near it (a phone video, a RAW
+ * file) is exactly what must be refused: the local database shares one origin
+ * quota with the whole app, so a single 200 MB blob would consume it, make
+ * every *other* write and the background sync fail, and the failure would
+ * surface only after the bytes had been read into memory.
+ *
+ * `Blob.size` is metadata, so the check is free.
+ */
+export const MAX_ATTACHMENT_BYTES = 25 * 1024 * 1024;
+
+/**
+ * {@link MAX_ATTACHMENT_BYTES} pre-formatted for user-facing copy ("25 MB").
+ *
+ * The app's one byte formatter is `formatBytes` in `src/routes/settings/+page.svelte`,
+ * private to that page, so the label is derived from the constant here instead
+ * of duplicated as a literal in each locale file: it matches that formatter's
+ * output for this value (whole megabytes) and can never drift from the cap the
+ * guard enforces.
+ */
+export const MAX_ATTACHMENT_LABEL = `${MAX_ATTACHMENT_BYTES / (1024 * 1024)} MB`;
+
+/** A file the caller tried to attach that is over {@link MAX_ATTACHMENT_BYTES}. */
+export class AttachmentTooLargeError extends Error {
+	/** Size of the rejected file, in bytes. */
+	readonly size: number;
+	/** The limit that rejected it (always {@link MAX_ATTACHMENT_BYTES}). */
+	readonly maxBytes: number;
+
+	constructor(size: number, maxBytes: number = MAX_ATTACHMENT_BYTES) {
+		super(`attachment is ${size} bytes; the limit is ${maxBytes}`);
+		this.name = 'AttachmentTooLargeError';
+		this.size = size;
+		this.maxBytes = maxBytes;
+	}
+}
+
+/**
+ * The origin's storage is full: the browser refused the write, so nothing was
+ * saved and retrying the same file cannot succeed until space is freed.
+ */
+export class StorageQuotaError extends Error {
+	constructor(cause?: unknown) {
+		super('local storage quota exceeded', { cause });
+		this.name = 'StorageQuotaError';
+	}
+}
+
+/**
+ * Whether a storage failure means "this device is out of room".
+ *
+ * Every engine words it differently: Chromium and Firefox throw a DOMException
+ * named `QuotaExceededError` (legacy code 22), Firefox's older storage stack
+ * reports `NS_ERROR_DOM_QUOTA_REACHED` (code 1014), and the exception can cross
+ * a realm boundary where `instanceof` is useless – so it is matched by name
+ * **or** by code. Getting this wrong only hurts in one direction: a quota
+ * failure misread as generic loses the one error the user can actually act on.
+ */
+export function isQuotaExceededError(err: unknown): boolean {
+	const { name, code } = (err ?? {}) as { name?: unknown; code?: unknown };
+	if (
+		typeof name === 'string' &&
+		(name === 'QuotaExceededError' || name === 'NS_ERROR_DOM_QUOTA_REACHED')
+	) {
+		return true;
+	}
+	return typeof code === 'number' && (code === 22 || code === 1014);
+}
+
+/**
+ * Map a failed write to the error a caller should see: a {@link StorageQuotaError}
+ * when the browser refused it for lack of space, otherwise the original error
+ * untouched. Anything unrecognised must stay as it was – reporting a schema or
+ * conflict failure as a full disk would send the user off to delete files that
+ * were never the problem.
+ */
+export function toStorageError(err: unknown): unknown {
+	return isQuotaExceededError(err) ? new StorageQuotaError(err) : err;
+}
+
+/** {@link toStorageError}, as a `catch` block tail: always throws, never returns. */
+function rethrowStorageError(err: unknown): never {
+	throw toStorageError(err);
+}
 
 /** Input for creating an attachment. */
 export interface NewAttachmentInput {
@@ -115,8 +208,19 @@ async function prepareBlobs(
  * Create an attachment document with its bytes inline in `_attachments`.
  * Images larger than the threshold are resized into `full`+`thumb` blobs; other
  * files are stored as a single `file` blob.
+ *
+ * Rejects with {@link AttachmentTooLargeError} before reading anything when the
+ * file is over {@link MAX_ATTACHMENT_BYTES}, and with {@link StorageQuotaError}
+ * when the browser refuses the write because the origin is out of storage – two
+ * failures a caller can tell apart from any other, and can explain to the user.
  */
 export async function create(input: NewAttachmentInput): Promise<Attachment> {
+	// Checked first, and from metadata: resize/encode below would decode the
+	// whole file into memory, and a refusal should cost neither memory nor time.
+	if (input.file.size > MAX_ATTACHMENT_BYTES) {
+		throw new AttachmentTooLargeError(input.file.size);
+	}
+
 	const mime = input.mime ?? input.file.type ?? 'application/octet-stream';
 	const filename = input.filename ?? (input.file instanceof File ? input.file.name : 'attachment');
 	const blobs = await prepareBlobs(input.file, mime, input.resizeImages ?? true);
@@ -139,7 +243,13 @@ export async function create(input: NewAttachmentInput): Promise<Attachment> {
 		ownerId: input.ownerId,
 		_attachments
 	};
-	return createDoc<Attachment>(doc as unknown as Parameters<typeof createDoc<Attachment>>[0]);
+	try {
+		return await createDoc<Attachment>(
+			doc as unknown as Parameters<typeof createDoc<Attachment>>[0]
+		);
+	} catch (err) {
+		rethrowStorageError(err);
+	}
 }
 
 /** Fetch an attachment document (metadata; bytes are loaded via {@link objectUrl}). */

@@ -1,7 +1,8 @@
 <script lang="ts">
 	import { onMount } from 'svelte';
-	import { goto } from '$app/navigation';
+	import { goto, pushState, replaceState } from '$app/navigation';
 	import { resolve } from '$app/paths';
+	import { page } from '$app/state';
 	import { bareTripUid, settings, trips } from '$lib/db';
 	import type { Trip } from '$lib/db';
 	import { t, type TranslationKey } from '$lib/i18n.svelte';
@@ -31,6 +32,12 @@
 	import { DuplicateTripSheet, NewTripSheet, TripCard, TripFormSheet } from '$lib/components/trip';
 	import ItineraLogo from '$lib/components/brand/ItineraLogo.svelte';
 	import { startLive } from '$lib/live';
+	import {
+		onlyTextFilterChanged,
+		readTripsParams,
+		tripsUrl,
+		type TripsFilter
+	} from '$lib/utils/url-state';
 
 	let sectionsData = $state<trips.TripSections | null>(null);
 	let loading = $state(true);
@@ -40,10 +47,19 @@
 	 * app told the user they had no trips when it simply could not read them.
 	 */
 	let loadError = $state(false);
-	let search = $state('');
-	let filterTab = $state<'all' | 'confirmed' | 'planning'>('all');
+	/*
+	 * The search box and the stage filter decide which trips the page shows, so
+	 * they live in the query string: a reload, a shared link or Back into this
+	 * page has to bring back the list you were looking at. Read once, at
+	 * initialisation, so the first frame is already the linked one.
+	 */
+	const fromUrl = readTripsParams(page.url.searchParams);
+	let search = $state(fromUrl.query);
+	let filterTab = $state<TripsFilter>(fromUrl.filter);
 	let reloadKey = $state(0);
 	let defaultCurrency = $state('EUR');
+	// A disclosure inside one section, not a filter over the list: left out of the
+	// URL, where it would only add noise to every shared link.
 	let archiveOpen = $state(false);
 
 	let conflictOpen = $state(false);
@@ -55,6 +71,58 @@
 	let dupTrip = $state<Trip | null>(null);
 	let deleteOpen = $state(false);
 	let deleteTrip = $state<Trip | null>(null);
+
+	/** The URL this page owns, for the popstate guard in `onMount`. */
+	const ownPath = resolve('/');
+
+	/**
+	 * Take the filter state from a query string.
+	 *
+	 * Used for Back/Forward, which move between the history entries the effect
+	 * below pushes: by the time the event fires the browser is already on the
+	 * other URL, so applying it here is what makes Back show the previous filter
+	 * instead of leaving the current one on screen.
+	 */
+	function applyUrlState(params: URLSearchParams) {
+		const state = readTripsParams(params);
+		search = state.query;
+		filterTab = state.filter;
+	}
+
+	/*
+	 * Keep the address bar in step with what is on screen, so a search, a stage
+	 * filter and the list they produce can be linked, bookmarked, shared and
+	 * reloaded — the same shape as the itinerary's effect.
+	 *
+	 * The current URL is read from `window.location`, not from `page.url`: the
+	 * latter would make this effect depend on its own writes, and the write
+	 * would then have to be idempotent to terminate.
+	 *
+	 * Typing in the search box only *replaces* the current entry, so a
+	 * five-letter search is not five Back presses; the stage filter is a
+	 * deliberate act that pushes, so Back undoes it. The first pass normalises
+	 * whatever the URL already said and replaces, for the same reason.
+	 */
+	let urlNormalised = false;
+	$effect(() => {
+		const nextQuery = search;
+		const nextFilter = filterTab;
+		const next = tripsUrl(window.location.href, { query: nextQuery, filter: nextFilter });
+		const current = `${window.location.pathname}${window.location.search}`;
+		if (next === current) {
+			urlNormalised = true;
+			return;
+		}
+		/*
+		 * Built from the live location rather than a route literal, so the path is
+		 * already the resolved one and `resolve()` has nothing to add.
+		 */
+		/* eslint-disable svelte/no-navigation-without-resolve */
+		if (urlNormalised && !onlyTextFilterChanged(current, next)) pushState(next, {});
+		else replaceState(next, {});
+		/* eslint-enable svelte/no-navigation-without-resolve */
+		urlNormalised = true;
+	});
 
 	async function load() {
 		loadError = false;
@@ -79,7 +147,22 @@
 			.get()
 			.then((s) => (defaultCurrency = s.homeCurrencyDefault ?? 'EUR'))
 			.catch(() => {});
-		return startLive(reload);
+		const stopLive = startLive(reload);
+		/*
+		 * The pathname is checked before applying: a Back that leaves this page
+		 * also fires here, and copying the next page's query string onto this
+		 * page's state would mirror it straight back into the address bar,
+		 * fighting the navigation already under way.
+		 */
+		const onPopstate = () => {
+			if (window.location.pathname !== ownPath) return;
+			applyUrlState(new URLSearchParams(window.location.search));
+		};
+		window.addEventListener('popstate', onPopstate);
+		return () => {
+			stopLive();
+			window.removeEventListener('popstate', onPopstate);
+		};
 	});
 
 	function matches(trip: trips.TripWithDerived, query: string): boolean {
@@ -288,7 +371,7 @@
 					oninput={(e) => (search = e.currentTarget.value)}
 					placeholder={t('search_placeholder')}
 					aria-label={t('search_placeholder')}
-					class="glass-input w-full rounded-md pl-9 pr-3 text-base text-ink transition-[box-shadow] duration-150 placeholder:text-ink-muted/60 focus:border-primary-600 focus:outline-none focus:ring-2 focus:ring-primary-600/30"
+					class="glass-input w-full rounded-md pl-9 pr-3 text-base text-ink transition-[box-shadow] duration-150 placeholder:text-ink-muted focus:border-primary-600 focus:outline-none focus:ring-2 focus:ring-primary-600/30"
 				/>
 			</div>
 

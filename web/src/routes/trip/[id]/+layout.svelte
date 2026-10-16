@@ -11,6 +11,7 @@
 	import { AlertTriangle, ArrowLeft, MapPinned, Pencil, RotateCw, Share2 } from 'lucide-svelte';
 	import type { IconComponent } from '$lib/types';
 	import { TRIP_MOBILE_TABS, TRIP_SECTIONS } from '$lib/trip-sections';
+	import { formatDateRange } from '$lib/format';
 	import { TripDataMenu, TripFormSheet } from '$lib/components/trip';
 	import { setTripShellContext } from '$lib/trip-context';
 	import { startLive } from '$lib/live';
@@ -193,6 +194,28 @@
 				{/if}
 			</div>
 		</header>
+
+		<!--
+			The sheet's own title, for paper only.
+
+			On screen the trip title lives in the shell header above, which is
+			`.no-print` — so a browser print (Ctrl+P) from any trip screen produced
+			pages with no indication of which trip they belonged to. This is the
+			document title on paper, and the route's section heading follows it as
+			an `<h2>` so the printed outline has exactly one `<h1>`.
+		-->
+		{#if loaded && trip}
+			<header class="hidden px-4 pt-4 sm:px-6 print:block">
+				<h1 class="font-serif text-2xl font-semibold leading-tight">
+					{trip.title?.trim() || t('untitled_trip')}
+				</h1>
+				{#if formatDateRange(trip.startDate, trip.endDate)}
+					<p class="mt-1 text-sm text-ink-muted">
+						{formatDateRange(trip.startDate, trip.endDate)}
+					</p>
+				{/if}
+			</header>
+		{/if}
 
 		<main
 			id="page-content"
