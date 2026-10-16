@@ -24,6 +24,7 @@ export const PARAM_DATE = 'date';
 export const PARAM_VIEW = 'view';
 export const PARAM_QUERY = 'q';
 export const PARAM_CATEGORY = 'cat';
+export const PARAM_ITEM = 'item';
 
 /** The part of the itinerary view state that survives a page load. */
 export interface ItineraryViewState {
@@ -35,6 +36,8 @@ export interface ItineraryViewState {
 	query: string;
 	/** Category filter, `DEFAULT_CATEGORY` when unfiltered. */
 	category: string;
+	/** The itinerary item whose sheet is open, or `null` when none is. */
+	item: string | null;
 }
 
 /**
@@ -61,7 +64,10 @@ export function readItineraryParams(
 		date,
 		overview: params.get(PARAM_VIEW) === 'overview',
 		query: params.get(PARAM_QUERY) ?? '',
-		category: params.get(PARAM_CATEGORY) ?? DEFAULT_CATEGORY
+		category: params.get(PARAM_CATEGORY) ?? DEFAULT_CATEGORY,
+		// Not validated here: whether the id names a live item is a question for
+		// the data, and the caller that can answer it drops the parameter.
+		item: params.get(PARAM_ITEM)
 	};
 }
 
@@ -85,6 +91,9 @@ export function applyItineraryParams(params: URLSearchParams, state: ItineraryVi
 	if (state.category && state.category !== DEFAULT_CATEGORY)
 		params.set(PARAM_CATEGORY, state.category);
 	else params.delete(PARAM_CATEGORY);
+
+	if (state.item) params.set(PARAM_ITEM, state.item);
+	else params.delete(PARAM_ITEM);
 }
 
 /** The itinerary URL for a view state, given the current one. */

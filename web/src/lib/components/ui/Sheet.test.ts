@@ -27,8 +27,10 @@ function open(props: Record<string, unknown> = {}) {
 const closeButton = (container: HTMLElement) =>
 	container.querySelector<HTMLButtonElement>('button[aria-label="Close"]')!;
 
+// `Array.from`, not a spread: `NodeList` is only iterable under `dom.iterable`,
+// which this project's `lib` does not include.
 const buttonByText = (container: HTMLElement, label: string) =>
-	[...container.querySelectorAll('button')].find((b) => b.textContent?.trim() === label);
+	Array.from(container.querySelectorAll('button')).find((b) => b.textContent?.trim() === label);
 
 describe('Sheet close confirmation', () => {
 	it('closes straight away when nothing is dirty', async () => {

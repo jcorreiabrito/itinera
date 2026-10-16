@@ -51,15 +51,31 @@
 
 	/** Apply the URL's view state once, when a trip is first shown. */
 	function initSelection(tl: NonNullable<typeof timeline>) {
-		const view = readItineraryParams(
-			page.url.searchParams,
-			tl.days.map((d) => d.date as string),
-			today
-		);
+		const days = tl.days.map((d) => d.date as string);
+		const view = readItineraryParams(page.url.searchParams, days, today);
 		selectedDate = view.date;
 		viewMode = view.overview ? 'overview' : 'day';
 		itinerarySearch = view.query;
 		itineraryCategory = view.category;
+		if (view.item) openByUrlId(view.item, days);
+	}
+
+	/**
+	 * Reopen the item a link points at.
+	 *
+	 * A reload — a phone reclaiming the tab, a shared link — should land the user
+	 * back on the item they were editing, with the day it belongs to behind it.
+	 * An id that no longer names a live item is ignored; the URL-sync effect drops
+	 * it from the address bar on its first pass.
+	 */
+	function openByUrlId(itemId: string, days: string[]) {
+		const target = allTripItems.find((item) => item._id === itemId);
+		if (!target) return;
+		const date = target.date ?? null;
+		if (date && days.includes(date)) selectedDate = date;
+		sheetMode = 'edit';
+		sheetItem = target;
+		sheetOpen = true;
 	}
 
 	async function loadAll(tid: string) {
@@ -177,9 +193,12 @@
 		const overview = viewMode === 'overview';
 		const query = itinerarySearch;
 		const category = itineraryCategory;
+		// Only an *existing* item has a URL of its own: the create sheet is a
+		// transient form with nothing yet to point at.
+		const item = sheetOpen && sheetItem ? sheetItem._id : null;
 		// Nothing to mirror until the URL has been read for *this* trip.
 		if (!tid || initForId !== tid) return;
-		const next = itineraryUrl(window.location.href, { date, overview, query, category });
+		const next = itineraryUrl(window.location.href, { date, overview, query, category, item });
 		const current = `${window.location.pathname}${window.location.search}`;
 		// Built from the live location rather than a route literal, so the path is
 		// already the resolved one and `resolve()` has nothing to add — the same

@@ -16,6 +16,7 @@ const state = (over: Partial<ItineraryViewState> = {}): ItineraryViewState => ({
 	overview: false,
 	query: '',
 	category: DEFAULT_CATEGORY,
+	item: null,
 	...over
 });
 
@@ -62,6 +63,14 @@ describe('readItineraryParams', () => {
 		expect(view.overview).toBe(false);
 		expect(view.query).toBe('');
 		expect(view.category).toBe(DEFAULT_CATEGORY);
+		expect(view.item).toBeNull();
+	});
+
+	it('reads the open item, without judging whether it still exists', () => {
+		// The id is checked against the trip's items by the caller, which is the
+		// only place that knows; a stale one is then dropped from the URL.
+		const view = readItineraryParams(new URLSearchParams('?item=itin:T1:A'), DAYS, TODAY);
+		expect(view.item).toBe('itin:T1:A');
 	});
 
 	it('treats an unknown view value as the day view', () => {
@@ -110,6 +119,15 @@ describe('applyItineraryParams', () => {
 		expect(params.has('q')).toBe(false);
 	});
 
+	it('writes the open item and clears it again', () => {
+		const params = new URLSearchParams();
+		applyItineraryParams(params, state({ item: 'itin:T1:A' }));
+		expect(params.get('item')).toBe('itin:T1:A');
+
+		applyItineraryParams(params, state());
+		expect(params.has('item')).toBe(false);
+	});
+
 	it('leaves unrelated parameters alone', () => {
 		const params = new URLSearchParams('?from=share&date=2026-11-02');
 		applyItineraryParams(params, state({ date: '2026-11-04' }));
@@ -119,7 +137,13 @@ describe('applyItineraryParams', () => {
 
 describe('round trip', () => {
 	it('reads back exactly what was written', () => {
-		const written = state({ date: null, overview: true, query: 'museum', category: 'culture' });
+		const written = state({
+			date: null,
+			overview: true,
+			query: 'museum',
+			category: 'culture',
+			item: 'itin:T1:A'
+		});
 		const params = new URLSearchParams();
 		applyItineraryParams(params, written);
 		expect(readItineraryParams(params, DAYS, TODAY)).toEqual(written);
