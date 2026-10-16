@@ -17,6 +17,7 @@
 	import { prepareTripUpdateDiff, executeTripUpdate, type TripUpdateDiff } from '$lib/db/importer';
 	import { cn } from '$lib/utils';
 	import { t } from '$lib/i18n.svelte';
+	import { resolve } from '$app/paths';
 	import UpdateDiffSheet from './UpdateDiffSheet.svelte';
 
 	interface Props {
@@ -71,11 +72,11 @@
 		busy = 'json';
 		try {
 			await downloadTripExport(tripid);
-			toast.success('Trip JSON exported.');
+			toast.success(t('trip_json_exported'));
 			open = false;
 		} catch {
-			toast.error('Could not export – is your home server reachable?', {
-				action: { label: 'Retry', onClick: exportJson }
+			toast.error(t('could_not_export_server'), {
+				action: { label: t('retry'), onClick: exportJson }
 			});
 		} finally {
 			busy = null;
@@ -87,11 +88,11 @@
 		busy = 'pdf';
 		try {
 			await downloadTripPdf(tripid);
-			toast.success('Printable PDF ready.');
+			toast.success(t('pdf_ready'));
 			open = false;
 		} catch {
-			toast.error('Could not build the PDF – is your home server reachable?', {
-				action: { label: 'Retry', onClick: exportPdf }
+			toast.error(t('could_not_build_pdf_server'), {
+				action: { label: t('retry'), onClick: exportPdf }
 			});
 		} finally {
 			busy = null;
@@ -229,17 +230,14 @@
 			<FileText />
 			{busy === 'pdf' ? t('saving') : t('printable_pdf')}
 		</button>
-		<button
-			type="button"
+		<a
+			href={resolve('/trip/[id]/print', { id: tripid })}
 			class={itemClass}
-			onclick={() => {
-				open = false;
-				window.print();
-			}}
+			onclick={() => (open = false)}
 		>
 			<Printer />
-			<span>Imprimir / Salvar PDF (Offline)</span>
-		</button>
+			<span>{t('print_or_pdf')}</span>
+		</a>
 
 		<div class="my-1 border-t border-border"></div>
 

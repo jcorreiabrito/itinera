@@ -16,7 +16,6 @@ import httpx
 from tenacity import retry, retry_if_exception_type, stop_after_attempt, wait_exponential
 
 from .config import Settings
-from .errors import CouchDBUnavailableError
 
 logger = logging.getLogger("itinera.couch")
 
@@ -196,7 +195,7 @@ class CouchClient:
         """Return the trip document plus all of its child documents.
 
         Uses prefix range scans (``startkey``/``endkey``) per child type, which
-        need no index – the same fast, offline-friendly pattern the client uses.
+        need no index - the same fast, offline-friendly pattern the client uses.
         """
         bare = normalise_trip_id(trip_id)
         docs: list[dict[str, Any]] = []

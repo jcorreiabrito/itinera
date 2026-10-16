@@ -2,13 +2,9 @@
 
 from __future__ import annotations
 
-import json
-
 import httpx
-import pytest
-
 from app.couch import CouchClient, normalise_trip_id
-from tests.conftest import json_response, make_couch, make_settings
+from tests.conftest import json_response, make_couch
 
 
 class TestNormaliseTripId:

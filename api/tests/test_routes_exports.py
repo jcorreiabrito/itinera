@@ -2,13 +2,9 @@
 
 from __future__ import annotations
 
-import json
-
 import httpx
-import pytest
-
 from app.main import create_app
-from app.services.exports import TRIP_EXPORT_SCHEMA, FULL_EXPORT_SCHEMA
+from app.services.exports import FULL_EXPORT_SCHEMA, TRIP_EXPORT_SCHEMA
 from tests.conftest import json_response, make_couch, make_settings
 
 TRIP_DOC = {"_id": "trip:01", "id": "trip:01", "type": "trip", "title": "Paris"}

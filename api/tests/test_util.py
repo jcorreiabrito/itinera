@@ -1,11 +1,9 @@
-"""Unit tests for app.util – pure, dependency-free helpers."""
+"""Unit tests for app.util - pure, dependency-free helpers."""
 
 from __future__ import annotations
 
 import re
 from datetime import UTC, datetime
-
-import pytest
 
 from app.util import safe_filename, timestamp_slug, utcnow, utcnow_iso
 
@@ -44,7 +42,7 @@ class TestTimestampSlug:
         assert timestamp_slug(dt) == "20260623T101122"
 
     def test_converts_to_utc(self):
-        from datetime import timezone, timedelta
+        from datetime import timedelta, timezone
         dt_plus2 = datetime(2026, 6, 23, 12, 11, 22, tzinfo=timezone(timedelta(hours=2)))
         # 12:11:22 +02:00 == 10:11:22 UTC
         assert timestamp_slug(dt_plus2) == "20260623T101122"

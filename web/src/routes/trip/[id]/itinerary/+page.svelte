@@ -168,10 +168,15 @@
 		});
 	});
 
+	/*
+	 * `allTripItems` (below) is the calendar export's payload, deliberately the
+	 * whole trip rather than the day on screen. The export button sits next to
+	 * the day strip, so passing the visible day's items made "download the
+	 * calendar" quietly hand back one day of a two-week trip.
+	 */
 	const currentDayItems = $derived.by(() => {
 		if (!currentDay) return [];
-		const itemsList: ItineraryItem[] = [];
-		for (const item of currentDay.allDay) itemsList.push(item);
+		const itemsList: ItineraryItem[] = [...currentDay.allDay];
 		for (const entry of currentDay.timed) {
 			if (entry.kind === 'item' && entry.item) itemsList.push(entry.item);
 		}
@@ -245,7 +250,12 @@
 
 				<div class="flex shrink-0 items-center justify-between gap-2 sm:justify-end">
 					{#if trip}
-						<ExportCalendarButton {trip} items={currentDayItems} />
+						<ExportCalendarButton
+							{trip}
+							items={allTripItems}
+							flights={flightList}
+							reservations={resList}
+						/>
 					{/if}
 
 					<div

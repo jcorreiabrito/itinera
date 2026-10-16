@@ -9,7 +9,6 @@ from typing import Any
 import httpx
 import pytest
 import pytest_asyncio
-
 from app.config import Settings
 from app.couch import CouchClient
 from app.main import create_app
@@ -17,17 +16,17 @@ from app.main import create_app
 
 def make_settings(**overrides: Any) -> Settings:
     """Build a Settings instance that does not touch the real env/file."""
-    defaults = dict(
-        COUCHDB_URL="http://localhost:5984",
-        COUCHDB_USER="admin",
-        COUCHDB_PASSWORD="test",
-        COUCHDB_DB="itinera_test",
-        EXPORT_DIR="/tmp/itinera_test_exports",
-        BACKUP_KEEP="3",
-        COMPACT_ON_BACKUP="false",
-        SCHEDULER_ENABLED="false",
-        DOCS_ENABLED="false",
-    )
+    defaults = {
+        "COUCHDB_URL": "http://localhost:5984",
+        "COUCHDB_USER": "admin",
+        "COUCHDB_PASSWORD": "test",
+        "COUCHDB_DB": "itinera_test",
+        "EXPORT_DIR": "/tmp/itinera_test_exports",
+        "BACKUP_KEEP": "3",
+        "COMPACT_ON_BACKUP": "false",
+        "SCHEDULER_ENABLED": "false",
+        "DOCS_ENABLED": "false",
+    }
     defaults.update(overrides)
     return Settings(**defaults)
 

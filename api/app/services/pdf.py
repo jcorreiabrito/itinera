@@ -7,6 +7,7 @@ WeasyPrint lazily so the rest of the service works even where it is not installe
 
 from __future__ import annotations
 
+import base64
 import html
 import re
 from datetime import date, timedelta
@@ -23,6 +24,8 @@ from ..util import utcnow_iso
 from .exports import group_docs_by_type
 
 TEMPLATES_DIR = Path(__file__).resolve().parent.parent / "templates"
+STATIC_DIR = Path(__file__).resolve().parent.parent / "static"
+FONTS_DIR = STATIC_DIR / "fonts"
 
 SAFE_URL = re.compile(r"^(https?://|mailto:)", re.IGNORECASE)
 
@@ -40,31 +43,112 @@ def _format_day_label(d_obj: date | None, fallback: str, lang: str = "en") -> st
     return d_obj.strftime("%a, %b %d")
 
 
-CURRENCY_SYMBOLS: dict[str, str] = {
-    "BRL": "R$",
-    "USD": "$",
-    "EUR": "€",
-    "GBP": "£",
-    "JPY": "¥",
-    "CAD": "CA$",
-    "AUD": "A$",
-    "CHF": "CHF",
-    "CLP": "CLP$",
-    "ARS": "ARS$",
-    "MXN": "MX$",
+# CLDR symbol per (locale, currency), copied from what `Intl.NumberFormat` — the
+# formatter every screen uses — actually prints. The two locales genuinely
+# disagree about the symbol itself (en-US prints "$" and "¥", pt-BR prints "US$"
+# and "JP¥"), so one shared table cannot serve both.
+CURRENCY_SYMBOLS: dict[str, dict[str, str]] = {
+    "en": {
+        "BRL": "R$",
+        "USD": "$",
+        "EUR": "€",
+        "GBP": "£",
+        "JPY": "¥",
+        "CAD": "CA$",
+        "AUD": "A$",
+        "CHF": "CHF",
+        "CLP": "CLP",
+        "ARS": "ARS",
+        "MXN": "MX$",
+        "SEK": "SEK",
+    },
+    "pt-BR": {
+        "BRL": "R$",
+        "USD": "US$",
+        "EUR": "€",
+        "GBP": "£",
+        "JPY": "JP¥",
+        "CAD": "CA$",
+        "AUD": "AU$",
+        "CHF": "CHF",
+        "CLP": "CLP",
+        "ARS": "ARS",
+        "MXN": "MX$",
+        "SEK": "SEK",
+    },
 }
 
 
+def _to_home(
+    amount: Any, currency: Any, home_currency: str, fx_rate: Any
+) -> float | None:
+    """
+    Convert `amount` in `currency` to `home_currency`, mirroring the web app's
+    `convertToHome()`:
+
+    - same currency (or no currency recorded) -> the amount unchanged;
+    - foreign with an `fxRate` -> amount x rate;
+    - foreign with NO rate -> `None`, i.e. excluded rather than silently summed
+      as though the two currencies were interchangeable.
+    """
+    if amount is None or amount == "":
+        return None
+    try:
+        value = float(amount)
+    except (TypeError, ValueError):
+        return None
+    code = (str(currency).strip().upper() if currency else "") or home_currency.upper()
+    if not currency or code == home_currency.upper():
+        return value
+    if fx_rate is None or fx_rate == "":
+        return None
+    try:
+        return value * float(fx_rate)
+    except (TypeError, ValueError):
+        return None
+
+
+def _missing_rate(exp: dict[str, Any], home_currency: str) -> bool:
+    """True when a foreign amount exists but no rate was entered for it."""
+    currency = exp.get("currency")
+    if not currency or str(currency).strip().upper() == home_currency.upper():
+        return False
+    if exp.get("fxRate") not in (None, ""):
+        return False
+    return exp.get("amountEstimate") is not None or exp.get("amountActual") is not None
+
+
 def _money(amount: float | None, ccy: str, lang: str = "en") -> str | None:
+    """
+    Format an amount the way the web app's `formatMoney()` does.
+
+    Parity here is not cosmetic: the server-rendered PDF and the browser's own
+    printable view are both called "the trip PDF", and a total that reads
+    "€ 1.234,56" in one and "€1.234,56" in the other makes the reader doubt the
+    number. The rules below are the ones CLDR prescribes and `Intl` implements:
+
+    - pt-BR: `R$ 1.234,56` — comma decimal separator, always a space after the
+      symbol;
+    - en-US: `€1,234.56` — no space when the symbol is at most two characters
+      wide, one space when it is longer (`CHF 1,234.56`, `CLP 1,234.56`);
+    - a negative amount puts the sign before the symbol (`-€1,234.56`).
+    """
     if amount is None:
         return None
-    curr_upper = ccy.upper().strip() if ccy else "EUR"
-    symbol = CURRENCY_SYMBOLS.get(curr_upper, curr_upper)
-    if lang == "pt-BR" or curr_upper == "BRL":
-        formatted = f"{amount:,.2f}".replace(",", "X").replace(".", ",").replace("X", ".")
-        return f"{symbol} {formatted}"
-    formatted = f"{amount:,.2f}"
-    return f"{symbol} {formatted}"
+    locale = "pt-BR" if lang == "pt-BR" else "en"
+    curr_upper = (ccy or "EUR").upper().strip() or "EUR"
+    # An unrecognised currency is printed as its own ISO code, which is what
+    # `Intl` does too, and its 3 characters always take a space.
+    symbol = CURRENCY_SYMBOLS.get(locale, {}).get(curr_upper, curr_upper)
+
+    magnitude = abs(amount)
+    if locale == "pt-BR":
+        formatted = f"{magnitude:,.2f}".replace(",", "\x00").replace(".", ",").replace("\x00", ".")
+        text = f"{symbol} {formatted}"
+    else:
+        formatted = f"{magnitude:,.2f}"
+        text = f"{symbol}{formatted}" if len(symbol) <= 2 else f"{symbol} {formatted}"
+    return f"-{text}" if amount < 0 else text
 
 
 def _inline(raw: str) -> str:
@@ -186,6 +270,20 @@ def _jinja_env() -> Environment:
     return env
 
 
+def _safe_date(value: str | None) -> date | None:
+    """`date.fromisoformat` for values that may be blank or malformed.
+
+    Trip documents are user data arriving over CouchDB, so a hand-edited or
+    half-synced `startDate` is a real possibility and must not take the whole
+    PDF down. Three call sites had grown their own `try/except ValueError:
+    pass` around this, which is what made it worth naming.
+    """
+    if not value:
+        return None
+    try:
+        return date.fromisoformat(value)
+    except ValueError:
+        return None
 
 
 def _date_range(start: str | None, end: str | None) -> list[str]:
@@ -244,21 +342,11 @@ def shape_trip_pdf_context(
     seen = set(ordered)
     day_blocks: list[dict[str, Any]] = []
     for d in ordered:
-        d_obj = None
-        try:
-            d_obj = date.fromisoformat(d)
-        except ValueError:
-            pass
-        lbl = _format_day_label(d_obj, d, effective_lang)
+        lbl = _format_day_label(_safe_date(d), d, effective_lang)
         day_blocks.append({"date": d, "label": lbl, "items": by_day.get(d, [])})
 
     for d in sorted(k for k in by_day if k != "__unscheduled__" and k not in seen):
-        d_obj = None
-        try:
-            d_obj = date.fromisoformat(d)
-        except ValueError:
-            pass
-        lbl = _format_day_label(d_obj, d, effective_lang)
+        lbl = _format_day_label(_safe_date(d), d, effective_lang)
         day_blocks.append({"date": d, "label": lbl, "items": by_day[d]})
 
     if "__unscheduled__" in by_day:
@@ -292,14 +380,23 @@ def shape_trip_pdf_context(
     by_cat: dict[str, dict[str, float]] = {}
     total_est = 0.0
     total_act = 0.0
+    missing_rate = 0
     for exp in expenses:
-        est = float(exp.get("amountEstimate") or 0)
-        act = float(exp.get("amountActual") or 0)
-        total_est += est
-        total_act += act
+        # Every expense carries its own `currency` and a manually entered
+        # `fxRate` snapshot to the trip's home currency (see docs/12). The web
+        # app converts each amount with that snapshot and EXCLUDES any foreign
+        # amount with no rate, reporting the count — this used to sum the raw
+        # numbers and label the result in the home currency, so a €50 + $100
+        # trip printed a total that was simply wrong.
+        est = _to_home(exp.get("amountEstimate"), exp.get("currency"), home_ccy, exp.get("fxRate"))
+        act = _to_home(exp.get("amountActual"), exp.get("currency"), home_ccy, exp.get("fxRate"))
+        if _missing_rate(exp, home_ccy):
+            missing_rate += 1
+        total_est += est or 0.0
+        total_act += act or 0.0
         agg = by_cat.setdefault(exp.get("category") or "other", {"estimate": 0.0, "actual": 0.0})
-        agg["estimate"] += est
-        agg["actual"] += act
+        agg["estimate"] += est or 0.0
+        agg["actual"] += act or 0.0
 
     budget_total = (trip.get("budget") or {}).get("total")
     cost_rows = [
@@ -320,6 +417,8 @@ def shape_trip_pdf_context(
         ),
         "rows": cost_rows,
         "hasData": bool(expenses),
+        # Surfaced in the template so a total that quietly omits an amount says so.
+        "missingRateCount": missing_rate,
     }
 
     raw_dests = [d for d in trip.get("destinations", []) if isinstance(d, dict) and d.get("name")]
@@ -330,36 +429,52 @@ def shape_trip_pdf_context(
         for d in raw_dests:
             arr = d.get("arriveDate")
             dep = d.get("departDate")
-            if arr and dep:
-                if arr <= date_str <= dep:
-                    return d.get("name")
-            elif arr and not dep:
-                if date_str >= arr:
-                    return d.get("name")
-            elif not arr and dep:
-                if date_str <= dep:
-                    return d.get("name")
+            if arr and dep and arr <= date_str <= dep:
+                return d.get("name")
+            if arr and not dep and date_str >= arr:
+                return d.get("name")
+            if dep and not arr and date_str <= dep:
+                return d.get("name")
         return None
 
     traveler_count = max(int(trip.get("travelerCount") or 1), 1)
 
+    # Expenses by date, so a day subtotal is the SUM OF THAT DAY'S EXPENSES —
+    # the figure the itinerary screen shows under "Day subtotal" — rather than a
+    # sum of item estimates, which double-counts anything also recorded as an
+    # expense and mixes currencies.
+    expenses_by_date: dict[str, float] = {}
+    for exp in expenses:
+        if not exp.get("date"):
+            continue
+        amount = _to_home(exp.get("amountActual"), exp.get("currency"), home_ccy, exp.get("fxRate"))
+        if amount is None:
+            amount = _to_home(exp.get("amountEstimate"), exp.get("currency"), home_ccy, exp.get("fxRate"))
+        if amount:
+            date_key = str(exp["date"])
+            expenses_by_date[date_key] = expenses_by_date.get(date_key, 0.0) + amount
+
     for block in day_blocks:
         block["destination"] = _find_dest(block.get("date"))
-        day_items = block.get("items", [])
-        day_total = 0.0
-        for item in day_items:
+        for item in block.get("items", []):
             cost = item.get("estCost")
-            if cost is not None:
-                cost_val = float(cost)
-                day_total += cost_val
-                ccy = item.get("currency") or home_ccy
-                item["formatted_cost"] = _money(cost_val, ccy, effective_lang)
-                if traveler_count > 1:
-                    item["formatted_cost_pp"] = _money(cost_val / traveler_count, ccy, effective_lang)
+            if cost is None:
+                continue
+            # The item's own money is shown in the item's own currency — that is
+            # the number on the booking — and never added to a home-currency sum.
+            ccy = item.get("currency") or home_ccy
+            item["formatted_cost"] = _money(float(cost), ccy, effective_lang)
+            if traveler_count > 1:
+                item["formatted_cost_pp"] = _money(
+                    float(cost) / traveler_count, ccy, effective_lang
+                )
+        day_total = expenses_by_date.get(str(block.get("date") or ""), 0.0)
         if day_total > 0:
             block["total_cost_formatted"] = _money(day_total, home_ccy, effective_lang)
             if traveler_count > 1:
-                block["total_cost_pp_formatted"] = _money(day_total / traveler_count, home_ccy, effective_lang)
+                block["total_cost_pp_formatted"] = _money(
+                    day_total / traveler_count, home_ccy, effective_lang
+                )
 
     destinations = " → ".join(d.get("name", "").strip() for d in raw_dests)
     done = sum(1 for c in checklist if c.get("done"))
@@ -397,12 +512,9 @@ def shape_trip_pdf_context(
         c_days: list[dict[str, Any]] = []
         for block in c_blocks:
             day_date = block["date"]
-            d_obj = None
-            try:
-                d_obj = date.fromisoformat(day_date)
-            except ValueError:
-                pass
-            day_label = _format_day_label(d_obj, day_date, effective_lang)
+            day_label = _format_day_label(
+                _safe_date(day_date), day_date, effective_lang
+            )
 
             timed_events: list[dict[str, Any]] = []
             all_day_events: list[dict[str, Any]] = []
@@ -453,7 +565,9 @@ def shape_trip_pdf_context(
 
         range_label = ""
         if c_days:
-            range_label = f"{c_days[0]['label']} – {c_days[-1]['label']}"
+            range_label = (
+                f"{c_days[0]['label']} – {c_days[-1]['label']}"  # noqa: RUF001
+            )
 
         chunks.append({
             "chunk_index": c_index + 1,
@@ -492,9 +606,49 @@ def shape_trip_pdf_context(
 
 
 
+@lru_cache(maxsize=1)
+def _font_face_css() -> str:
+    """
+    `@font-face` rules with the woff2 files inlined as `data:` URIs.
+
+    WeasyPrint resolves nothing implicitly: without these, every `font-family:
+    "Fraunces"` and `"Inter"` in the template (and in the `@page` footer) fell
+    back to the container's DejaVu, so the printed document did not look like the
+    app and Portuguese accents in the headings rendered in a different typeface
+    from the body. Inlining rather than linking keeps `render_trip_html` a pure
+    function of the context and removes any dependency on a working directory or
+    a served `/static` path.
+    """
+    families = [
+        ("Inter", "inter-latin-{weight}-normal.woff2", "normal"),
+        ("Fraunces", "fraunces-latin-{weight}-normal.woff2", "normal"),
+    ]
+    rules: list[str] = []
+    for family, pattern, style in families:
+        for weight in (400, 600, 700):
+            path = FONTS_DIR / pattern.format(weight=weight)
+            if not path.exists():
+                continue
+            encoded = base64.b64encode(path.read_bytes()).decode("ascii")
+            rules.append(
+                "@font-face {"
+                f" font-family: '{family}';"
+                f" font-style: {style};"
+                f" font-weight: {weight};"
+                " font-display: block;"
+                f" src: url(data:font/woff2;base64,{encoded}) format('woff2');"
+                " }"
+            )
+    return "\n".join(rules)
+
+
 def render_trip_html(context: dict[str, Any]) -> str:
     """Render the trip PDF HTML from the shaped context (no native deps)."""
-    return _jinja_env().get_template("trip_pdf.html").render(**context)
+    return (
+        _jinja_env()
+        .get_template("trip_pdf.html")
+        .render(font_face_css=_font_face_css(), **context)
+    )
 
 
 def html_to_pdf(html: str, *, base_url: str | None = None) -> bytes:
@@ -510,7 +664,22 @@ def html_to_pdf(html: str, *, base_url: str | None = None) -> bytes:
             "WeasyPrint is not available; install 'weasyprint' and its native "
             "dependencies (Pango, cairo, GDK-PixBuf) to enable PDF export."
         ) from exc
-    return HTML(string=html, base_url=base_url).write_pdf()
+
+    def _write(*, pdf_variant: str | None) -> bytes:
+        try:
+            return HTML(string=html, base_url=base_url).write_pdf(pdf_variant=pdf_variant)
+        except TypeError:
+            # Older WeasyPrint without the `pdf_variant` keyword: emit an
+            # untagged PDF rather than failing the whole export.
+            return HTML(string=html, base_url=base_url).write_pdf()
+
+    # `pdf/ua-1` adds the tagged structure tree, document language and title
+    # metadata that a screen reader needs. It is a nice-to-have, not a
+    # correctness requirement, so a failure here degrades instead of erroring.
+    try:
+        return _write(pdf_variant="pdf/ua-1")
+    except Exception:  # pragma: no cover - depends on the WeasyPrint build
+        return _write(pdf_variant=None)
 
 
 async def build_trip_pdf(

@@ -132,6 +132,16 @@
 		--color-danger-rgb: 226 109 92;
 		--color-info-rgb: 91 146 182;
 
+		/*
+       * Terracotta is used as TEXT (chips, the "ideas" heading, cost deltas) as
+       * well as a fill. The light value is #c96b4a, which measures 4.40:1 on this
+       * surface — under AA — so dark mode gets a lightened step that reaches
+       * 5.0:1. It stays above 3:1 against white for the `bg-accent-terracotta
+       * text-white` chips, which is the AA threshold for their bold/large text.
+       */
+		--color-accent-terracotta-rgb: 210 118 88;
+		--color-accent-terracotta: #d27658;
+
 		--color-bg: #111613;
 		--color-surface: #19221c;
 		--color-surface-sunken: #0e120f;
@@ -488,6 +498,68 @@
 	/* Dark mode adaptation for standard OpenStreetMap tiles when no CARTO key is configured */
 	html.dark .leaflet-tile-pane .osm-dark-tiles {
 		filter: brightness(0.65) invert(1) contrast(1.6) hue-rotate(200deg) saturate(0.4);
+	}
+
+	/*
+   * Leaflet's own controls render outside Svelte's scoping, so their touch
+   * targets have to be sized here. Leaflet ships 30x30 by default, under the
+   * 44x44 WCAG 2.2 target minimum, and the zoom buttons are the map's only
+   * keyboard/touch affordance once dragging is enabled on mobile.
+   */
+	.leaflet-touch .leaflet-control-zoom-in,
+	.leaflet-touch .leaflet-control-zoom-out,
+	.leaflet-touch .leaflet-control-attribution a,
+	.leaflet-touch .leaflet-bar a {
+		width: 44px;
+		height: 44px;
+		line-height: 44px;
+		font-size: 20px;
+	}
+
+	/* Pointer devices keep the compact control — a 44px zoom button is a lot of map. */
+	@media (pointer: fine) {
+		.leaflet-touch .leaflet-control-zoom-in,
+		.leaflet-touch .leaflet-control-zoom-out,
+		.leaflet-touch .leaflet-bar a {
+			width: 34px;
+			height: 34px;
+			line-height: 34px;
+			font-size: 18px;
+		}
+	}
+
+	.leaflet-container {
+		font-family: var(--font-sans);
+	}
+
+	/* Leaflet's default control shadow is a hard grey box against the warm cards. */
+	.leaflet-bar,
+	.leaflet-bar a {
+		border-color: var(--color-border) !important;
+		color: var(--color-ink) !important;
+		background-color: var(--color-surface) !important;
+	}
+
+	.leaflet-bar a:hover,
+	.leaflet-bar a:focus {
+		background-color: var(--color-surface-sunken) !important;
+	}
+
+	.leaflet-bar a.leaflet-disabled {
+		background-color: var(--color-surface-sunken) !important;
+		color: var(--color-ink-muted) !important;
+	}
+
+	.leaflet-control-attribution {
+		background-color: rgb(var(--color-surface-rgb) / 0.85) !important;
+		color: var(--color-ink-muted) !important;
+		font-size: 10px;
+	}
+
+	/* Visible focus for the control buttons, matching the app-wide ring. */
+	.leaflet-bar a:focus-visible {
+		outline: 2px solid var(--color-primary-600);
+		outline-offset: 2px;
 	}
 
 	/*

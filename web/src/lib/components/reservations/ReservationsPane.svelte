@@ -122,7 +122,7 @@
 			});
 			reload();
 		} catch {
-			toast.error(t('reservation_removed'));
+			toast.error(t('could_not_remove_reservation'));
 		}
 	}
 </script>

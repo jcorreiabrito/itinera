@@ -1,9 +1,11 @@
 <!DOCTYPE html>
-<html lang="en">
+<html lang="{{ lang }}">
 <head>
     <meta charset="utf-8" />
     <title>{{ trip.title or i18n.untitled_trip }} – Itinera</title>
     <style>
+        {{ font_face_css | safe }}
+
         /* Itinera printable theme – cozy / warm / forest-green (see 13-ui-ux.md). */
         @page {
             size: A4;
@@ -578,6 +580,12 @@
             <span class="{% if costs.remaining and costs.remaining.startswith('-') %}remaining-over{% else %}remaining-ok{% endif %}">
                 {{ costs.remaining }}
             </span>
+        </p>
+        {% endif %}
+        {% if costs.missingRateCount %}
+        <p class="muted" style="font-size:8pt;">
+            {{ costs.missingRateCount }}
+            {% if costs.missingRateCount == 1 %}{{ i18n.cost_excluded_one }}{% else %}{{ i18n.cost_excluded_many }}{% endif %}
         </p>
         {% endif %}
         {% else %}

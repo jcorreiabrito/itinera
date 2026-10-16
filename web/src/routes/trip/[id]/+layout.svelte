@@ -8,20 +8,27 @@
 	import { trips } from '$lib/db';
 	import type { Trip } from '$lib/db';
 	import { t, type TranslationKey } from '$lib/i18n.svelte';
-	import { ArrowLeft, MapPinned, Pencil, Share2 } from 'lucide-svelte';
+	import { AlertTriangle, ArrowLeft, MapPinned, Pencil, RotateCw, Share2 } from 'lucide-svelte';
 	import type { IconComponent } from '$lib/types';
 	import { TRIP_MOBILE_TABS, TRIP_SECTIONS } from '$lib/trip-sections';
 	import { TripDataMenu, TripFormSheet } from '$lib/components/trip';
 	import { setTripShellContext } from '$lib/trip-context';
 	import { startLive } from '$lib/live';
 	import { cn } from '$lib/utils';
-	import { ErrorBoundary, Skeleton, SyncStatusPill, ThemeToggle } from '$lib/components/ui';
+	import { Button, ErrorBoundary, Skeleton, SyncStatusPill, ThemeToggle } from '$lib/components/ui';
 	import ShareTripModal from '$lib/components/trip/ShareTripModal.svelte';
 
 	let { children }: { children: Snippet } = $props();
 
 	let trip = $state<Trip | null>(null);
 	let loaded = $state(false);
+	/*
+	 * Separate from `trip === null`. Both used to collapse into "Trip not found",
+	 * so a transient IndexedDB failure told the user their trip had been deleted
+	 * on another device — a claim the app cannot make and one that invites them
+	 * to stop looking for data that is still there.
+	 */
+	let loadError = $state(false);
 	let editOpen = $state(false);
 	let shareOpen = $state(false);
 	const reloadSignal = writable(0);
@@ -31,10 +38,12 @@
 	const tab = $derived(page.url.searchParams.get('tab'));
 
 	async function loadTrip(tripid: string) {
+		loadError = false;
 		try {
 			trip = await trips.get(tripid);
 		} catch {
 			trip = null;
+			loadError = true;
 		} finally {
 			loaded = true;
 		}
@@ -123,7 +132,7 @@
 	<!-- Content column -->
 	<div class="flex min-h-dvh flex-col lg:pl-60">
 		<header
-			class="pt-safe sticky top-0 z-30 flex min-h-[4rem] items-center justify-between gap-3 border-b border-border bg-bg/85 px-4 py-2 backdrop-blur-md sm:px-6"
+			class="no-print pt-safe sticky top-0 z-30 flex min-h-[4rem] items-center justify-between gap-3 border-b border-border bg-bg/85 px-4 py-2 backdrop-blur-md sm:px-6"
 		>
 			<div class="flex min-w-0 flex-1 items-center gap-2">
 				<a
@@ -184,15 +193,25 @@
 		>
 			{#if loaded && !trip}
 				<div class="flex min-h-[50dvh] flex-col items-center justify-center text-center">
-					<MapPinned class="size-10 text-ink-muted" aria-hidden="true" />
-					<h2 class="mt-4 text-xl font-semibold">{t('trip_not_found')}</h2>
-					<p class="mt-1 text-ink-muted">{t('trip_not_found_desc')}</p>
-					<a
-						href={resolve('/')}
-						class="mt-5 inline-flex h-11 items-center rounded-md bg-primary-600 px-4 font-medium text-white shadow-soft transition-colors hover:bg-primary-700 active:scale-[0.97]"
-					>
-						{t('back_to_trips')}
-					</a>
+					{#if loadError}
+						<AlertTriangle class="size-10 text-warning" aria-hidden="true" />
+						<h2 class="mt-4 text-xl font-semibold">{t('could_not_load_trip')}</h2>
+						<p class="mt-1 max-w-prose text-ink-muted">{t('could_not_load_trip_retry')}</p>
+						<Button class="mt-5" onclick={() => loadTrip(id)}>
+							<RotateCw class="size-4" />
+							{t('retry')}
+						</Button>
+					{:else}
+						<MapPinned class="size-10 text-ink-muted" aria-hidden="true" />
+						<h2 class="mt-4 text-xl font-semibold">{t('trip_not_found')}</h2>
+						<p class="mt-1 text-ink-muted">{t('trip_not_found_desc')}</p>
+						<a
+							href={resolve('/')}
+							class="mt-5 inline-flex h-11 items-center rounded-md bg-primary-600 px-4 font-medium text-white shadow-soft transition-colors hover:bg-primary-700 active:scale-[0.97]"
+						>
+							{t('back_to_trips')}
+						</a>
+					{/if}
 				</div>
 			{:else}
 				<ErrorBoundary>
@@ -204,7 +223,7 @@
 		<!-- Mobile bottom tab bar -->
 		<nav
 			aria-label="Trip sections"
-			class="pb-safe fixed inset-x-0 bottom-0 z-50 border-t border-border bg-surface/95 backdrop-blur-md lg:hidden"
+			class="no-print pb-safe fixed inset-x-0 bottom-0 z-50 border-t border-border bg-surface/95 backdrop-blur-md lg:hidden"
 		>
 			<ul class="mx-auto flex max-w-xl items-stretch justify-around">
 				{#each mobileTabs as item (item.id)}

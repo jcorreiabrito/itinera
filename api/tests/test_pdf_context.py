@@ -3,10 +3,11 @@
 from __future__ import annotations
 
 import pytest
-
 from app.services.pdf import (
     _date_range,
+    _missing_rate,
     _money,
+    _to_home,
     render_markdown,
     render_trip_html,
     shape_trip_pdf_context,
@@ -14,17 +15,69 @@ from app.services.pdf import (
 
 
 class TestMoney:
-    def test_formats_amount_with_currency(self):
-        assert _money(10.5, "EUR") == "€ 10.50"
+    """
+    These pin the exact strings `Intl.NumberFormat` produces in the browser, so
+    the server-rendered PDF and the app's own printable view cannot disagree
+    about what a number looks like. Values verified against Node:
 
-    def test_formats_zero(self):
-        assert _money(0.0, "USD") == "$ 0.00"
+        new Intl.NumberFormat('en-US', {style:'currency', currency:'EUR'}).format(1234.56)
+    """
 
-    def test_formats_brl(self):
-        assert _money(140.5, "BRL") == "R$ 140,50"
+    def test_en_short_symbol_takes_no_space(self):
+        assert _money(1234.56, "EUR") == "€1,234.56"
+
+    def test_en_long_symbol_takes_a_space(self):
+        # CLDR: symbols of three or more characters are separated from the number.
+        assert _money(1234.56, "CHF") == "CHF 1,234.56"
+
+    def test_en_zero(self):
+        assert _money(0.0, "USD") == "$0.00"
+
+    def test_en_negative_puts_the_sign_before_the_symbol(self):
+        assert _money(-1234.56, "EUR") == "-€1,234.56"
+
+    def test_unknown_currency_falls_back_to_its_code(self):
+        assert _money(10.0, "XYZ") == "XYZ 10.00"
+
+    def test_pt_br_uses_comma_decimals_and_a_space(self):
+        assert _money(140.5, "BRL", "pt-BR") == "R$ 140,50"
+
+    def test_pt_br_uses_its_own_us_dollar_symbol(self):
+        # pt-BR prints "US$", en-US prints "$" — one shared table cannot serve both.
+        assert _money(140.5, "USD", "pt-BR") == "US$ 140,50"
+        assert _money(140.5, "USD") == "$140.50"
+
+    def test_pt_br_thousands_separator(self):
+        assert _money(1234.56, "BRL", "pt-BR") == "R$ 1.234,56"
 
     def test_returns_none_for_none_amount(self):
         assert _money(None, "EUR") is None
+
+
+class TestToHome:
+    """FX conversion must match the web app's `convertToHome()` exactly."""
+
+    def test_same_currency_is_unchanged(self):
+        assert _to_home(100, "EUR", "EUR", None) == 100
+
+    def test_missing_currency_is_treated_as_home(self):
+        assert _to_home(100, None, "EUR", None) == 100
+
+    def test_foreign_amount_is_multiplied_by_the_rate(self):
+        assert _to_home(100, "USD", "EUR", 0.9) == pytest.approx(90)
+
+    def test_foreign_amount_without_a_rate_is_excluded(self):
+        # Not 100, and not 0 — `None`, so the caller can count it as excluded.
+        assert _to_home(100, "USD", "EUR", None) is None
+
+    def test_none_amount_stays_none(self):
+        assert _to_home(None, "USD", "EUR", 0.9) is None
+
+    def test_missing_rate_flags_only_foreign_amounts(self):
+        assert _missing_rate({"amountEstimate": 10, "currency": "USD"}, "EUR") is True
+        assert _missing_rate({"amountEstimate": 10, "currency": "USD", "fxRate": 0.9}, "EUR") is False
+        assert _missing_rate({"amountEstimate": 10, "currency": "EUR"}, "EUR") is False
+        assert _missing_rate({"currency": "USD"}, "EUR") is False
 
 
 class TestDateRange:

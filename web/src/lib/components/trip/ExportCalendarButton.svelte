@@ -1,85 +1,101 @@
 <script lang="ts">
-	import type { Trip, ItineraryItem } from '$lib/db';
+	import type { Flight, ItineraryItem, Reservation, Trip } from '$lib/db';
 	import { downloadTripICS } from '$lib/utils/ics';
-	import { toast } from '$lib/components/ui';
+	import { MenuItem, Popover, toast } from '$lib/components/ui';
+	import { t } from '$lib/i18n.svelte';
+	import { getApiUrl } from '$lib/api';
 	import { Calendar, Download, Link2 } from 'lucide-svelte';
 
-	let { trip, items = [] }: { trip: Trip; items?: ItineraryItem[] } = $props();
-	let menuOpen = $state(false);
+	/**
+	 * Two ways out, and the difference is the user's to make:
+	 *
+	 *  - the file works offline and imports into any calendar app, but it is a
+	 *    snapshot — re-importing an updated file updates the same events
+	 *    because the UIDs are stable;
+	 *  - the feed URL stays live but needs the home server reachable.
+	 *
+	 * `items` used to be only the selected day's activities, so "download the
+	 * calendar" quietly gave you one day of the trip. Flights and reservations
+	 * were dropped entirely.
+	 */
+	let {
+		trip,
+		items = [],
+		flights = [],
+		reservations = []
+	}: {
+		trip: Trip;
+		items?: ItineraryItem[];
+		flights?: Flight[];
+		reservations?: Reservation[];
+	} = $props();
+
+	let open = $state(false);
+
+	const hasAnything = $derived(items.length + flights.length + reservations.length > 0);
 
 	function handleExportFile() {
-		menuOpen = false;
+		open = false;
 		try {
-			downloadTripICS(trip, items);
-			toast.success('Calendário (.ics) baixado!');
+			downloadTripICS(trip, { items, flights, reservations });
+			toast.success(t('calendar_downloaded'));
 		} catch (err) {
 			console.error('Failed to export calendar', err);
-			toast.error('Erro ao baixar calendário');
+			toast.error(t('could_not_download_calendar'));
 		}
 	}
 
 	async function handleCopyFeed() {
-		menuOpen = false;
+		open = false;
+		const feedUrl = `${window.location.origin}${getApiUrl(
+			`/trips/${encodeURIComponent(trip._id)}/calendar.ics`
+		)}`;
 		try {
-			const origin = window.location.origin;
-			const feedUrl = `${origin}/api/trips/${trip._id}/calendar.ics`;
 			await navigator.clipboard.writeText(feedUrl);
-			toast.success(
-				'Link do calendário copiado! Adicione no Google/Apple Calendar para sincronizar.'
-			);
+			toast.success(t('calendar_link_copied'));
 		} catch {
-			toast.error('Não foi possível copiar o link.');
+			toast.error(t('could_not_copy_link'));
 		}
 	}
 </script>
 
-<div class="relative inline-block text-left">
-	<button
-		type="button"
-		onclick={() => (menuOpen = !menuOpen)}
-		class="inline-flex items-center gap-1.5 rounded-md border border-border bg-surface px-3 py-1.5 text-xs font-medium text-ink shadow-soft transition-colors hover:bg-surface-sunken focus:outline-none focus-visible:ring-2 focus-visible:ring-primary-600"
-		title="Opções de calendário"
-		aria-label="Opções de calendário"
-	>
-		<Calendar class="size-4 text-primary-600" />
-		<span>Calendário</span>
-	</button>
-
-	{#if menuOpen}
-		<!-- Backdrop to close dropdown on outer click -->
-		<div
-			class="fixed inset-0 z-40"
-			onclick={() => (menuOpen = false)}
-			onkeydown={(e) => e.key === 'Escape' && (menuOpen = false)}
-			role="presentation"
-		></div>
-
-		<div
-			class="absolute right-0 z-50 mt-1 w-56 origin-top-right divide-y divide-border/50 rounded-lg border border-border bg-surface p-1 text-xs shadow-card"
+<Popover bind:open align="end" label={t('export_calendar')} panelClass="w-72">
+	{#snippet trigger({ toggle, open: isOpen })}
+		<button
+			type="button"
+			onclick={toggle}
+			aria-haspopup="true"
+			aria-expanded={isOpen}
+			class="inline-flex min-h-touch items-center gap-1.5 rounded-md border border-border bg-surface px-3 text-xs font-medium text-ink shadow-soft transition-colors hover:bg-surface-sunken [&_svg]:size-4"
 		>
-			<button
-				type="button"
-				onclick={handleExportFile}
-				class="flex w-full items-center gap-2.5 rounded-md px-2.5 py-2 text-left text-ink transition-colors hover:bg-surface-sunken"
-			>
-				<Download class="size-4 shrink-0 text-primary-600" />
-				<div>
-					<div class="font-medium text-ink">Baixar arquivo .ics</div>
-					<div class="text-[10px] text-ink-muted">Importação manual offline</div>
-				</div>
-			</button>
+			<Calendar class="text-primary-600" />
+			<span>{t('calendar')}</span>
+		</button>
+	{/snippet}
 
-			<button
-				type="button"
-				onclick={handleCopyFeed}
-				class="flex w-full items-center gap-2.5 rounded-md px-2.5 py-2 text-left text-ink transition-colors hover:bg-surface-sunken"
-			>
-				<Link2 class="size-4 shrink-0 text-primary-600" />
-				<div>
-					<div class="font-medium text-ink">Assinar calendário (Ao vivo)</div>
-					<div class="text-[10px] text-ink-muted">Sincroniza no Google/Apple Cal</div>
-				</div>
-			</button>
-		</div>
-	{/if}
-</div>
+	<div class="flex flex-col gap-0.5">
+		<MenuItem icon={Download} onclick={handleExportFile}>
+			<span class="flex flex-col">
+				<span>{t('download_ics')}</span>
+				<span class="text-[10px] font-normal text-ink-muted">{t('download_ics_hint')}</span>
+			</span>
+		</MenuItem>
+
+		<MenuItem icon={Link2} onclick={handleCopyFeed}>
+			<span class="flex flex-col">
+				<span>{t('subscribe_calendar')}</span>
+				<span class="text-[10px] font-normal text-ink-muted">{t('subscribe_calendar_hint')}</span>
+			</span>
+		</MenuItem>
+
+		{#if !hasAnything}
+			<!--
+				The file would contain only the trip's own dates. Saying so beats
+				handing over a near-empty calendar the user assumes is broken.
+			-->
+			<p class="mt-1 border-t border-border px-2.5 pt-2 text-[10px] text-ink-muted">
+				{t('calendar_empty_hint')}
+			</p>
+		{/if}
+	</div>
+</Popover>

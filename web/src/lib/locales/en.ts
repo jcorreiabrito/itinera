@@ -18,6 +18,18 @@ export const en = {
 	back_to_trips: 'Back to trips',
 	trip_not_found: 'Trip not found',
 	trip_not_found_desc: 'It may have been deleted on another device.',
+	retry: 'Try again',
+	retrying: 'Trying again…',
+	error_title: 'Something went wrong',
+	error_heading: 'Something went wrong',
+	error_generic_desc:
+		'The app could not finish loading this page. Your data is stored on this device and is unaffected.',
+	error_reference: 'Error {code}',
+	not_found_title: 'Page not found',
+	error_not_found_heading: 'Page not found',
+	error_not_found_desc:
+		'That link does not match anything in the app. It may be from an older version, or the trip was deleted.',
+	could_not_load_trip_retry: 'Could not load this trip. Check your connection and try again.',
 	all_trips: 'All trips',
 	filter_all: 'All',
 	filter_confirmed: 'Confirmed',
@@ -321,6 +333,16 @@ export const en = {
 	set_trip_dates: 'Set trip dates',
 	could_not_load_itinerary: "Couldn't load your itinerary",
 	export_calendar: 'Export calendar',
+	calendar: 'Calendar',
+	download_ics: 'Download .ics file',
+	download_ics_hint: 'Works offline · imports into any calendar app',
+	subscribe_calendar: 'Subscribe to the live feed',
+	subscribe_calendar_hint: 'Stays up to date · needs the home server',
+	calendar_empty_hint:
+		'This trip has no activities, flights or bookings yet, so the file will only carry the trip dates.',
+	calendar_downloaded: 'Calendar file downloaded.',
+	could_not_download_calendar: "Couldn't build the calendar file.",
+	calendar_link_copied: 'Feed link copied. Add it in Google or Apple Calendar to subscribe.',
 	ideas: 'Ideas',
 	unscheduled: 'Unscheduled',
 
@@ -376,6 +398,41 @@ export const en = {
 	stops_count: '{n} stop',
 	stops_count_plural: '{n} stops',
 
+	// Print view
+	// Share / print entry points
+	share_trip_title: 'Share "{name}"',
+	share_trip_desc: 'Print this trip yourself, or copy a link that opens the server-rendered PDF.',
+	print_offline_desc:
+		'Opens a clean printable page built on this device. Works offline and matches the app exactly.',
+	open_printable_view: 'Open printable view',
+	server_pdf_link: 'Shareable PDF link',
+	server_pdf_desc:
+		'Needs your home server to be reachable — anyone who can reach it can open the link.',
+	copy_link: 'Copy link',
+	link_copied: 'Link copied to the clipboard.',
+	could_not_copy_link: 'Could not copy the link.',
+	open_pdf_preview: 'Open PDF preview',
+
+	trip_itinerary: 'Trip itinerary',
+	print_or_pdf: 'Print / Save as PDF',
+	print_hint: 'Choose "Save as PDF" as the destination to get a file.',
+	back_to_trip: 'Back to trip',
+	printed_from_itinera:
+		'Printed from Itinera — this copy is a snapshot, not a live booking record.',
+	dates: 'Dates',
+	currency: 'Currency',
+	no_dates_yet: 'No dates yet',
+	ungrouped: 'Ungrouped',
+	booking_ref: 'Ref',
+	departs: 'Departs',
+	arrives: 'Arrives',
+	total_duration: 'Total duration',
+	confirmation: 'Confirmation',
+	done: 'done',
+	not_done: 'not done',
+	cost_excluded_one: 'cost is excluded for a missing FX rate.',
+	costs_excluded_many: 'costs are excluded for a missing FX rate.',
+
 	// Map & Locations
 	templates: 'Templates',
 	itinerary_map: 'Itinerary Map',
@@ -391,6 +448,9 @@ export const en = {
 	activity_title: 'Activity Title',
 	pin_added: 'Added new itinerary item from map pin!',
 	could_not_save_pin: 'Could not save map pin activity.',
+	offline_map: 'Offline map',
+	download_offline_map: 'Download this destination’s map for offline use',
+	downloading: 'Downloading…',
 
 	// Flights & Bookings Pane
 	no_flights_yet: 'No flights yet',
@@ -398,10 +458,12 @@ export const en = {
 		'Add a booking with one or more legs. Airports, time zones, durations and layovers all work offline.',
 	add_flight_booking: 'Add flight booking',
 	could_not_load_flights: "Couldn't load flights",
+	could_not_remove_flight: "Couldn't remove the flight. Try again.",
 	no_reservations_yet: 'No reservations yet',
 	no_reservations_desc:
 		'Hotels, cars, restaurants, activities and transport – one date-sorted timeline, with vouchers attached and viewable offline.',
 	could_not_load_reservations: "Couldn't load reservations",
+	could_not_remove_reservation: "Couldn't remove the reservation. Try again.",
 
 	// Itinerary Day & Entry
 	daily_todos: 'Daily to-dos',
@@ -429,6 +491,10 @@ export const en = {
 	cannot_preview_safely:
 		"This file type can't be previewed safely. Download it to open in another app.",
 	export_json: 'Export JSON',
+	trip_json_exported: 'Trip JSON exported.',
+	pdf_ready: 'Printable PDF ready.',
+	could_not_export_server: 'Could not export — is your home server reachable?',
+	could_not_build_pdf_server: 'Could not build the PDF — is your home server reachable?',
 	printable_pdf: 'Printable PDF',
 	update_from_json: 'Update from JSON file',
 	paste_json_update: 'Paste JSON to update',

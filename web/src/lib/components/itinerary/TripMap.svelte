@@ -285,7 +285,7 @@
 			leafMap = L.map(mapContainer, {
 				zoomControl: false,
 				attributionControl: false,
-				dragging: !L.Browser.mobile
+				dragging: true
 			}).setView([20, 0], 2);
 
 			L.control
@@ -445,7 +445,7 @@
 
 <div
 	class={`my-4 overflow-hidden rounded-xl border border-border bg-surface shadow-soft transition-all duration-300 ${
-		isExpanded ? 'fixed inset-4 z-50 my-0 flex flex-col shadow-sheet' : ''
+		isExpanded ? 'fixed inset-4 z-[60] my-0 flex flex-col shadow-sheet' : ''
 	}`}
 >
 	<!-- Header bar -->
@@ -476,10 +476,12 @@
 				onclick={downloadOfflineMap}
 				disabled={downloadingOffline}
 				class="inline-flex min-h-touch items-center space-x-1 rounded-md border border-border bg-surface px-2 py-1.5 text-xs font-medium text-ink transition-colors hover:bg-surface-sunken disabled:opacity-50 sm:px-2.5"
-				title="Baixar mapa offline para este destino"
+				title={t('download_offline_map')}
 			>
 				<CloudDownload class="h-3.5 w-3.5 text-primary-600" />
-				<span class="hidden sm:inline">{downloadingOffline ? 'Baixando...' : 'Mapa Offline'}</span>
+				<span class="hidden sm:inline"
+					>{downloadingOffline ? t('downloading') : t('offline_map')}</span
+				>
 			</button>
 
 			<button

@@ -1,4 +1,4 @@
-"""Unit tests for app.services.exports – pure, no I/O."""
+"""Unit tests for app.services.exports - pure, no I/O."""
 
 from __future__ import annotations
 

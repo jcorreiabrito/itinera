@@ -5,10 +5,7 @@ from __future__ import annotations
 import json
 from pathlib import Path
 
-import pytest
-
 from app.services.backups import BACKUP_PREFIX, _backup_dirs, list_backups, prune_old_backups
-
 from tests.conftest import make_settings
 
 

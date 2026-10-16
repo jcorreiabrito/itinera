@@ -129,7 +129,7 @@ def prepare_trip_import(payload: dict[str, Any]) -> tuple[str, list[dict[str, An
     if old_trip_id:
         id_map[old_trip_id] = new_trip_id
 
-    all_raw = [raw_trip_doc] + raw_child_docs
+    all_raw = [raw_trip_doc, *raw_child_docs]
     intermediate_docs: list[dict[str, Any]] = []
 
     for i, raw_doc in enumerate(all_raw):

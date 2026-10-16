@@ -1,0 +1,98 @@
+# Everything that can fail before a merge, in one place.
+#
+# The repo had no CI at all, so the four checks below only ever ran when someone
+# remembered to run them locally — which is how the toolchain drifted to 41 lint
+# errors, 15 type errors and a broken print stylesheet without anyone noticing.
+#
+# Deliberately offline: no network calls, no secrets, no deployment. The app's
+# whole premise is that it runs on a LAN with no third-party services, so the
+# build that proves it must not need one either.
+
+name: CI
+
+on:
+  push:
+    branches: ['**']
+  pull_request:
+  workflow_dispatch:
+
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  web:
+    name: Web (types, lint, unit)
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: web
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: pnpm/action-setup@v4
+        # Version comes from `packageManager` in package.json — pinned there so
+        # the lockfile format and the local toolchain cannot disagree.
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: pnpm
+          cache-dependency-path: web/pnpm-lock.yaml
+
+      - name: Install
+        run: pnpm install --frozen-lockfile
+
+      - name: SvelteKit sync
+        # Generates .svelte-kit/non-ambient.d.ts, which is where the
+        # `ResolvedPathname` type the navigation typing depends on comes from.
+        run: pnpm exec svelte-kit sync
+
+      - name: Types
+        run: pnpm exec svelte-check --threshold error
+
+      - name: Format
+        run: pnpm exec prettier --check .
+
+      - name: Lint
+        # `projectService: true` in eslint.config.js makes this rule-checked
+        # rather than merely syntactic, so it needs the type graph above.
+        run: pnpm exec eslint .
+
+      - name: Unit tests
+        run: pnpm exec vitest run
+
+      - name: Build
+        run: pnpm run build
+
+  api:
+    name: API (lint, tests)
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: api
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+
+      - name: Install WeasyPrint's native dependencies
+        # libpango/libgdk-pixbuf are what actually rasterise the PDF; without
+        # them the import of `weasyprint` fails and the PDF tests error out.
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y --no-install-recommends \
+            libpango-1.0-0 libpangoft2-1.0-0 libgdk-pixbuf-2.0-0 libffi-dev shared-mime-info
+
+      - name: Install
+        run: |
+          python -m pip install --upgrade pip
+          pip install -e '.[dev]'
+
+      - name: Lint
+        run: ruff check .
+
+      - name: Tests
+        run: pytest

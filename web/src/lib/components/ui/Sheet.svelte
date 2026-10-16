@@ -178,16 +178,18 @@
 		</div>
 
 		{#if title || description}
-			<!-- svelte-ignore a11y_no_static_element_interactions -->
+			<!--
+				No drag handlers here on purpose. They used to make the whole header a
+				swipe-to-dismiss surface, so a sheet with a half-filled form closed on
+				an accidental downward swipe and discarded the input. Dismissal now
+				lives on the explicit grab handle above (and the close button), which
+				is a deliberate gesture rather than something a scroll can trigger.
+			-->
 			<header
 				class={cn(
 					'flex items-start justify-between gap-4 px-5 py-4',
 					side === 'right' && 'pt-safe'
 				)}
-				ontouchstart={handleTouchStart}
-				ontouchmove={handleTouchMove}
-				ontouchend={handleTouchEnd}
-				ontouchcancel={handleTouchEnd}
 			>
 				<div class="min-w-0">
 					{#if title}

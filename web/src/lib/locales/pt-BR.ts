@@ -11,6 +11,19 @@ export const ptBR: Record<string, string> = {
 	back_to_trips: 'Voltar para viagens',
 	trip_not_found: 'Viagem não encontrada',
 	trip_not_found_desc: 'Ela pode ter sido excluída em outro dispositivo.',
+	retry: 'Tentar novamente',
+	retrying: 'Tentando novamente…',
+	error_title: 'Algo deu errado',
+	error_heading: 'Algo deu errado',
+	error_generic_desc:
+		'O aplicativo não conseguiu terminar de carregar esta página. Seus dados ficam neste dispositivo e não foram afetados.',
+	error_reference: 'Erro {code}',
+	not_found_title: 'Página não encontrada',
+	error_not_found_heading: 'Página não encontrada',
+	error_not_found_desc:
+		'Este link não corresponde a nada no aplicativo. Ele pode ser de uma versão antiga, ou a viagem foi excluída.',
+	could_not_load_trip_retry:
+		'Não foi possível carregar esta viagem. Verifique sua conexão e tente novamente.',
 	all_trips: 'Todas as viagens',
 	filter_all: 'Todas',
 	filter_confirmed: 'Confirmadas',
@@ -316,6 +329,16 @@ export const ptBR: Record<string, string> = {
 	set_trip_dates: 'Definir datas da viagem',
 	could_not_load_itinerary: 'Não foi possível carregar seu roteiro',
 	export_calendar: 'Exportar calendário',
+	calendar: 'Calendário',
+	download_ics: 'Baixar arquivo .ics',
+	download_ics_hint: 'Funciona offline · importa em qualquer app de calendário',
+	subscribe_calendar: 'Assinar o feed ao vivo',
+	subscribe_calendar_hint: 'Fica sempre atualizado · precisa do servidor de casa',
+	calendar_empty_hint:
+		'Esta viagem ainda não tem atividades, voos ou reservas, então o arquivo terá apenas as datas da viagem.',
+	calendar_downloaded: 'Arquivo de calendário baixado.',
+	could_not_download_calendar: 'Não foi possível gerar o arquivo de calendário.',
+	calendar_link_copied: 'Link do feed copiado. Adicione no Google ou Apple Calendar para assinar.',
 	ideas: 'Ideias',
 	unscheduled: 'Sem data definida',
 
@@ -371,6 +394,42 @@ export const ptBR: Record<string, string> = {
 	stops_count: '{n} escala',
 	stops_count_plural: '{n} escalas',
 
+	// Print view
+	// Share / print entry points
+	share_trip_title: 'Compartilhar "{name}"',
+	share_trip_desc:
+		'Imprima esta viagem você mesmo, ou copie um link que abre o PDF gerado pelo servidor.',
+	print_offline_desc:
+		'Abre uma página pronta para impressão gerada neste dispositivo. Funciona offline e é idêntica ao aplicativo.',
+	open_printable_view: 'Abrir versão para impressão',
+	server_pdf_link: 'Link do PDF para compartilhar',
+	server_pdf_desc:
+		'Precisa que seu servidor esteja acessível — qualquer pessoa que o alcance pode abrir o link.',
+	copy_link: 'Copiar link',
+	link_copied: 'Link copiado para a área de transferência.',
+	could_not_copy_link: 'Não foi possível copiar o link.',
+	open_pdf_preview: 'Abrir prévia do PDF',
+
+	trip_itinerary: 'Roteiro da viagem',
+	print_or_pdf: 'Imprimir / Salvar em PDF',
+	print_hint: 'Escolha "Salvar em PDF" como destino para obter um arquivo.',
+	back_to_trip: 'Voltar para a viagem',
+	printed_from_itinera:
+		'Impresso pelo Itinera — esta cópia é um retrato do momento, não uma reserva ativa.',
+	dates: 'Datas',
+	currency: 'Moeda',
+	no_dates_yet: 'Sem datas ainda',
+	ungrouped: 'Sem grupo',
+	booking_ref: 'Ref',
+	departs: 'Partida',
+	arrives: 'Chegada',
+	total_duration: 'Duração total',
+	confirmation: 'Confirmação',
+	done: 'concluído',
+	not_done: 'não concluído',
+	cost_excluded_one: 'custo foi excluído por falta de taxa de câmbio.',
+	costs_excluded_many: 'custos foram excluídos por falta de taxa de câmbio.',
+
 	// Map & Locations
 	templates: 'Modelos',
 	itinerary_map: 'Mapa do Roteiro',
@@ -386,6 +445,9 @@ export const ptBR: Record<string, string> = {
 	activity_title: 'Título da Atividade',
 	pin_added: 'Nova atividade adicionada a partir do ponto no mapa!',
 	could_not_save_pin: 'Não foi possível salvar a atividade do mapa.',
+	offline_map: 'Mapa offline',
+	download_offline_map: 'Baixar o mapa deste destino para uso offline',
+	downloading: 'Baixando…',
 
 	// Flights & Bookings Pane
 	no_flights_yet: 'Nenhum voo ainda',
@@ -393,10 +455,12 @@ export const ptBR: Record<string, string> = {
 		'Adicione uma reserva com um ou mais trechos. Aeroportos, fusos horários, durações e conexões funcionam offline.',
 	add_flight_booking: 'Adicionar voo',
 	could_not_load_flights: 'Não foi possível carregar os voos',
+	could_not_remove_flight: 'Não foi possível remover o voo. Tente novamente.',
 	no_reservations_yet: 'Nenhuma reserva ainda',
 	no_reservations_desc:
 		'Hotéis, carros, restaurantes, passeios e transportes – uma linha do tempo organizada por data, com vouchers anexados e visíveis offline.',
 	could_not_load_reservations: 'Não foi possível carregar as reservas',
+	could_not_remove_reservation: 'Não foi possível remover a reserva. Tente novamente.',
 
 	// Itinerary Day & Entry
 	daily_todos: 'Tarefas do dia',
@@ -424,6 +488,10 @@ export const ptBR: Record<string, string> = {
 	cannot_preview_safely:
 		'Este tipo de arquivo não pode ser pré-visualizado com segurança. Baixe-o para abrir em outro aplicativo.',
 	export_json: 'Exportar JSON',
+	trip_json_exported: 'JSON da viagem exportado.',
+	pdf_ready: 'PDF para impressão pronto.',
+	could_not_export_server: 'Não foi possível exportar — seu servidor está acessível?',
+	could_not_build_pdf_server: 'Não foi possível gerar o PDF — seu servidor está acessível?',
 	printable_pdf: 'PDF para Impressão',
 	update_from_json: 'Atualizar a partir de arquivo JSON',
 	paste_json_update: 'Colar JSON para atualizar',

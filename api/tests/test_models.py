@@ -1,9 +1,6 @@
-"""Unit tests for app.models – Pydantic document schemas and parse_doc."""
+"""Unit tests for app.models - Pydantic document schemas and parse_doc."""
 
 from __future__ import annotations
-
-import pytest
-from pydantic import ValidationError
 
 from app.models import (
     Attachment,
@@ -19,7 +16,6 @@ from app.models import (
     TripDay,
     parse_doc,
 )
-
 
 # ---------------------------------------------------------------------------
 # Helpers

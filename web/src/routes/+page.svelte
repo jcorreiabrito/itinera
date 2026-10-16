@@ -5,7 +5,16 @@
 	import { bareTripUid, settings, trips } from '$lib/db';
 	import type { Trip } from '$lib/db';
 	import { t, type TranslationKey } from '$lib/i18n.svelte';
-	import { ChevronDown, History, MapPin, Plus, Search, Settings, Sparkles } from 'lucide-svelte';
+	import {
+		ChevronDown,
+		History,
+		MapPin,
+		Plus,
+		RotateCw,
+		Search,
+		Settings,
+		Sparkles
+	} from 'lucide-svelte';
 	import {
 		Button,
 		Dialog,
@@ -24,6 +33,12 @@
 
 	let sectionsData = $state<trips.TripSections | null>(null);
 	let loading = $state(true);
+	/*
+	 * Distinct from `loading`: a failed load used to only raise a toast, which
+	 * auto-dismisses, leaving the trip list showing the empty state — i.e. the
+	 * app told the user they had no trips when it simply could not read them.
+	 */
+	let loadError = $state(false);
 	let search = $state('');
 	let filterTab = $state<'all' | 'confirmed' | 'planning'>('all');
 	let reloadKey = $state(0);
@@ -41,9 +56,11 @@
 	let deleteTrip = $state<Trip | null>(null);
 
 	async function load() {
+		loadError = false;
 		try {
 			sectionsData = await trips.sections();
 		} catch {
+			loadError = true;
 			toast.error(t('could_not_load_trips'));
 		} finally {
 			loading = false;
@@ -324,6 +341,20 @@
 					</div>
 				{/each}
 			</div>
+		{:else if loadError && !sectionsData}
+			<section
+				aria-labelledby="trips-error"
+				class="flex min-h-[60dvh] flex-col items-center justify-center text-center"
+			>
+				<h2 id="trips-error" class="font-serif text-xl font-semibold text-ink">
+					{t('could_not_load_trips')}
+				</h2>
+				<p class="mt-2 max-w-prose text-sm text-ink-muted">{t('error_generic_desc')}</p>
+				<Button class="mt-5" onclick={reload}>
+					<RotateCw class="size-4" />
+					{t('retry')}
+				</Button>
+			</section>
 		{:else if totalTrips === 0}
 			<section aria-labelledby="trips-empty" class="flex min-h-[60dvh] flex-col">
 				<h2 id="trips-empty" class="sr-only">{t('trips')}</h2>

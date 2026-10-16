@@ -3,8 +3,6 @@
 from __future__ import annotations
 
 import httpx
-import pytest
-
 from app.main import create_app
 from tests.conftest import json_response, make_couch, make_settings
 

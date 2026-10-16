@@ -111,7 +111,7 @@
 			});
 			reload();
 		} catch {
-			toast.error(t('flight_removed'));
+			toast.error(t('could_not_remove_flight'));
 		}
 	}
 </script>
