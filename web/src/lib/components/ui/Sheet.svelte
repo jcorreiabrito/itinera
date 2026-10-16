@@ -7,6 +7,7 @@
 	import type { Snippet } from 'svelte';
 	import { X } from 'lucide-svelte';
 	import { cn } from '$lib/utils';
+	import Button from './Button.svelte';
 
 	interface Props {
 		open?: boolean;
@@ -15,6 +16,16 @@
 		description?: string;
 		class?: string;
 		closeLabel?: string;
+		/**
+		 * Set while the sheet holds edits that have not been saved. Every way out
+		 * of the sheet then asks first — the close button, the backdrop, Escape and
+		 * the swipe-down handle — because all four route through `requestClose()`.
+		 */
+		dirty?: boolean;
+		discardTitle?: string;
+		discardBody?: string;
+		discardLabel?: string;
+		keepEditingLabel?: string;
 		onclose?: () => void;
 		children: Snippet;
 		footer?: Snippet;
@@ -27,6 +38,11 @@
 		description,
 		class: className,
 		closeLabel = 'Close',
+		dirty = false,
+		discardTitle = 'Discard unsaved changes?',
+		discardBody = 'Your edits will be lost.',
+		discardLabel = 'Discard',
+		keepEditingLabel = 'Keep editing',
 		onclose,
 		children,
 		footer
@@ -34,7 +50,9 @@
 
 	let dialogEl = $state<HTMLDialogElement>();
 	let contentEl = $state<HTMLDivElement>();
+	let confirmEl = $state<HTMLDivElement>();
 	let closing = $state(false);
+	let confirming = $state(false);
 
 	let touchStartY = 0;
 	let touchDiffY = $state(0);
@@ -43,6 +61,8 @@
 	const uid = ++nextId;
 	const titleId = `sheet-title-${uid}`;
 	const descId = `sheet-desc-${uid}`;
+	const confirmTitleId = `sheet-confirm-title-${uid}`;
+	const confirmBodyId = `sheet-confirm-body-${uid}`;
 
 	$effect(() => {
 		const el = dialogEl;
@@ -76,7 +96,8 @@
 		};
 	});
 
-	function requestClose() {
+	/** Close for real: no prompt, no going back. */
+	function close() {
 		if (typeof document !== 'undefined') {
 			const openDialogs = document.querySelectorAll('dialog[open]');
 			if (openDialogs.length <= 1) {
@@ -86,6 +107,46 @@
 		open = false;
 		onclose?.();
 	}
+
+	/**
+	 * The one exit. A sheet holding unsaved edits shows the confirmation panel
+	 * instead of closing, so a swipe or a stray Escape costs nothing.
+	 */
+	function requestClose() {
+		if (confirming) {
+			// A second dismissal gesture on the prompt itself means "keep editing".
+			keepEditing();
+			return;
+		}
+		if (dirty) {
+			confirming = true;
+			return;
+		}
+		close();
+	}
+
+	function keepEditing() {
+		confirming = false;
+	}
+
+	function discardChanges() {
+		confirming = false;
+		close();
+	}
+
+	// The parent may save (or reset) the form while the prompt is up; the prompt
+	// has nothing left to protect at that point.
+	$effect(() => {
+		if (confirming && !dirty) confirming = false;
+	});
+
+	// Focus the panel so the prompt is announced and Escape/Tab land somewhere
+	// sensible. Focus goes to the panel, not to a button: the least destructive
+	// action should be the default, and focusing "Discard" would make a stray
+	// Enter throw the edits away.
+	$effect(() => {
+		if (confirming) confirmEl?.focus();
+	});
 
 	function onBackdropClick(event: MouseEvent) {
 		if (event.target === dialogEl) requestClose();
@@ -155,7 +216,7 @@
 >
 	<div
 		class={cn(
-			'flex flex-col',
+			'relative flex flex-col',
 			side === 'right'
 				? 'h-full max-sm:h-auto max-sm:max-h-[var(--visual-viewport-height,90dvh)]'
 				: 'max-h-[var(--visual-viewport-height,85dvh)]'
@@ -186,6 +247,7 @@
 				is a deliberate gesture rather than something a scroll can trigger.
 			-->
 			<header
+				inert={confirming}
 				class={cn(
 					'flex items-start justify-between gap-4 px-5 py-4',
 					side === 'right' && 'pt-safe'
@@ -210,12 +272,17 @@
 			</header>
 		{/if}
 
-		<div bind:this={contentEl} class="flex-1 overflow-y-auto overscroll-contain px-5 pb-5 pt-1">
+		<div
+			bind:this={contentEl}
+			inert={confirming}
+			class="flex-1 overflow-y-auto overscroll-contain px-5 pb-5 pt-1"
+		>
 			{@render children()}
 		</div>
 
 		{#if footer}
 			<footer
+				inert={confirming}
 				class={cn(
 					'flex items-center justify-end gap-2 border-t border-border px-5 py-4',
 					(side === 'right' || side === 'bottom') && 'pb-safe'
@@ -223,6 +290,39 @@
 			>
 				{@render footer()}
 			</footer>
+		{/if}
+
+		{#if confirming}
+			<!--
+				Rendered inside the sheet rather than as a second `<dialog>`: nested
+				modals stack their own focus traps and their own Escape handling, and
+				the sheet's Escape already lands here through `requestClose()`.
+
+				The dimmed area takes no click of its own: this prompt exists to make
+				the user choose, and "tap anywhere to make it go away" is the gesture
+				that threw the edits out in the first place. Escape and "Keep editing"
+				both back out.
+			-->
+			<div
+				class="absolute inset-0 z-10 flex items-end justify-center bg-ink/40 p-4 backdrop-blur-sm sm:items-center"
+			>
+				<div
+					bind:this={confirmEl}
+					tabindex="-1"
+					role="alertdialog"
+					aria-modal="true"
+					aria-labelledby={confirmTitleId}
+					aria-describedby={confirmBodyId}
+					class="w-full max-w-sm rounded-xl border border-border bg-surface p-4 shadow-soft outline-none"
+				>
+					<h3 id={confirmTitleId} class="text-base font-semibold">{discardTitle}</h3>
+					<p id={confirmBodyId} class="mt-1 text-sm text-ink-muted">{discardBody}</p>
+					<div class="mt-4 flex flex-col-reverse gap-2 sm:flex-row sm:justify-end">
+						<Button variant="ghost" onclick={keepEditing}>{keepEditingLabel}</Button>
+						<Button variant="destructive" onclick={discardChanges}>{discardLabel}</Button>
+					</div>
+				</div>
+			</div>
 		{/if}
 	</div>
 </dialog>

@@ -1,5 +1,6 @@
 <script lang="ts">
 	import { onMount } from 'svelte';
+	import { replaceState } from '$app/navigation';
 	import { page } from '$app/state';
 	import { resolve } from '$app/paths';
 	import { flights, itinerary, reservations, todayIso, trips } from '$lib/db';
@@ -18,6 +19,7 @@
 	import { startLive } from '$lib/live';
 	import { t } from '$lib/i18n.svelte';
 	import { cn } from '$lib/utils';
+	import { itineraryUrl, readItineraryParams } from '$lib/utils/url-state';
 
 	const shell = getTripShellContext();
 	const reloadSignal = shell.reloadSignal;
@@ -38,20 +40,26 @@
 
 	// `null` selection = the Unscheduled / Ideas bucket.
 	let selectedDate = $state<string | null>(null);
-	let initForId = '';
+	// Reactive, not a plain flag: the URL-sync effect below keys off it, and it
+	// has to wake up when the first load for a trip finishes initialising.
+	let initForId = $state('');
 	let viewMode = $state<'day' | 'overview'>('day');
 
 	let sheetOpen = $state(false);
 	let sheetMode = $state<'create' | 'edit'>('create');
 	let sheetItem = $state<ItineraryItem | null>(null);
 
+	/** Apply the URL's view state once, when a trip is first shown. */
 	function initSelection(tl: NonNullable<typeof timeline>) {
-		const ds = tl.days.map((d) => d.date as string);
-		const param = page.url.searchParams.get('date');
-		if (param && ds.includes(param)) selectedDate = param;
-		else if (param === 'ideas') selectedDate = null;
-		else if (ds.includes(today)) selectedDate = today;
-		else selectedDate = ds[0] ?? null;
+		const view = readItineraryParams(
+			page.url.searchParams,
+			tl.days.map((d) => d.date as string),
+			today
+		);
+		selectedDate = view.date;
+		viewMode = view.overview ? 'overview' : 'day';
+		itinerarySearch = view.query;
+		itineraryCategory = view.category;
 	}
 
 	async function loadAll(tid: string) {
@@ -148,6 +156,37 @@
 
 	let itinerarySearch = $state('');
 	let itineraryCategory = $state<string>('all');
+
+	/*
+	 * Keep the address bar in step with what is on screen, so a day, an overview
+	 * and a filter can be linked, bookmarked, shared and reloaded.
+	 *
+	 * `replaceState` rather than a navigation: paging through a week must not fill
+	 * the Back button with one entry per tap — Back should still leave the tab,
+	 * which is what a user reaching for it mid-trip wants.
+	 *
+	 * The current URL is read from `window.location`, not from `page.url`, on
+	 * purpose: depending on `page.url` here would re-enter this effect on every
+	 * write, and the write would then have to be idempotent to terminate. Reading
+	 * the location directly keeps the effect's dependencies to the four pieces of
+	 * state it mirrors.
+	 */
+	$effect(() => {
+		const tid = id;
+		const date = selectedDate;
+		const overview = viewMode === 'overview';
+		const query = itinerarySearch;
+		const category = itineraryCategory;
+		// Nothing to mirror until the URL has been read for *this* trip.
+		if (!tid || initForId !== tid) return;
+		const next = itineraryUrl(window.location.href, { date, overview, query, category });
+		const current = `${window.location.pathname}${window.location.search}`;
+		// Built from the live location rather than a route literal, so the path is
+		// already the resolved one and `resolve()` has nothing to add — the same
+		// reason `Button` opts out for its external and `blob:` hrefs.
+		// eslint-disable-next-line svelte/no-navigation-without-resolve
+		if (next !== current) replaceState(next, {});
+	});
 
 	const searchFilteredItems = $derived.by(() => {
 		const q = itinerarySearch.trim().toLowerCase();
