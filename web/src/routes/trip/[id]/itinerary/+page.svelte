@@ -355,7 +355,7 @@
 					{#if itinerarySearch}
 						<button
 							type="button"
-							aria-label="Clear search"
+							aria-label={t('clear_search')}
 							class="absolute right-0.5 top-1/2 grid size-11 min-h-[44px] min-w-[44px] -translate-y-1/2 place-items-center rounded text-ink-muted hover:text-ink active:scale-95 sm:size-9 sm:min-h-0 sm:min-w-0"
 							onclick={() => (itinerarySearch = '')}
 						>

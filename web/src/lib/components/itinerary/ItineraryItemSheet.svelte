@@ -29,10 +29,12 @@
 <script lang="ts">
 	import { itinerary } from '$lib/db';
 	import type { Flight, ItineraryItem, Reservation, ExpenseCategory } from '$lib/db';
+	import { untrack } from 'svelte';
 	import { Button, Field, Input, Select, Sheet, Textarea, toast } from '$lib/components/ui';
 	import { Trash2, Wallet, Plus, Search, MapPin, Loader2 } from 'lucide-svelte';
 	import { DateTime } from 'luxon';
 	import { t } from '$lib/i18n.svelte';
+	import { isDirty, snapshot } from '$lib/utils/form-dirty';
 	import { CATEGORY_ORDER, CATEGORY_META } from './categories';
 	import {
 		CATEGORY_ORDER as EXPENSE_CATEGORY_ORDER,
@@ -99,6 +101,18 @@
 	let errors = $state<Partial<Record<keyof FormState, string>>>({});
 	let saving = $state(false);
 	let wasOpen = false;
+
+	/**
+	 * Everything the form can change, so "edited?" stays one comparison.
+	 *
+	 * The location search box is outside on purpose: `searchQuery` is a lookup
+	 * that is never saved, and choosing a result copies what matters into `form`
+	 * (`selectLocation`), so a query typed but not applied loses no edit.
+	 */
+	const fields = () => form;
+	/** The same fields as loaded; `null` until the sheet has read the item. */
+	let baseline = $state<string | null>(null);
+	const dirty = $derived(isDirty(baseline, fields()));
 
 	function blankForm(): FormState {
 		return {
@@ -217,6 +231,9 @@
 		} else {
 			form = blankForm();
 		}
+		// `untrack`: taking the baseline must not make the open/close effect
+		// depend on every field, or it would re-run on each keystroke.
+		baseline = untrack(() => snapshot(fields()));
 	}
 
 	$effect(() => {
@@ -270,25 +287,25 @@
 
 	function validate(): boolean {
 		const e: Partial<Record<keyof FormState, string>> = {};
-		if (!form.title.trim()) e.title = 'Give the activity a name.';
+		if (!form.title.trim()) e.title = t('give_activity_name');
 		if (!form.allDay && form.startTime && form.endTime && form.endTime < form.startTime) {
-			e.endTime = 'End time is before the start.';
+			e.endTime = t('end_before_start');
 		}
 		if (form.costs.length > 0) {
 			for (const cost of form.costs) {
 				if (!cost.label.trim()) {
-					e.estCost = 'Enter a description for all cost items.';
+					e.estCost = t('enter_cost_descriptions');
 					break;
 				}
 				const n = Number(cost.amount);
 				if (!cost.amount.trim() || !Number.isFinite(n) || n < 0) {
-					e.estCost = 'Enter valid amounts for all cost items.';
+					e.estCost = t('enter_cost_amounts');
 					break;
 				}
 			}
 		} else if (form.estCost.trim()) {
 			const n = Number(form.estCost);
-			if (!Number.isFinite(n) || n < 0) e.estCost = 'Enter a valid amount.';
+			if (!Number.isFinite(n) || n < 0) e.estCost = t('enter_valid_amount');
 		}
 		errors = e;
 		return Object.keys(e).length === 0;
@@ -349,7 +366,7 @@
 			open = false;
 			onsaved?.();
 		} catch {
-			toast.error('Could not save the activity. Your changes are still here – try again.');
+			toast.error(t('could_not_save_activity_kept'));
 		} finally {
 			saving = false;
 		}
@@ -361,12 +378,12 @@
 			const saved = await persist();
 			if (!saved) return;
 			const exp = await itinerary.addExpense(saved._id);
-			if (exp) toast.success('Added to your costs.');
-			else toast.error('Add an estimated cost first.');
+			if (exp) toast.success(t('added_to_costs'));
+			else toast.error(t('add_estimated_cost_first'));
 			open = false;
 			onsaved?.();
 		} catch {
-			toast.error('Could not add the expense. Try again.');
+			toast.error(t('could_not_add_expense'));
 		} finally {
 			saving = false;
 		}
@@ -379,22 +396,22 @@
 		try {
 			await itinerary.softDelete(id);
 			open = false;
-			toast.success('Activity removed.', {
+			toast.success(t('activity_removed'), {
 				action: {
-					label: 'Undo',
+					label: t('undo'),
 					onClick: async () => {
 						try {
 							await itinerary.restore(id);
 							onsaved?.();
 						} catch {
-							toast.error('Could not undo. Try restoring from Trash.');
+							toast.error(t('could_not_undo'));
 						}
 					}
 				}
 			});
 			onsaved?.();
 		} catch {
-			toast.error('Could not remove the activity. Try again.');
+			toast.error(t('could_not_remove_activity'));
 		} finally {
 			saving = false;
 		}
@@ -404,8 +421,9 @@
 <Sheet
 	bind:open
 	side="right"
-	title={mode === 'create' ? t('add_activity') : t('edit_expense')}
-	description={mode === 'create' ? 'Plan something for your day.' : undefined}
+	{dirty}
+	title={mode === 'create' ? t('add_activity') : t('edit_activity')}
+	description={mode === 'create' ? t('itinerary_sheet_desc') : undefined}
 >
 	<form
 		class="flex flex-col gap-4"
@@ -414,27 +432,23 @@
 			save();
 		}}
 	>
-		<Field label={t('trip_name') || 'Title'} for={fid('title')} required error={errors.title}>
+		<Field label={t('title')} for={fid('title')} required error={errors.title}>
 			<Input
 				id={fid('title')}
 				value={form.title}
-				placeholder="e.g. Vatican Museums"
+				placeholder={t('activity_name_placeholder')}
 				invalid={!!errors.title}
 				oninput={(e) => (form.title = e.currentTarget.value)}
 			/>
 		</Field>
 
-		<Field
-			label={t('day') || 'Day'}
-			for={fid('date')}
-			hint="Move it to the Ideas list to plan it later."
-		>
+		<Field label={t('label_day')} for={fid('date')} hint={t('day_field_hint')}>
 			<Select
 				id={fid('date')}
 				value={form.date}
 				onchange={(e) => (form.date = e.currentTarget.value)}
 			>
-				<option value="">Unscheduled (Ideas)</option>
+				<option value="">{t('unscheduled_ideas')}</option>
 				{#each dates as date (date)}
 					<option value={date}>{dayLabel(date)}</option>
 				{/each}
@@ -448,7 +462,7 @@
 				class="size-5 rounded border-border text-primary-600 focus:ring-2 focus:ring-primary-600/30"
 				onchange={(e) => (form.allDay = e.currentTarget.checked)}
 			/>
-			<span class="font-medium text-ink">All-day</span>
+			<span class="font-medium text-ink">{t('all_day')}</span>
 		</label>
 
 		{#if !form.allDay}
@@ -478,7 +492,7 @@
 				value={form.category}
 				onchange={(e) => (form.category = e.currentTarget.value)}
 			>
-				<option value="">No category</option>
+				<option value="">{t('no_category')}</option>
 				{#each CATEGORY_ORDER as cat (cat)}
 					<option value={cat}>{CATEGORY_META[cat].label}</option>
 				{/each}
@@ -491,7 +505,7 @@
 				for={fid('loc-search')}
 				class="flex items-center justify-between text-xs font-medium text-ink-muted"
 			>
-				<span>Buscar atração ou endereço</span>
+				<span>{t('search_place_label')}</span>
 				{#if form.lat && form.lng}
 					<span class="font-mono text-[11px] text-primary-600">📍 {form.lat}, {form.lng}</span>
 				{/if}
@@ -500,7 +514,7 @@
 				<Input
 					id={fid('loc-search')}
 					value={searchQuery}
-					placeholder="Digite para autocompletar (ex: Torre Eiffel, Coliseu)..."
+					placeholder={t('search_place_placeholder')}
 					oninput={(e) => onSearchLocation(e.currentTarget.value)}
 				/>
 				<div
@@ -537,29 +551,25 @@
 			{/if}
 		</div>
 
-		<Field
-			label={t('destination') || 'Location'}
-			for={fid('locname')}
-			hint="Where it happens (optional)."
-		>
+		<Field label={t('destination')} for={fid('locname')} hint={t('location_field_hint')}>
 			<Input
 				id={fid('locname')}
 				value={form.locName}
-				placeholder="e.g. St. Peter's Square"
+				placeholder={t('location_placeholder')}
 				oninput={(e) => (form.locName = e.currentTarget.value)}
 			/>
 		</Field>
-		<Field label="Address" for={fid('locaddr')}>
+		<Field label={t('address')} for={fid('locaddr')}>
 			<Input
 				id={fid('locaddr')}
 				value={form.locAddress}
-				placeholder="Street, city"
+				placeholder={t('address_placeholder')}
 				oninput={(e) => (form.locAddress = e.currentTarget.value)}
 			/>
 		</Field>
 
 		<div class="grid grid-cols-2 gap-3">
-			<Field label="Latitude" for={fid('lat')}>
+			<Field label={t('latitude')} for={fid('lat')}>
 				<Input
 					id={fid('lat')}
 					type="number"
@@ -570,7 +580,7 @@
 					oninput={(e) => (form.lat = e.currentTarget.value)}
 				/>
 			</Field>
-			<Field label="Longitude" for={fid('lng')}>
+			<Field label={t('longitude')} for={fid('lng')}>
 				<Input
 					id={fid('lng')}
 					type="number"
@@ -584,13 +594,13 @@
 		</div>
 
 		{#if showFlightLink}
-			<Field label="Link a flight" for={fid('flight')}>
+			<Field label={t('link_a_flight')} for={fid('flight')}>
 				<Select
 					id={fid('flight')}
 					value={form.linkedFlightId}
 					onchange={(e) => (form.linkedFlightId = e.currentTarget.value)}
 				>
-					<option value="">No flight</option>
+					<option value="">{t('no_flight')}</option>
 					{#each flights as f (f._id)}
 						<option value={f._id}>{flightLabel(f)}</option>
 					{/each}
@@ -599,13 +609,13 @@
 		{/if}
 
 		{#if showReservationLink}
-			<Field label="Link a reservation" for={fid('res')}>
+			<Field label={t('link_a_reservation')} for={fid('res')}>
 				<Select
 					id={fid('res')}
 					value={form.linkedReservationId}
 					onchange={(e) => (form.linkedReservationId = e.currentTarget.value)}
 				>
-					<option value="">No reservation</option>
+					<option value="">{t('no_reservation')}</option>
 					{#each reservations as r (r._id)}
 						<option value={r._id}>{r.name ?? t('label_reservation')}</option>
 					{/each}
@@ -613,23 +623,23 @@
 			</Field>
 		{/if}
 
-		<Field label="Notes" for={fid('notes')} hint="Markdown supported.">
+		<Field label={t('notes')} for={fid('notes')} hint={t('markdown_supported')}>
 			<Textarea
 				id={fid('notes')}
 				rows={3}
 				value={form.notes}
-				placeholder="Anything worth remembering..."
+				placeholder={t('notes_placeholder')}
 				oninput={(e) => (form.notes = e.currentTarget.value)}
 			/>
 		</Field>
 
 		<Field
-			label="Estimated cost"
+			label={t('estimated_cost')}
 			for={fid('cost')}
 			error={errors.estCost}
 			hint={form.costs.length > 0
-				? `Calculated from segregated costs below. In ${homeCurrency}.`
-				: `In ${homeCurrency}. Use "Add as expense" to count it in your budget.`}
+				? t('cost_from_lines_hint', { currency: homeCurrency })
+				: t('cost_single_hint', { currency: homeCurrency })}
 		>
 			<Input
 				id={fid('cost')}
@@ -647,7 +657,7 @@
 
 		<div class="border-t border-border pt-4">
 			<div class="mb-2 flex items-center justify-between">
-				<span class="text-sm font-semibold text-ink">Segregated Costs</span>
+				<span class="text-sm font-semibold text-ink">{t('segregated_costs')}</span>
 				<Button
 					type="button"
 					variant="secondary"
@@ -655,13 +665,14 @@
 					class="h-7 px-2 text-xs"
 					onclick={addCostLine}
 				>
-					<Plus class="size-3.5" /> Add line
+					<Plus class="size-3.5" />
+					{t('add_line')}
 				</Button>
 			</div>
 
 			{#if form.costs.length === 0}
 				<p class="mb-2 text-xs text-ink-muted">
-					No segregated costs added. Use the single field above or add detailed lines.
+					{t('no_segregated_costs')}
 				</p>
 			{:else}
 				<div class="mb-3 flex flex-col gap-2">
@@ -670,7 +681,7 @@
 							<div class="flex-[2]">
 								<Input
 									value={cost.label}
-									placeholder="Tickets, entrance, Uber..."
+									placeholder={t('cost_line_placeholder')}
 									oninput={(e) => {
 										form.costs[index].label = e.currentTarget.value;
 									}}

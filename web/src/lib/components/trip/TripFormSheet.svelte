@@ -6,7 +6,9 @@
 	import { t } from '$lib/i18n.svelte';
 	import { bareTripUid, trips } from '$lib/db';
 	import type { Destination, Trip } from '$lib/db';
+	import { untrack } from 'svelte';
 	import { Button, Field, Input, Select, Sheet, Textarea, toast } from '$lib/components/ui';
+	import { isDirty, snapshot } from '$lib/utils/form-dirty';
 	import CoverImageField from './CoverImageField.svelte';
 
 	interface Props {
@@ -78,6 +80,26 @@
 	let saving = $state(false);
 	let wasOpen = false;
 
+	/**
+	 * Everything the form can change, so "edited?" stays one comparison.
+	 * `destinations` is in here because DestinationListEditor binds it back.
+	 */
+	const fields = () => ({
+		title: form.title,
+		startDate: form.startDate,
+		endDate: form.endDate,
+		destinations: form.destinations,
+		homeCurrency: form.homeCurrency,
+		budgetTotal: form.budgetTotal,
+		stage: form.stage,
+		notes: form.notes,
+		tags: form.tags,
+		travelerCount: form.travelerCount
+	});
+	/** The same fields as loaded; `null` until the sheet has read the trip. */
+	let baseline = $state<string | null>(null);
+	const dirty = $derived(isDirty(baseline, fields()));
+
 	function blankForm(): FormState {
 		return {
 			title: '',
@@ -111,6 +133,9 @@
 		} else {
 			form = blankForm();
 		}
+		// `untrack`: taking the baseline must not make the open/close effect
+		// depend on every field, or it would re-run on each keystroke.
+		baseline = untrack(() => snapshot(fields()));
 	}
 
 	// Initialise the form only when the sheet opens (not on every keystroke).
@@ -132,20 +157,20 @@
 
 	function validate(): boolean {
 		const e: Partial<Record<keyof FormState, string>> = {};
-		if (!form.title.trim()) e.title = 'Give your trip a name.';
-		if (!form.startDate) e.startDate = 'Pick a start date.';
-		if (!form.endDate) e.endDate = 'Pick an end date.';
+		if (!form.title.trim()) e.title = t('trip_name_required');
+		if (!form.startDate) e.startDate = t('start_date_required');
+		if (!form.endDate) e.endDate = t('end_date_required');
 		if (form.startDate && form.endDate && form.endDate < form.startDate)
-			e.endDate = 'End date is before the start date.';
+			e.endDate = t('end_before_start_date');
 		if (form.travelerCount.trim()) {
 			const n = Number(form.travelerCount);
 			if (!Number.isInteger(n) || n < 1) {
-				e.travelerCount = 'Enter a valid number of travelers (at least 1).';
+				e.travelerCount = t('travelers_min');
 			}
 		}
 		if (mode === 'edit' && form.budgetTotal.trim()) {
 			const n = Number(form.budgetTotal);
-			if (!Number.isFinite(n) || n < 0) e.budgetTotal = 'Enter a valid amount.';
+			if (!Number.isFinite(n) || n < 0) e.budgetTotal = t('enter_valid_amount');
 		}
 		errors = e;
 		return Object.keys(e).length === 0;
@@ -190,7 +215,7 @@
 				onsaved?.(updated);
 			}
 		} catch {
-			toast.error('Could not save the trip. Your changes are still here – try again.');
+			toast.error(t('could_not_save_trip_kept'));
 		} finally {
 			saving = false;
 		}
@@ -200,8 +225,9 @@
 <Sheet
 	bind:open
 	side="right"
+	{dirty}
 	title={mode === 'create' ? t('new_trip') : t('edit_trip')}
-	description={mode === 'create' ? 'Just the essentials – you can add the rest later.' : undefined}
+	description={mode === 'create' ? t('trip_form_desc') : undefined}
 >
 	<form
 		class="flex flex-col gap-4"
@@ -214,7 +240,7 @@
 			<Input
 				id={fid('title')}
 				value={form.title}
-				placeholder="e.g. Rome & Florence"
+				placeholder={t('trip_name_placeholder')}
 				invalid={!!errors.title}
 				oninput={(e) => (form.title = e.currentTarget.value)}
 			/>
@@ -274,7 +300,7 @@
 			label={t('travelers')}
 			for={fid('travelers')}
 			error={errors.travelerCount}
-			hint="Number of people traveling on this trip."
+			hint={t('travelers_hint')}
 		>
 			<Input
 				id={fid('travelers')}
@@ -303,7 +329,7 @@
 			label={t('budget_total')}
 			for={fid('budget')}
 			error={errors.budgetTotal}
-			hint={`In ${form.homeCurrency}. Leave blank for no budget.`}
+			hint={t('budget_total_hint', { currency: form.homeCurrency })}
 		>
 			<Input
 				id={fid('budget')}
@@ -317,7 +343,7 @@
 			/>
 		</Field>
 
-		<Field label={t('tags')} for={fid('tags')} hint="Comma-separated.">
+		<Field label={t('tags')} for={fid('tags')} hint={t('comma_separated')}>
 			<Input
 				id={fid('tags')}
 				value={form.tags}
@@ -326,12 +352,12 @@
 			/>
 		</Field>
 
-		<Field label={t('notes')} for={fid('notes')} hint="Markdown supported.">
+		<Field label={t('notes')} for={fid('notes')} hint={t('markdown_supported')}>
 			<Textarea
 				id={fid('notes')}
 				rows={5}
 				value={form.notes}
-				placeholder="Anything worth remembering."
+				placeholder={t('notes_placeholder')}
 				oninput={(e) => (form.notes = e.currentTarget.value)}
 			/>
 		</Field>

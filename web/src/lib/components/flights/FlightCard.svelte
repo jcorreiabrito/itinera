@@ -63,12 +63,16 @@
 			<p class="flex flex-wrap items-center gap-x-2 gap-y-1 text-base font-semibold text-ink">
 				<span class="inline-flex items-center gap-1.5">
 					<Plane class="size-4 text-primary-700" aria-hidden="true" />
-					{computed.route || 'Flight'}
+					{computed.route || t('flight')}
 				</span>
 				{#if computed.stops > 0}
-					<Badge variant="neutral">{computed.stops} stop{computed.stops > 1 ? 's' : ''}</Badge>
+					<Badge variant="neutral">
+						{computed.stops > 1
+							? t('stops_count_plural', { n: String(computed.stops) })
+							: t('stops_count', { n: String(computed.stops) })}
+					</Badge>
 				{:else}
-					<Badge variant="neutral">Direct</Badge>
+					<Badge variant="neutral">{t('direct')}</Badge>
 				{/if}
 			</p>
 			<p class="mt-0.5 text-xs text-ink-muted">
@@ -76,12 +80,12 @@
 			</p>
 		</div>
 
-		<Popover bind:open={menuOpen} label="Flight actions">
+		<Popover bind:open={menuOpen} label={t('flight_actions')}>
 			{#snippet trigger({ toggle, open })}
 				<button
 					type="button"
 					onclick={toggle}
-					aria-label="Flight actions"
+					aria-label={t('flight_actions')}
 					aria-haspopup="true"
 					aria-expanded={open}
 					class="grid size-11 min-h-[44px] min-w-[44px] shrink-0 place-items-center rounded-md text-ink-muted transition-colors hover:bg-surface-sunken hover:text-ink sm:size-9 sm:min-h-0 sm:min-w-0 [&_svg]:size-5 sm:[&_svg]:size-4"
@@ -89,20 +93,20 @@
 					<MoreVertical />
 				</button>
 			{/snippet}
-			<MenuItem icon={Pencil} onclick={() => act(onedit)}>Edit</MenuItem>
-			<MenuItem icon={Trash2} tone="danger" onclick={() => act(ondelete)}>Delete</MenuItem>
+			<MenuItem icon={Pencil} onclick={() => act(onedit)}>{t('edit')}</MenuItem>
+			<MenuItem icon={Trash2} tone="danger" onclick={() => act(ondelete)}>{t('delete')}</MenuItem>
 		</Popover>
 	</header>
 
 	<!-- Each leg is a labelled list item; layovers are separate text items. -->
-	<ul class="mt-4 flex flex-col gap-2" aria-label="Flight legs">
+	<ul class="mt-4 flex flex-col gap-2" aria-label={t('legs')}>
 		{#each segs as seg, i (i)}
 			<li
 				aria-label={legAriaLabel(seg)}
 				class="rounded-md border border-border bg-surface-sunken/40 p-2.5"
 			>
 				<div class="flex items-baseline justify-between gap-2">
-					<span class="text-sm font-medium text-ink">{airlineLabel(seg) || 'Flight'}</span>
+					<span class="text-sm font-medium text-ink">{airlineLabel(seg) || t('flight')}</span>
 					{#if seg.durationText}
 						<span class="text-xs tabular-nums text-ink-muted">{seg.durationText}</span>
 					{/if}
@@ -126,7 +130,10 @@
 						{#if seg.arrivalDayOffset > 0}
 							<span
 								class="rounded-full bg-accent-terracotta/15 px-1.5 py-0.5 text-[0.65rem] font-semibold text-accent-terracotta"
-								title={`Arrives ${seg.arrivalDayOffset} day after departure`}
+								title={t(
+									seg.arrivalDayOffset > 1 ? 'arrives_days_after_many' : 'arrives_days_after_one',
+									{ n: String(seg.arrivalDayOffset) }
+								)}
 							>
 								+{seg.arrivalDayOffset}
 							</span>
@@ -136,13 +143,15 @@
 
 				{#if seg.seat || seg.terminal || seg.gate || seg.baggage}
 					<p class="mt-1.5 flex flex-wrap gap-3 gap-y-0.5 text-xs text-ink-muted">
-						{#if seg.seat}<span>Seat: <b class="font-semibold text-ink">{seg.seat}</b></span>{/if}
-						{#if seg.terminal}<span
-								>Terminal: <b class="font-semibold text-ink">{seg.terminal}</b></span
+						{#if seg.seat}<span>{t('seat')}: <b class="font-semibold text-ink">{seg.seat}</b></span
 							>{/if}
-						{#if seg.gate}<span>Gate: <b class="font-semibold text-ink">{seg.gate}</b></span>{/if}
+						{#if seg.terminal}<span
+								>{t('terminal')}: <b class="font-semibold text-ink">{seg.terminal}</b></span
+							>{/if}
+						{#if seg.gate}<span>{t('gate')}: <b class="font-semibold text-ink">{seg.gate}</b></span
+							>{/if}
 						{#if seg.baggage}<span
-								>Baggage: <b class="font-semibold text-ink">{seg.baggage}</b></span
+								>{t('baggage')}: <b class="font-semibold text-ink">{seg.baggage}</b></span
 							>{/if}
 					</p>
 				{/if}
@@ -151,18 +160,21 @@
 					{@const lay = computed.layovers[i]}
 					{@const tight = lay ? lay.minutes != null && lay.minutes < 60 : false}
 					<div
-						aria-label={`Layover at ${endpointCode(seg.to)}: ${lay?.text}`}
+						aria-label={t('layover_aria', {
+							code: endpointCode(seg.to),
+							text: lay?.text ?? ''
+						})}
 						class="mt-2.5 flex flex-wrap items-center gap-x-2 gap-y-0.5 border-t border-border/50 pt-2 text-xs {tight
 							? 'font-medium text-warning'
 							: 'text-ink-muted'}"
 					>
 						{#if tight}<TriangleAlert class="size-3.5" aria-hidden="true" />{/if}
 						<span>
-							Layover {endpointCode(seg.to)}{lay?.text ? ` · ${lay.text}` : ''}{tight
-								? ` · tight`
-								: ''}
+							{t('layover_label', { code: endpointCode(seg.to) })}{lay?.text
+								? ` · ${lay.text}`
+								: ''}{tight ? ` · ${t('tight')}` : ''}
 						</span>
-						{#if lay?.changeAirport}<span>🔄 change airport</span>{/if}
+						{#if lay?.changeAirport}<span>{t('change_airport')}</span>{/if}
 					</div>
 				{/if}
 			</li>
@@ -179,12 +191,12 @@
 					onclick={async () => {
 						const success = await copyToClipboard(flight.bookingRef!);
 						if (success) {
-							toast.success(t('copied_to_clipboard') || 'Copied PNR');
+							toast.success(t('copied_to_clipboard'));
 						} else {
 							toast.info(flight.bookingRef!);
 						}
 					}}
-					title="Click to copy PNR"
+					title={t('click_to_copy_pnr')}
 					class="inline-flex min-h-[44px] items-center gap-1.5 rounded-md px-2 py-1 transition-colors hover:bg-surface-sunken active:scale-95 sm:min-h-0"
 				>
 					<span>PNR <b class="font-semibold text-ink">{flight.bookingRef}</b></span>
@@ -197,7 +209,9 @@
 			{#if attachmentCount > 0}
 				<span class="inline-flex items-center gap-1">
 					<Paperclip class="size-3.5" aria-hidden="true" />
-					{attachmentCount} file{attachmentCount > 1 ? 's' : ''}
+					{attachmentCount > 1
+						? t('file_count_many', { n: String(attachmentCount) })
+						: t('file_count_one', { n: String(attachmentCount) })}
 				</span>
 			{/if}
 			{#if flight.checkInUrl}
@@ -207,7 +221,8 @@
 					rel="noopener noreferrer external"
 					class="inline-flex min-h-[44px] items-center gap-1.5 rounded-md px-2 py-1 font-medium text-primary-700 hover:bg-primary-100 hover:underline sm:min-h-0 [&_svg]:size-3.5"
 				>
-					<ExternalLink /> Check in
+					<ExternalLink />
+					{t('check_in')}
 				</a>
 			{/if}
 			{#if bookingNotes}

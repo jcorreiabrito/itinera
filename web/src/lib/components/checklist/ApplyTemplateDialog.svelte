@@ -2,6 +2,7 @@
 	import { checklist } from '$lib/db';
 	import type { ChecklistTemplate } from '$lib/db';
 	import { Badge, Button, Dialog, Field, Select, toast } from '$lib/components/ui';
+	import { t } from '$lib/i18n.svelte';
 	import { cn } from '$lib/utils';
 	import { CheckCircle2, Sparkles, Star } from 'lucide-svelte';
 
@@ -26,10 +27,10 @@
 		try {
 			const list = await checklist.templates.list();
 			templates = list;
-			const def = list.find((t) => t.isDefault);
+			const def = list.find((tpl) => tpl.isDefault);
 			selectedId = def?._id ?? list[0]?._id ?? '';
 		} catch {
-			toast.error('Could not load templates.');
+			toast.error(t('could_not_load_templates'));
 		} finally {
 			loading = false;
 		}
@@ -40,18 +41,41 @@
 		wasOpen = open;
 	});
 
-	const selectedTemplate = $derived(templates.find((t) => t._id === selectedId));
+	const selectedTemplate = $derived(templates.find((tpl) => tpl._id === selectedId));
 
 	const groupedItems = $derived.by(() => {
 		if (!selectedTemplate?.items) return [];
 		/* eslint-disable-next-line svelte/prefer-svelte-reactivity -- a plain Map/Date is correct here: this is a local accumulator/registry rebuilt on every run, not reactive $state. SvelteMap would add reactivity nobody reads. */
 		const map = new Map<string, typeof selectedTemplate.items>();
 		for (const item of selectedTemplate.items) {
-			const g = item.group ?? 'Packing';
+			const g = item.group ?? t('packing');
 			(map.get(g) ?? map.set(g, []).get(g)!).push(item);
 		}
 		return [...map.entries()].map(([group, items]) => ({ group, items }));
 	});
+
+	/** Option label, e.g. "Praia (Default) · 12 items". */
+	function templateOptionLabel(tpl: ChecklistTemplate): string {
+		const name = tpl.name ?? t('untitled');
+		const isDefault = tpl.isDefault ? ` ${t('default_parens')}` : '';
+		const count = tpl.items?.length ?? 0;
+		const items =
+			count === 1 ? t('items_count', { n: '1' }) : t('items_count_plural', { n: String(count) });
+		return `${name}${isDefault} · ${items}`;
+	}
+
+	const selectedCountLabel = $derived.by(() => {
+		const count = selectedTemplate?.items?.length ?? 0;
+		return count === 1
+			? t('items_count', { n: '1' })
+			: t('items_count_plural', { n: String(count) });
+	});
+
+	const groupsLabel = $derived(
+		groupedItems.length === 1
+			? t('in_groups_one', { n: String(groupedItems.length) })
+			: t('in_groups_many', { n: String(groupedItems.length) })
+	);
 
 	async function apply() {
 		if (!selectedId) return;
@@ -61,14 +85,14 @@
 			open = false;
 			toast.success(
 				mode === 'replace'
-					? 'Checklist replaced from template.'
+					? t('checklist_replaced_from_template')
 					: added > 0
-						? `Added ${added} item${added === 1 ? '' : 's'}.`
-						: 'Already up to date – no new items.'
+						? t(added === 1 ? 'added_items_one' : 'added_items_many', { n: String(added) })
+						: t('already_up_to_date')
 			);
 			onapplied?.();
 		} catch {
-			toast.error('Could not apply the template. Try again.');
+			toast.error(t('could_not_apply_template'));
 		} finally {
 			applying = false;
 		}
@@ -83,38 +107,28 @@
 		);
 </script>
 
-<Dialog
-	bind:open
-	title="Apply a template"
-	description="Choose a pre-built or custom checklist template to start your list."
->
+<Dialog bind:open title={t('apply_a_template')} description={t('apply_template_desc')}>
 	{#if loading}
-		<div class="py-8 text-center text-sm text-ink-muted">Loading templates...</div>
+		<div class="py-8 text-center text-sm text-ink-muted">{t('loading_templates')}</div>
 	{:else if templates.length === 0}
-		<p class="text-sm text-ink-muted">No templates available.</p>
+		<p class="text-sm text-ink-muted">{t('no_templates_available')}</p>
 	{:else}
 		<div class="flex flex-col gap-4">
-			<Field label="Select Template" for="apply-template">
+			<Field label={t('select_template')} for="apply-template">
 				<Select
 					id="apply-template"
 					value={selectedId}
 					onchange={(e) => (selectedId = e.currentTarget.value)}
 				>
-					<optgroup label="Built-in Templates">
-						{#each templates.filter((t) => t._id.startsWith('tpl:builtin:')) as tpl (tpl._id)}
-							<option value={tpl._id}>
-								{tpl.name ?? 'Untitled'}
-								{tpl.isDefault ? ' (Default)' : ''} · {tpl.items?.length ?? 0} items
-							</option>
+					<optgroup label={t('builtin_templates')}>
+						{#each templates.filter((tpl) => tpl._id.startsWith('tpl:builtin:')) as tpl (tpl._id)}
+							<option value={tpl._id}>{templateOptionLabel(tpl)}</option>
 						{/each}
 					</optgroup>
-					{#if templates.some((t) => !t._id.startsWith('tpl:builtin:'))}
-						<optgroup label="My Custom Templates">
-							{#each templates.filter((t) => !t._id.startsWith('tpl:builtin:')) as tpl (tpl._id)}
-								<option value={tpl._id}>
-									{tpl.name ?? 'Untitled'}
-									{tpl.isDefault ? ' (Default)' : ''} · {tpl.items?.length ?? 0} items
-								</option>
+					{#if templates.some((tpl) => !tpl._id.startsWith('tpl:builtin:'))}
+						<optgroup label={t('my_templates')}>
+							{#each templates.filter((tpl) => !tpl._id.startsWith('tpl:builtin:')) as tpl (tpl._id)}
+								<option value={tpl._id}>{templateOptionLabel(tpl)}</option>
 							{/each}
 						</optgroup>
 					{/if}
@@ -129,15 +143,17 @@
 							<span class="font-semibold text-ink">{selectedTemplate.name}</span>
 							{#if selectedTemplate._id.startsWith('tpl:builtin:')}
 								<Badge variant="primary" class="gap-1">
-									<Sparkles class="size-3" /> Built-in
+									<Sparkles class="size-3" />
+									{t('builtin_template')}
 								</Badge>
 							{/if}
 							{#if selectedTemplate.isDefault}
-								<Badge variant="warning">Default</Badge>
+								<Badge variant="warning">{t('default')}</Badge>
 							{/if}
 						</div>
 						<span class="text-xs tabular-nums text-ink-muted">
-							{selectedTemplate.items?.length ?? 0} items in {groupedItems.length} groups
+							{selectedCountLabel}
+							{groupsLabel}
 						</span>
 					</div>
 
@@ -178,23 +194,23 @@
 			{/if}
 
 			<fieldset class="flex flex-col gap-1.5">
-				<legend class="text-sm font-medium text-ink">Application Strategy</legend>
+				<legend class="text-sm font-medium text-ink">{t('application_strategy')}</legend>
 				<div class="flex gap-2">
 					<button
 						type="button"
 						class={modeClass(mode === 'merge')}
 						onclick={() => (mode = 'merge')}
 					>
-						<div class="font-semibold">Merge</div>
-						<div class="text-xs text-ink-muted">Add items, skipping any duplicates</div>
+						<div class="font-semibold">{t('merge')}</div>
+						<div class="text-xs text-ink-muted">{t('merge_desc')}</div>
 					</button>
 					<button
 						type="button"
 						class={modeClass(mode === 'replace')}
 						onclick={() => (mode = 'replace')}
 					>
-						<div class="font-semibold">Replace</div>
-						<div class="text-xs text-ink-muted">Clear current list first</div>
+						<div class="font-semibold">{t('replace')}</div>
+						<div class="text-xs text-ink-muted">{t('replace_desc')}</div>
 					</button>
 				</div>
 			</fieldset>
@@ -202,9 +218,10 @@
 	{/if}
 
 	{#snippet footer()}
-		<Button variant="ghost" onclick={() => (open = false)} disabled={applying}>Cancel</Button>
+		<Button variant="ghost" onclick={() => (open = false)} disabled={applying}>{t('cancel')}</Button
+		>
 		<Button onclick={apply} disabled={applying || loading || !selectedId}>
-			{applying ? 'Applying...' : 'Apply Template'}
+			{applying ? t('applying') : t('apply_template')}
 		</Button>
 	{/snippet}
 </Dialog>

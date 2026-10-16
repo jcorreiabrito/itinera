@@ -12,8 +12,10 @@
 		ReservationDetails,
 		ReservationKind
 	} from '$lib/db';
+	import { untrack } from 'svelte';
 	import { Button, Field, Input, Select, Sheet, Textarea, toast } from '$lib/components/ui';
 	import { t } from '$lib/i18n.svelte';
+	import { isDirty, snapshot } from '$lib/utils/form-dirty';
 	import { AttachmentField } from '$lib/components/attachments';
 	import { Trash2 } from 'lucide-svelte';
 	import { formatNights } from '$lib/format';
@@ -87,6 +89,12 @@
 	let wasOpen = false;
 	let attachmentItems = $state<Attachment[]>([]);
 	let travelerCount = $state(1);
+
+	/** Everything the form can change, so "edited?" stays one comparison. */
+	const fields = () => form;
+	/** The same fields as loaded; `null` until the sheet has read the reservation. */
+	let baseline = $state<string | null>(null);
+	const dirty = $derived(isDirty(baseline, fields()));
 
 	import { trips } from '$lib/db';
 
@@ -196,6 +204,9 @@
 			form = blankForm();
 			attachmentItems = [];
 		}
+		// `untrack`: taking the baseline must not make the open/close effect
+		// depend on every field, or it would re-run on each keystroke.
+		baseline = untrack(() => snapshot(fields()));
 	}
 
 	$effect(() => {
@@ -265,14 +276,14 @@
 
 	function validate(): boolean {
 		const e: Partial<Record<keyof FormState, string>> = {};
-		if (!form.name.trim()) e.name = 'Give the reservation a name.';
+		if (!form.name.trim()) e.name = t('give_reservation_name');
 		if (form.cost.trim()) {
 			const n = Number(form.cost);
-			if (!Number.isFinite(n) || n < 0) e.cost = 'Enter a valid amount.';
+			if (!Number.isFinite(n) || n < 0) e.cost = t('enter_valid_amount');
 		}
 		const start = combine(form.startDate, form.startTime);
 		const end = combine(form.endDate, form.endTime);
-		if (start && end && end < start) e.endDate = 'End is before the start.';
+		if (start && end && end < start) e.endDate = t('end_before_start');
 		errors = e;
 		return Object.keys(e).length === 0;
 	}
@@ -335,7 +346,7 @@
 			open = false;
 			onsaved?.();
 		} catch {
-			toast.error('Could not save the reservation. Your changes are still here – try again.');
+			toast.error(t('could_not_save_reservation_kept'));
 		} finally {
 			saving = false;
 		}
@@ -348,22 +359,22 @@
 		try {
 			await reservations.softDelete(id);
 			open = false;
-			toast.success('Reservation removed.', {
+			toast.success(t('reservation_removed'), {
 				action: {
-					label: 'Undo',
+					label: t('undo'),
 					onClick: async () => {
 						try {
 							await reservations.restore(id);
 							onsaved?.();
 						} catch {
-							toast.error('Could not undo. Try restoring from Trash.');
+							toast.error(t('could_not_undo'));
 						}
 					}
 				}
 			});
 			onsaved?.();
 		} catch {
-			toast.error('Could not remove the reservation. Try again.');
+			toast.error(t('could_not_remove_reservation'));
 		} finally {
 			saving = false;
 		}
@@ -373,8 +384,9 @@
 <Sheet
 	bind:open
 	side="right"
+	{dirty}
 	title={mode === 'create' ? t('add_reservation') : t('edit_reservation')}
-	description="Name and type get you a row fast – refine the details anytime."
+	description={t('reservation_sheet_desc')}
 >
 	<form
 		class="flex flex-col gap-4"
@@ -395,11 +407,11 @@
 			</Select>
 		</Field>
 
-		<Field label={t('trip_name') || 'Name'} for={fid('name')} required error={errors.name}>
+		<Field label={t('trip_name')} for={fid('name')} required error={errors.name}>
 			<Input
 				id={fid('name')}
 				value={form.name}
-				placeholder="e.g. Hotel Artemide"
+				placeholder={t('reservation_name_placeholder')}
 				invalid={!!errors.name}
 				oninput={(e) => (form.name = e.currentTarget.value)}
 			/>
@@ -407,7 +419,7 @@
 
 		<!-- Start / End + date + optional time (no time = shows as all-day). -->
 		<div class="grid grid-cols-1 gap-3 sm:grid-cols-[1fr_7rem]">
-			<Field label={`${meta.startLabel} date`} for={fid('sd')}>
+			<Field label={t('date_field_label', { label: meta.startLabel })} for={fid('sd')}>
 				<Input
 					id={fid('sd')}
 					type="date"
@@ -415,7 +427,7 @@
 					oninput={(e) => (form.startDate = e.currentTarget.value)}
 				/>
 			</Field>
-			<Field label="Time" for={fid('st')}>
+			<Field label={t('time')} for={fid('st')}>
 				<Input
 					id={fid('st')}
 					type="time"
@@ -427,7 +439,11 @@
 
 		{#if showEnd}
 			<div class="grid grid-cols-1 gap-3 sm:grid-cols-[1fr_7rem]">
-				<Field label={`${meta.endLabel} date`} for={fid('ed')} error={errors.endDate}>
+				<Field
+					label={t('date_field_label', { label: meta.endLabel ?? '' })}
+					for={fid('ed')}
+					error={errors.endDate}
+				>
 					<Input
 						id={fid('ed')}
 						type="date"
@@ -436,7 +452,7 @@
 						oninput={(e) => (form.endDate = e.currentTarget.value)}
 					/>
 				</Field>
-				<Field label="Time" for={fid('et')}>
+				<Field label={t('time')} for={fid('et')}>
 					<Input
 						id={fid('et')}
 						type="time"
@@ -454,60 +470,60 @@
 		<!-- Tailored details per type -->
 		{#if form.kind === 'lodging'}
 			<div class="grid grid-cols-1 gap-3 sm:grid-cols-2">
-				<Field label="Room type" for={fid('room')}>
+				<Field label={t('room_type')} for={fid('room')}>
 					<Input
 						id={fid('room')}
 						value={form.roomType}
-						placeholder="Double, sea view"
+						placeholder={t('room_type_placeholder')}
 						oninput={(e) => (form.roomType = e.currentTarget.value)}
 					/>
 				</Field>
-				<Field label="Address line 2" for={fid('addr2')}>
+				<Field label={t('address_line_2')} for={fid('addr2')}>
 					<Input
 						id={fid('addr2')}
 						value={form.address2}
-						placeholder="Floor / unit"
+						placeholder={t('address_line_2_placeholder')}
 						oninput={(e) => (form.address2 = e.currentTarget.value)}
 					/>
 				</Field>
 			</div>
 		{:else if form.kind === 'car'}
 			<div class="grid grid-cols-1 gap-3 sm:grid-cols-2">
-				<Field label="Pick-up location" for={fid('pick')}>
+				<Field label={t('pickup_location')} for={fid('pick')}>
 					<Input
 						id={fid('pick')}
 						value={form.pickupLocation}
-						placeholder="Airport T1"
+						placeholder={t('pickup_location_placeholder')}
 						oninput={(e) => (form.pickupLocation = e.currentTarget.value)}
 					/>
 				</Field>
-				<Field label="Drop-off location" for={fid('drop')}>
+				<Field label={t('dropoff_location')} for={fid('drop')}>
 					<Input
 						id={fid('drop')}
 						value={form.dropoffLocation}
-						placeholder="City centre"
+						placeholder={t('dropoff_location_placeholder')}
 						oninput={(e) => (form.dropoffLocation = e.currentTarget.value)}
 					/>
 				</Field>
-				<Field label="Company" for={fid('company')}>
+				<Field label={t('company')} for={fid('company')}>
 					<Input
 						id={fid('company')}
 						value={form.company}
-						placeholder="Hertz"
+						placeholder={t('company_placeholder')}
 						oninput={(e) => (form.company = e.currentTarget.value)}
 					/>
 				</Field>
-				<Field label="Car class" for={fid('class')}>
+				<Field label={t('car_class')} for={fid('class')}>
 					<Input
 						id={fid('class')}
 						value={form.carClass}
-						placeholder="Compact"
+						placeholder={t('car_class_placeholder')}
 						oninput={(e) => (form.carClass = e.currentTarget.value)}
 					/>
 				</Field>
 			</div>
 		{:else if form.kind === 'restaurant'}
-			<Field label="Party size" for={fid('party')}>
+			<Field label={t('party_size')} for={fid('party')}>
 				<Input
 					id={fid('party')}
 					type="number"
@@ -520,63 +536,63 @@
 			</Field>
 		{:else if form.kind === 'activity'}
 			<div class="grid grid-cols-1 gap-3 sm:grid-cols-2">
-				<Field label="Provider" for={fid('prov')}>
+				<Field label={t('provider')} for={fid('prov')}>
 					<Input
 						id={fid('prov')}
 						value={form.provider}
-						placeholder="GetYourGuide"
+						placeholder={t('provider_placeholder')}
 						oninput={(e) => (form.provider = e.currentTarget.value)}
 					/>
 				</Field>
-				<Field label="Meeting point" for={fid('meet')}>
+				<Field label={t('meeting_point')} for={fid('meet')}>
 					<Input
 						id={fid('meet')}
 						value={form.meetingPoint}
-						placeholder="Main entrance"
+						placeholder={t('meeting_point_placeholder')}
 						oninput={(e) => (form.meetingPoint = e.currentTarget.value)}
 					/>
 				</Field>
 			</div>
 		{:else if form.kind === 'transport'}
 			<div class="grid grid-cols-1 gap-3 sm:grid-cols-2">
-				<Field label="Mode" for={fid('mode')}>
+				<Field label={t('mode')} for={fid('mode')}>
 					<Select
 						id={fid('mode')}
 						value={form.mode}
 						onchange={(e) => (form.mode = e.currentTarget.value)}
 					>
-						<option value="">Choose...</option>
-						<option value="train">Train</option>
-						<option value="bus">Bus</option>
-						<option value="ferry">Ferry</option>
-						<option value="transfer">Transfer</option>
+						<option value="">{t('choose')}</option>
+						<option value="train">{t('mode_train')}</option>
+						<option value="bus">{t('mode_bus')}</option>
+						<option value="ferry">{t('mode_ferry')}</option>
+						<option value="transfer">{t('mode_transfer')}</option>
 					</Select>
 				</Field>
-				<Field label="Carrier" for={fid('carrier')}>
+				<Field label={t('carrier')} for={fid('carrier')}>
 					<Input
 						id={fid('carrier')}
 						value={form.carrier}
-						placeholder="Trenitalia"
+						placeholder={t('carrier_placeholder')}
 						oninput={(e) => (form.carrier = e.currentTarget.value)}
 					/>
 				</Field>
-				<Field label="From" for={fid('from')}>
+				<Field label={t('from')} for={fid('from')}>
 					<Input
 						id={fid('from')}
 						value={form.transFrom}
-						placeholder="Roma Termini"
+						placeholder={t('transport_from_placeholder')}
 						oninput={(e) => (form.transFrom = e.currentTarget.value)}
 					/>
 				</Field>
-				<Field label="To" for={fid('to')}>
+				<Field label={t('to')} for={fid('to')}>
 					<Input
 						id={fid('to')}
 						value={form.transTo}
-						placeholder="Firenze SMN"
+						placeholder={t('transport_to_placeholder')}
 						oninput={(e) => (form.transTo = e.currentTarget.value)}
 					/>
 				</Field>
-				<Field label="Seat" for={fid('tseat')}>
+				<Field label={t('seat')} for={fid('tseat')}>
 					<Input
 						id={fid('tseat')}
 						value={form.seat}
@@ -584,7 +600,7 @@
 						oninput={(e) => (form.seat = e.currentTarget.value)}
 					/>
 				</Field>
-				<Field label="Coach" for={fid('coach')}>
+				<Field label={t('coach')} for={fid('coach')}>
 					<Input
 						id={fid('coach')}
 						value={form.coach}
@@ -596,24 +612,24 @@
 		{/if}
 
 		<!-- Location -->
-		<Field label="Location name" for={fid('locname')}>
+		<Field label={t('location_name')} for={fid('locname')}>
 			<Input
 				id={fid('locname')}
 				value={form.locName}
-				placeholder="Where it is"
+				placeholder={t('location_name_placeholder')}
 				oninput={(e) => (form.locName = e.currentTarget.value)}
 			/>
 		</Field>
-		<Field label="Address" for={fid('locaddr')}>
+		<Field label={t('address')} for={fid('locaddr')}>
 			<Input
 				id={fid('locaddr')}
 				value={form.locAddress}
-				placeholder="Street, city"
+				placeholder={t('address_placeholder')}
 				oninput={(e) => (form.locAddress = e.currentTarget.value)}
 			/>
 		</Field>
 		<div class="grid grid-cols-2 gap-3">
-			<Field label="Latitude" for={fid('lat')}>
+			<Field label={t('latitude')} for={fid('lat')}>
 				<Input
 					id={fid('lat')}
 					type="number"
@@ -624,7 +640,7 @@
 					oninput={(e) => (form.lat = e.currentTarget.value)}
 				/>
 			</Field>
-			<Field label="Longitude" for={fid('lng')}>
+			<Field label={t('longitude')} for={fid('lng')}>
 				<Input
 					id={fid('lng')}
 					type="number"
@@ -637,7 +653,7 @@
 			</Field>
 		</div>
 
-		<Field label="Confirmation code" for={fid('conf')}>
+		<Field label={t('confirmation_code')} for={fid('conf')}>
 			<Input
 				id={fid('conf')}
 				value={form.confirmation}
@@ -651,7 +667,7 @@
 				label={t('cost')}
 				for={fid('cost')}
 				error={errors.cost}
-				hint="Adds one linked expense to your budget."
+				hint={t('cost_adds_expense_hint')}
 			>
 				<Input
 					id={fid('cost')}
@@ -676,11 +692,7 @@
 		</div>
 
 		{#if travelerCount > 1 && form.cost.trim()}
-			<Field
-				label={t('cost_distribution')}
-				for={fid('cost-dist')}
-				hint="Select if this reservation cost is the total or per person."
-			>
+			<Field label={t('cost_distribution')} for={fid('cost-dist')} hint={t('cost_type_hint')}>
 				<Select
 					id={fid('cost-dist')}
 					value={form.costType}
@@ -694,7 +706,7 @@
 
 		<!-- Contact -->
 		<div class="grid grid-cols-1 gap-3 sm:grid-cols-2">
-			<Field label="Phone" for={fid('phone')}>
+			<Field label={t('phone')} for={fid('phone')}>
 				<Input
 					id={fid('phone')}
 					type="tel"
@@ -703,7 +715,7 @@
 					oninput={(e) => (form.phone = e.currentTarget.value)}
 				/>
 			</Field>
-			<Field label="Email" for={fid('email')}>
+			<Field label={t('email')} for={fid('email')}>
 				<Input
 					id={fid('email')}
 					type="email"
@@ -713,7 +725,7 @@
 				/>
 			</Field>
 		</div>
-		<Field label="Website" for={fid('web')}>
+		<Field label={t('website')} for={fid('web')}>
 			<Input
 				id={fid('web')}
 				type="url"
@@ -728,7 +740,7 @@
 				id={fid('notes')}
 				rows={2}
 				value={form.notes}
-				placeholder="Anything worth remembering..."
+				placeholder={t('notes_placeholder')}
 				oninput={(e) => (form.notes = e.currentTarget.value)}
 			/>
 		</Field>
@@ -739,14 +751,14 @@
 				ownerType="reservation"
 				ownerId={reservation._id}
 				items={attachmentItems}
-				label="Vouchers & confirmations"
+				label={t('vouchers_confirmations')}
 				link={(attId) => reservations.linkAttachment(reservation._id, attId)}
 				unlink={(attId) => reservations.unlinkAttachment(reservation._id, attId)}
 				onchange={loadAttachments}
 			/>
 		{:else}
 			<p class="rounded-md bg-surface-sunken px-3 py-2 text-xs text-ink-muted">
-				Save the reservation to attach vouchers and confirmations.
+				{t('save_reservation_to_attach')}
 			</p>
 		{/if}
 

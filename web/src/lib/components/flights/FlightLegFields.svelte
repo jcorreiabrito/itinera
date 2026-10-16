@@ -52,7 +52,7 @@
 
 <fieldset class="rounded-lg border border-border bg-surface-sunken/50 p-3">
 	<legend class="flex w-full items-center justify-between gap-1">
-		<span class="text-sm font-semibold text-ink">Leg {index + 1}</span>
+		<span class="text-sm font-semibold text-ink">{t('leg_number', { n: String(index + 1) })}</span>
 		{#if canRemove}
 			<button
 				type="button"
@@ -93,7 +93,7 @@
 				<AirportInput
 					id={fid('from')}
 					value={leg.from}
-					placeholder="Origin – city or code"
+					placeholder={t('origin_placeholder')}
 					onchange={(v) => (leg.from = v)}
 				/>
 			</Field>
@@ -101,7 +101,7 @@
 				<AirportInput
 					id={fid('to')}
 					value={leg.to}
-					placeholder="Destination – city or code"
+					placeholder={t('destination_placeholder')}
 					onchange={(v) => (leg.to = v)}
 				/>
 			</Field>
@@ -111,7 +111,7 @@
 			<Field
 				label={t('departure')}
 				for={fid('dep')}
-				hint={leg.from?.tz ? `Local time · ${leg.from.tz}` : 'Local time at the origin'}
+				hint={leg.from?.tz ? t('local_time_tz', { tz: leg.from.tz }) : t('local_time_origin')}
 			>
 				<Input
 					id={fid('dep')}
@@ -124,7 +124,7 @@
 				label={t('arrival')}
 				for={fid('arr')}
 				{error}
-				hint={leg.to?.tz ? `Local time · ${leg.to.tz}` : 'Local time at the destination'}
+				hint={leg.to?.tz ? t('local_time_tz', { tz: leg.to.tz }) : t('local_time_destination')}
 			>
 				<Input
 					id={fid('arr')}
@@ -143,14 +143,16 @@
 					<span
 						class="rounded-full bg-accent-terracotta/15 px-2 py-0.5 font-medium text-accent-terracotta"
 					>
-						Arrives +{arrivalDayOffset} day{arrivalDayOffset > 1 ? 's' : ''}
+						{arrivalDayOffset > 1
+							? t('arrives_plus_many', { n: String(arrivalDayOffset) })
+							: t('arrives_plus_one', { n: String(arrivalDayOffset) })}
 					</span>
 				{/if}
 			</p>
 		{/if}
 
 		<div class="grid grid-cols-1 gap-3 sm:grid-cols-3">
-			<Field label="Seat" for={fid('seat')}>
+			<Field label={t('seat')} for={fid('seat')}>
 				<Input
 					id={fid('seat')}
 					value={leg.seat}
@@ -158,7 +160,7 @@
 					oninput={(e) => (leg.seat = e.currentTarget.value)}
 				/>
 			</Field>
-			<Field label="Terminal" for={fid('term')}>
+			<Field label={t('terminal')} for={fid('term')}>
 				<Input
 					id={fid('term')}
 					value={leg.terminal}
@@ -166,7 +168,7 @@
 					oninput={(e) => (leg.terminal = e.currentTarget.value)}
 				/>
 			</Field>
-			<Field label="Gate" for={fid('gate')}>
+			<Field label={t('gate')} for={fid('gate')}>
 				<Input
 					id={fid('gate')}
 					value={leg.gate}
@@ -177,7 +179,7 @@
 		</div>
 
 		<div class="grid grid-cols-1 gap-3 sm:grid-cols-2">
-			<Field label="Baggage" for={fid('bag')}>
+			<Field label={t('baggage')} for={fid('bag')}>
 				<Input
 					id={fid('bag')}
 					value={leg.baggage}
@@ -185,7 +187,7 @@
 					oninput={(e) => (leg.baggage = e.currentTarget.value)}
 				/>
 			</Field>
-			<Field label="Check-in opens" for={fid('ci')}>
+			<Field label={t('check_in_opens')} for={fid('ci')}>
 				<Input
 					id={fid('ci')}
 					type="datetime-local"

@@ -76,12 +76,12 @@
 	}
 
 	const ariaLabel = $derived.by(() => {
-		const parts: string[] = [item.text ?? 'Item'];
-		if (item.quantity && item.quantity > 1) parts.push(`quantity ${item.quantity}`);
-		if (item.important) parts.push('important');
+		const parts: string[] = [item.text ?? t('untitled')];
+		if (item.quantity && item.quantity > 1) parts.push(`${t('quantity')} ${item.quantity}`);
+		if (item.important) parts.push(t('important'));
 		if (item.dueDate)
-			parts.push(`due ${formatDate(item.dueDate)}${dueInfo?.overdue ? ', overdue' : ''}`);
-		parts.push(localDone ? 'done' : 'not done');
+			parts.push(`${dueInfo?.overdue ? t('overdue') : t('due')} ${formatDate(item.dueDate)}`);
+		parts.push(t(localDone ? 'done' : 'not_done'));
 		return parts.join(', ');
 	});
 
@@ -130,7 +130,7 @@
 				{#if item.important}
 					<Star
 						class="size-4 shrink-0 fill-accent-amber text-accent-amber"
-						aria-label="Important"
+						aria-label={t('important')}
 					/>
 				{/if}
 				{#if item.quantity && item.quantity > 1}
@@ -139,7 +139,7 @@
 				{#if dueInfo}
 					<Badge variant={dueInfo.amber ? 'warning' : 'neutral'}>
 						<CalendarClock class="size-3" />
-						{dueInfo.overdue ? 'Overdue' : 'Due'}
+						{dueInfo.overdue ? t('overdue') : t('due')}
 						{dueInfo.label}
 					</Badge>
 				{/if}
@@ -155,11 +155,11 @@
 						type="button"
 						onclick={() => (noteOpen = !noteOpen)}
 						aria-expanded={noteOpen}
-						aria-label={noteOpen ? 'Hide note' : 'Show note'}
+						aria-label={noteOpen ? t('hide_note') : t('show_note')}
 						class="inline-flex items-center gap-1 rounded-full border border-border bg-surface-sunken px-2 py-0.5 text-xs"
 					>
 						<Info />
-						Note
+						{t('note')}
 					</button>
 				{/if}
 			</div>
@@ -168,12 +168,12 @@
 			{/if}
 		</div>
 
-		<Popover bind:open={menuOpen} label="Item actions" align="end">
+		<Popover bind:open={menuOpen} label={t('item_actions')} align="end">
 			{#snippet trigger({ toggle, open })}
 				<button
 					type="button"
 					onclick={toggle}
-					aria-label="Item actions"
+					aria-label={t('item_actions')}
 					aria-haspopup="true"
 					aria-expanded={open}
 					class="grid size-11 min-h-[44px] min-w-[44px] shrink-0 place-items-center rounded-md text-ink-muted transition-colors hover:bg-surface-sunken sm:size-8 sm:min-h-0 sm:min-w-0 [&_svg]:size-5 sm:[&_svg]:size-4"
@@ -181,16 +181,18 @@
 					<MoreVertical />
 				</button>
 			{/snippet}
-			<MenuItem icon={Pencil} onclick={() => action(onedit)}>Edit</MenuItem>
+			<MenuItem icon={Pencil} onclick={() => action(onedit)}>{t('edit')}</MenuItem>
 			<MenuItem icon={ArrowUp} disabled={!canMoveUp} onclick={() => action(onmoveup)}
-				>Move up</MenuItem
+				>{t('move_up')}</MenuItem
 			>
 			<MenuItem icon={ArrowDown} disabled={!canMoveDown} onclick={() => action(onmovedown)}>
-				Move down
+				{t('move_down')}
 			</MenuItem>
-			<MenuItem icon={ArrowRightLeft} onclick={() => action(onmovegroup)}>Move to group...</MenuItem
+			<MenuItem icon={ArrowRightLeft} onclick={() => action(onmovegroup)}
+				>{t('move_to_group_ellipsis')}</MenuItem
 			>
-			<MenuItem icon={Trash2} tone="danger" onclick={() => action(ondelete)}>Delete</MenuItem>
+			<MenuItem icon={Trash2} tone="danger" onclick={() => action(ondelete)}>{t('delete')}</MenuItem
+			>
 		</Popover>
 	</div>
 </li>

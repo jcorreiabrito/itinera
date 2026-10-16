@@ -1,6 +1,7 @@
 <script lang="ts">
 	import { checklist } from '$lib/db';
 	import { Button, Dialog, Field, Input, toast } from '$lib/components/ui';
+	import { t } from '$lib/i18n.svelte';
 
 	interface Props {
 		open?: boolean;
@@ -30,34 +31,30 @@
 
 	async function save() {
 		if (!name.trim()) {
-			error = 'Give the template a name.';
+			error = t('give_template_name');
 			return;
 		}
 		saving = true;
 		try {
 			await checklist.saveAsTemplate(tripId, name.trim(), isDefault);
 			open = false;
-			toast.success('Saved as a template.');
+			toast.success(t('saved_as_template'));
 			onsaved?.();
 		} catch {
-			toast.error('Could not save the template. Try again.');
+			toast.error(t('could_not_save_template'));
 		} finally {
 			saving = false;
 		}
 	}
 </script>
 
-<Dialog
-	bind:open
-	title="Save as template"
-	description="Snapshot this checklist (text, group, quantity, important) to reuse later."
->
+<Dialog bind:open title={t('save_as_template')} description={t('save_template_desc')}>
 	<div class="flex flex-col gap-4">
-		<Field label="Template name" for="save-template-name" required {error}>
+		<Field label={t('template_name')} for="save-template-name" required {error}>
 			<Input
 				id="save-template-name"
 				value={name}
-				placeholder="e.g. Carry-on only"
+				placeholder={t('template_name_placeholder')}
 				invalid={!!error}
 				oninput={(e) => {
 					name = e.currentTarget.value;
@@ -72,12 +69,12 @@
 				class="size-5 rounded border-border text-primary-600 focus:ring-2 focus:ring-primary-600/30"
 				onchange={(e) => (isDefault = e.currentTarget.checked)}
 			/>
-			<span class="font-medium text-ink">Offer this on new trips (default)</span>
+			<span class="font-medium text-ink">{t('offer_template_default')}</span>
 		</label>
 	</div>
 
 	{#snippet footer()}
-		<Button variant="ghost" onclick={() => (open = false)} disabled={saving}>Cancel</Button>
-		<Button onclick={save} disabled={saving}>{saving ? 'Saving...' : 'Save template'}</Button>
+		<Button variant="ghost" onclick={() => (open = false)} disabled={saving}>{t('cancel')}</Button>
+		<Button onclick={save} disabled={saving}>{saving ? t('saving') : t('save_template')}</Button>
 	{/snippet}
 </Dialog>

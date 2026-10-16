@@ -17,6 +17,7 @@
 		ShoppingCart
 	} from 'lucide-svelte';
 	import { Button, Input, ProgressBar, toast } from '$lib/components/ui';
+	import { t } from '$lib/i18n.svelte';
 	import { cn } from '$lib/utils';
 	import ChecklistItemRow from './ChecklistItemRow.svelte';
 
@@ -59,7 +60,7 @@
 			await checklist.toggle(item._id);
 			onchanged();
 		} catch {
-			toast.error('Could not update the item.');
+			toast.error(t('could_not_update_todo'));
 		}
 	}
 
@@ -68,7 +69,7 @@
 			await checklist.softDelete(item._id);
 			onchanged();
 		} catch {
-			toast.error('Could not remove the item.');
+			toast.error(t('could_not_remove_item'));
 		}
 	}
 
@@ -77,7 +78,7 @@
 			await checklist.checkAllInGroup(tripId, group.group);
 			onchanged();
 		} catch {
-			toast.error('Could not check all items.');
+			toast.error(t('could_not_check_all'));
 		}
 	}
 
@@ -90,7 +91,7 @@
 			qText = '';
 			onchanged();
 		} catch {
-			toast.error('Could not add the item.');
+			toast.error(t('could_not_add_item'));
 		} finally {
 			qSaving = false;
 		}
@@ -122,7 +123,7 @@
 			await checklist.reorderWithinGroup(all);
 			onchanged();
 		} catch {
-			toast.error('Could not reorder. Try again.');
+			toast.error(t('could_not_reorder'));
 		}
 	}
 
@@ -151,7 +152,7 @@
 					value={fraction}
 					tone={allDone ? 'success' : 'primary'}
 					size="sm"
-					label={`${group.group} progress`}
+					label={`${group.group} ${t('progress')}`}
 				/>
 			</span>
 		</button>
@@ -159,8 +160,8 @@
 			<button
 				type="button"
 				onclick={checkAll}
-				aria-label={`Check all in ${group.group}`}
-				title="Check all"
+				aria-label={t('check_all_in_group', { group: group.group })}
+				title={t('check_all')}
 				class="grid size-9 shrink-0 place-items-center rounded-md text-ink-muted transition-colors hover:bg-surface-sunken"
 			>
 				<CheckCheck />
@@ -189,7 +190,7 @@
 				</ul>
 			{:else if hideCompleted && allDone}
 				<p class="border-t border-border py-3 text-sm text-success">
-					All checked off in this group.
+					{t('all_checked_group')}
 				</p>
 			{/if}
 
@@ -200,17 +201,19 @@
 					quickAdd();
 				}}
 			>
-				<label for={`add-${panelId}`} class="sr-only">Add an item to {group.group}</label>
+				<label for={`add-${panelId}`} class="sr-only"
+					>{t('add_item_to_group', { group: group.group })}</label
+				>
 				<Input
 					id={`add-${panelId}`}
 					class="h-10 flex-1"
 					value={qText}
-					placeholder="Add an item..."
+					placeholder={t('add_item_placeholder')}
 					oninput={(e) => (qText = e.currentTarget.value)}
 				/>
 				<Button type="submit" variant="secondary" size="sm" disabled={qSaving || !qText.trim()}>
 					<Plus class="size-4" />
-					Add
+					{t('add')}
 				</Button>
 			</form>
 		</div>

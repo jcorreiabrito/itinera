@@ -83,7 +83,9 @@
 			firstDestination?.name,
 			formatDateRange(trip.startDate, trip.endDate),
 			trip.derived.status,
-			progress && progress.total > 0 ? `${Math.round(progress.fraction * 100)}% packed` : undefined
+			progress && progress.total > 0
+				? `${Math.round(progress.fraction * 100)}% ${t('packed')}`
+				: undefined
 		]
 			.filter(Boolean)
 			.join(', ')
@@ -190,13 +192,13 @@
 							size="sm"
 							tone="success"
 							value={visible ? progress.fraction : 0}
-							label="Checklist progress"
+							label={t('checklist_progress')}
 						/>
 						<span class="shrink-0 font-medium tabular-nums text-ink">
 							{progress.done}/{progress.total}
 						</span>
 					{:else}
-						<span class="flex-1">Checklist not started</span>
+						<span class="flex-1">{t('checklist_not_started')}</span>
 					{/if}
 				</div>
 
@@ -210,7 +212,7 @@
 							size="sm"
 							tone={budgetTone}
 							value={visible ? (budget.usedFraction ?? 0) : 0}
-							label="Budget used"
+							label={t('budget_used')}
 						/>
 						<span class="shrink-0 font-medium tabular-nums text-ink">
 							{formatMoney(budget.spent, currency, { compact: true })} /
@@ -218,7 +220,8 @@
 						</span>
 					{:else}
 						<span class="flex-1">
-							{formatMoney(budget.spent, currency, { compact: true })} spent
+							{formatMoney(budget.spent, currency, { compact: true })}
+							{t('spent')}
 						</span>
 					{/if}
 				</div>
@@ -226,12 +229,16 @@
 		</div>
 
 		<!-- Stretched link: makes the whole card one focusable target (sits below the menu). -->
-		<a {href} class="absolute inset-1 z-10 rounded-lg" aria-label={`Open trip: ${ariaLabel}`}>
-			<span class="sr-only">Open {title}</span>
+		<a
+			{href}
+			class="absolute inset-1 z-10 rounded-lg"
+			aria-label={t('open_trip_label', { name: ariaLabel })}
+		>
+			<span class="sr-only">{t('open')} {title}</span>
 		</a>
 
 		<div class="absolute right-2 top-2 z-20">
-			<Popover bind:open={menuOpen} align="end" label="Actions for {title}">
+			<Popover bind:open={menuOpen} align="end" label={`${t('actions_for')} ${title}`}>
 				{#snippet trigger({ toggle, open })}
 					<button
 						type="button"
@@ -240,7 +247,7 @@
 							e.preventDefault();
 							toggle();
 						}}
-						aria-label="Actions for {title}"
+						aria-label={`${t('actions_for')} ${title}`}
 						aria-haspopup="true"
 						aria-expanded={open}
 						class="grid size-11 min-h-[44px] min-w-[44px] place-items-center rounded-full bg-surface/80 text-ink shadow-soft backdrop-blur transition-[colors,transform] duration-200 hover:rotate-90 hover:bg-surface focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary-600"

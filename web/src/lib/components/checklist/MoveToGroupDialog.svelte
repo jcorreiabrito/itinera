@@ -2,6 +2,7 @@
 	import { CHECKLIST_PRESET_GROUPS } from '$lib/db';
 	import { Check, Plus } from 'lucide-svelte';
 	import { Button, Dialog, Input } from '$lib/components/ui';
+	import { t } from '$lib/i18n.svelte';
 	import { cn } from '$lib/utils';
 
 	interface Props {
@@ -46,8 +47,8 @@
 
 <Dialog
 	bind:open
-	title="Move to group"
-	description={title ? `Where should "${title}" go?` : undefined}
+	title={t('move_to_group')}
+	description={title ? t('where_should_item_go', { title }) : undefined}
 >
 	<ul class="flex flex-col gap-1.5">
 		{#each options as group (group)}
@@ -67,17 +68,17 @@
 			addNew();
 		}}
 	>
-		<label for="move-new-group" class="sr-only">New group name</label>
+		<label for="move-new-group" class="sr-only">{t('new_group_name')}</label>
 		<Input
 			id="move-new-group"
 			class="h-10 flex-1"
 			value={newGroup}
-			placeholder="New group..."
+			placeholder={t('new_group_prompt')}
 			oninput={(e) => (newGroup = e.currentTarget.value)}
 		/>
 		<Button type="submit" variant="secondary" size="sm" disabled={!newGroup.trim()}>
 			<Plus class="size-4" />
-			Add
+			{t('add')}
 		</Button>
 	</form>
 </Dialog>

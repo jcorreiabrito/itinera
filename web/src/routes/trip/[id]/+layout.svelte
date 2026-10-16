@@ -36,6 +36,13 @@
 	const id = $derived(page.params.id ?? '');
 	const pathname = $derived(page.url.pathname);
 	const tab = $derived(page.url.searchParams.get('tab'));
+	/**
+	 * The section whose page is on screen, so the shell can size the column to
+	 * what it holds. `isActive` is the same predicate the navigation uses, so
+	 * `/bookings?tab=reservations` resolves to `reservations` — whose width
+	 * happens to match `flights`, its sibling tab.
+	 */
+	const section = $derived(TRIP_SECTIONS.find((entry) => entry.isActive(pathname, id, tab)));
 
 	async function loadTrip(tripid: string) {
 		loadError = false;
@@ -107,7 +114,7 @@
 			<ArrowLeft />
 			<span>{t('all_trips')}</span>
 		</a>
-		<nav aria-label="Trip sections" class="flex-1 overflow-y-auto p-3">
+		<nav aria-label={t('trip_sections')} class="flex-1 overflow-y-auto p-3">
 			<ul class="flex flex-col gap-1">
 				{#each sections as section (section.id)}
 					<li class={section.separated ? 'mt-2' : undefined}>
@@ -144,7 +151,7 @@
 				</a>
 				{#if loaded}
 					<h1 class="animate-slide-down truncate font-serif text-base font-semibold sm:text-lg">
-						{trip?.title?.trim() || 'Trip'}
+						{trip?.title?.trim() || t('untitled_trip')}
 					</h1>
 				{:else}
 					<Skeleton class="h-5 w-32 sm:w-40" />
@@ -160,8 +167,8 @@
 					<button
 						type="button"
 						onclick={() => (shareOpen = true)}
-						aria-label="Share trip"
-						title="Share trip"
+						aria-label={t('share_trip')}
+						title={t('share_trip')}
 						class="hidden size-11 min-h-[44px] min-w-[44px] place-items-center rounded-md text-ink-muted transition-colors hover:bg-surface-sunken hover:text-ink active:scale-95 sm:grid [&_svg]:size-5"
 					>
 						<Share2 />
@@ -189,7 +196,12 @@
 
 		<main
 			id="page-content"
-			class="mx-auto w-full max-w-5xl flex-1 px-4 pb-[calc(7.5rem+env(safe-area-inset-bottom,0px))] pt-5 sm:px-6 lg:pb-12"
+			class={cn(
+				'mx-auto w-full flex-1 px-4 pb-[calc(7.5rem+env(safe-area-inset-bottom,0px))] pt-5 sm:px-6 lg:pb-12',
+				// A plan takes the wide column at 2xl; a page of prose keeps the
+				// reading measure. See `wide` in $lib/trip-sections.
+				section?.wide ? 'max-w-5xl 2xl:max-w-7xl' : 'max-w-5xl'
+			)}
 		>
 			{#if loaded && !trip}
 				<div class="flex min-h-[50dvh] flex-col items-center justify-center text-center">
@@ -222,7 +234,7 @@
 
 		<!-- Mobile bottom tab bar -->
 		<nav
-			aria-label="Trip sections"
+			aria-label={t('trip_sections')}
 			class="no-print pb-safe fixed inset-x-0 bottom-0 z-50 border-t border-border bg-surface/95 backdrop-blur-md lg:hidden"
 		>
 			<ul class="mx-auto flex max-w-xl items-stretch justify-around">

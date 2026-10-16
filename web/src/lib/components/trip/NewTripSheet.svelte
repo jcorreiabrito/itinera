@@ -6,9 +6,11 @@
 	import { bareTripUlid, checklist, trips } from '$lib/db';
 	import type { ChecklistTemplate, Destination, Trip } from '$lib/db';
 	import { ClipboardList, Copy, PenLine, Upload } from 'lucide-svelte';
+	import { untrack } from 'svelte';
 	import { Button, Field, Input, Select, Sheet, toast } from '$lib/components/ui';
 	import { t } from '$lib/i18n.svelte';
 	import { importTripToLocalDb } from '$lib/db/importer';
+	import { isDirty, snapshot } from '$lib/utils/form-dirty';
 	import DestinationListEditor from './DestinationListEditor.svelte';
 
 	interface Props {
@@ -86,6 +88,24 @@
 	let form = $state<FormState>(blankForm());
 	let errors = $state<Partial<Record<keyof FormState, string>>>({});
 
+	/**
+	 * Everything the user can put into the sheet that a swipe would throw away:
+	 * the trip form, the template and source-trip picks, and the import inputs.
+	 * `step` is deliberately absent — moving between the sheet's steps is
+	 * navigation, not an edit, and merely choosing a step must not prompt.
+	 */
+	const fields = () => ({
+		form,
+		templateId,
+		sourceId,
+		// A `File` does not survive JSON, so the name the drop zone shows stands in for it.
+		importName: importFile?.name ?? '',
+		pasteText
+	});
+	/** The same fields as loaded; `null` until the sheet has reset its form. */
+	let baseline = $state<string | null>(null);
+	const dirty = $derived(isDirty(baseline, fields()));
+
 	function blankForm(): FormState {
 		return {
 			title: '',
@@ -102,7 +122,13 @@
 		try {
 			templates = await checklist.templates.list();
 			const def = await checklist.templates.getDefault();
+			// The default template lands a tick after `reset()` took its snapshot, so
+			// it is picked up as part of what was loaded rather than as an edit — but
+			// only while the fields still match the baseline, so a keystroke that beat
+			// the fetch keeps its own baseline and stays dirty.
+			const beforeDefault = untrack(() => snapshot(fields()));
 			templateId = def?._id ?? templates[0]?._id ?? '';
+			if (beforeDefault === baseline) baseline = untrack(() => snapshot(fields()));
 		} catch {
 			templates = [];
 		}
@@ -117,6 +143,9 @@
 		importTab = 'file';
 		pasteText = '';
 		void loadTemplates();
+		// `untrack`: taking the baseline must not make the open/close effect
+		// depend on every field, or it would re-run on each keystroke.
+		baseline = untrack(() => snapshot(fields()));
 	}
 
 	$effect(() => {
@@ -133,16 +162,16 @@
 
 	function validate(): boolean {
 		const e: Partial<Record<keyof FormState, string>> = {};
-		if (!form.title.trim()) e.title = 'Give your trip a name.';
-		if (!form.startDate) e.startDate = 'Pick a start date.';
-		if (!form.endDate) e.endDate = 'Pick an end date.';
+		if (!form.title.trim()) e.title = t('trip_name_required');
+		if (!form.startDate) e.startDate = t('start_date_required');
+		if (!form.endDate) e.endDate = t('end_date_required');
 		if (form.startDate && form.endDate && form.endDate < form.startDate) {
-			e.endDate = 'End date is before the start date.';
+			e.endDate = t('end_before_start_date');
 		}
 		if (form.travelerCount.trim()) {
 			const n = Number(form.travelerCount);
 			if (!Number.isInteger(n) || n < 1) {
-				e.travelerCount = 'Enter a valid number of travelers.';
+				e.travelerCount = t('travelers_min');
 			}
 		}
 		errors = e;
@@ -171,13 +200,13 @@
 				try {
 					await checklist.applyTemplate(bareTripUlid(created._id), tplId, 'merge');
 				} catch {
-					toast.warning('Trip created, but the checklist template could not be applied.');
+					toast.warning(t('template_apply_failed'));
 				}
 			}
 			open = false;
 			onsaved?.(created);
 		} catch {
-			toast.error('Could not create the trip. Your details are still here – try again.');
+			toast.error(t('could_not_create_trip_kept'));
 		} finally {
 			saving = false;
 		}
@@ -486,22 +515,20 @@
 			id: 'blank',
 			icon: PenLine,
 			label: t('blank_trip'),
-			desc: 'Start fresh with the essentials.'
+			desc: t('start_fresh_desc')
 		},
 		{
 			id: 'duplicate',
 			icon: Copy,
 			label: t('duplicate_trip'),
-			desc: hasSources ? 'Copy an existing trip and shift the dates.' : 'No trips to copy yet.',
+			desc: hasSources ? t('copy_existing_desc') : t('no_trips_to_copy'),
 			disabled: !hasSources
 		},
 		{
 			id: 'template',
 			icon: ClipboardList,
 			label: t('from_template'),
-			desc: hasTemplates
-				? 'Prefill the checklist from a saved template.'
-				: 'No templates saved yet.',
+			desc: hasTemplates ? t('prefill_from_template_desc') : t('no_templates_saved'),
 			disabled: !hasTemplates
 		},
 		{
@@ -528,10 +555,9 @@
 <Sheet
 	bind:open
 	side="right"
+	{dirty}
 	title={sheetTitle}
-	description={step === 'choose'
-		? 'How would you like to start?'
-		: 'Just the essentials – add the rest later.'}
+	description={step === 'choose' ? t('how_to_start') : t('trip_form_desc')}
 >
 	{#if step === 'choose'}
 		<div class="flex flex-col gap-3">
@@ -568,7 +594,7 @@
 					{/each}
 				</Select>
 			</Field>
-			<p class="text-sm text-ink-muted">You'll choose exactly what to copy on the next step.</p>
+			<p class="text-sm text-ink-muted">{t('duplicate_next_step')}</p>
 		</div>
 	{:else if step === 'import'}
 		<div class="flex flex-col gap-4">
@@ -689,7 +715,7 @@
 				<Input
 					id={fid('title')}
 					value={form.title}
-					placeholder="e.g. Rome & Florence"
+					placeholder={t('trip_name_placeholder')}
 					invalid={!!errors.title}
 					oninput={(e) => (form.title = e.currentTarget.value)}
 				/>
@@ -749,7 +775,7 @@
 				label={t('travelers')}
 				for={fid('travelers')}
 				error={errors.travelerCount}
-				hint="Number of people traveling on this trip."
+				hint={t('travelers_hint')}
 			>
 				<Input
 					id={fid('travelers')}
@@ -764,11 +790,7 @@
 			</Field>
 
 			{#if step === 'template'}
-				<Field
-					label={t('checklist_templates')}
-					for={fid('tpl')}
-					hint="Its items are added to your new checklist."
-				>
+				<Field label={t('checklist_templates')} for={fid('tpl')} hint={t('template_items_hint')}>
 					<Select
 						id={fid('tpl')}
 						value={templateId}

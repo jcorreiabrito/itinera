@@ -9,8 +9,9 @@
 	import { Button, Checkbox, Field, Input, Select, Sheet, toast } from '$lib/components/ui';
 	import { formatMoney } from '$lib/format';
 	import { t } from '$lib/i18n.svelte';
-	import { onMount } from 'svelte';
+	import { onMount, untrack } from 'svelte';
 	import { getSuggestedFxRate, updateExchangeRates } from '$lib/utils/currency';
+	import { isDirty, snapshot } from '$lib/utils/form-dirty';
 	import {
 		CATEGORY_META,
 		CATEGORY_ORDER,
@@ -75,6 +76,12 @@
 	let itemOpts = $state<LinkOption[]>([]);
 	let travelerCount = $state(1);
 
+	/** Everything the form can change, so "edited?" stays one comparison. */
+	const fields = () => form;
+	/** The same fields as loaded; `null` until the sheet has read the expense. */
+	let baseline = $state<string | null>(null);
+	const dirty = $derived(isDirty(baseline, fields()));
+
 	const isLinked = $derived(mode === 'edit' && !!expense?.linkedType);
 	const source = $derived(sourceMeta(expense?.linkedType));
 
@@ -127,6 +134,9 @@
 			form = blankForm();
 		}
 		if (!isLinked) void loadCandidates();
+		// `untrack`: taking the baseline must not make the open/close effect
+		// depend on every field, or it would re-run on each keystroke.
+		baseline = untrack(() => snapshot(fields()));
 	}
 
 	$effect(() => {
@@ -196,17 +206,17 @@
 		const checkAmount = (raw: string, key: 'amountEstimate' | 'amountActual') => {
 			if (raw.trim()) return;
 			const n = Number(raw);
-			if (!Number.isFinite(n) || n < 0) e[key] = 'Enter a valid amount.';
+			if (!Number.isFinite(n) || n < 0) e[key] = t('enter_valid_amount');
 		};
 		checkAmount(form.amountEstimate, 'amountEstimate');
 		checkAmount(form.amountActual, 'amountActual');
 
 		if (!isLinked && !form.amountEstimate.trim() && !form.amountActual.trim()) {
-			e.amountActual = 'Enter an estimated or actual amount.';
+			e.amountActual = t('enter_estimated_or_actual');
 		}
 		if (form.fxRate.trim()) {
 			const n = Number(form.fxRate);
-			if (!Number.isFinite(n) || n <= 0) e.fxRate = 'Enter a positive rate.';
+			if (!Number.isFinite(n) || n <= 0) e.fxRate = t('enter_positive_rate');
 		}
 		errors = e;
 		return Object.keys(e).length === 0;
@@ -246,7 +256,7 @@
 			open = false;
 			onsaved?.();
 		} catch {
-			toast.error('Could not save the expense. Your changes are still here – try again.');
+			toast.error(t('could_not_save_expense_kept'));
 		} finally {
 			saving = false;
 		}
@@ -259,22 +269,22 @@
 		try {
 			await expenses.softDelete(id);
 			open = false;
-			toast.success('Expense removed.', {
+			toast.success(t('expense_removed'), {
 				action: {
-					label: 'Undo',
+					label: t('undo'),
 					onClick: async () => {
 						try {
 							await expenses.restore(id);
 							onsaved?.();
 						} catch {
-							toast.error('Could not undo. Try restoring from Trash.');
+							toast.error(t('could_not_undo'));
 						}
 					}
 				}
 			});
 			onsaved?.();
 		} catch {
-			toast.error('Could not remove the expense. Try again.');
+			toast.error(t('could_not_remove_expense'));
 		} finally {
 			saving = false;
 		}
@@ -284,10 +294,9 @@
 <Sheet
 	bind:open
 	side="right"
+	{dirty}
 	title={mode === 'create' ? t('add_expense') : t('edit_expense')}
-	description={isLinked
-		? 'Linked to a booking – record what you actually paid. Log a cost; refine the details anytime.'
-		: ''}
+	description={isLinked ? t('linked_expense_desc') : ''}
 >
 	<form
 		class="flex flex-col gap-4"
@@ -305,8 +314,7 @@
 				<span>
 					{source.label}
 					<span class="block text-xs opacity-70">
-						The amount and category come from the booking; set the actual amount and paid status
-						below. Manage or remove it from Bookings.
+						{t('linked_expense_hint')}
 					</span>
 				</span>
 			</div>
@@ -370,7 +378,7 @@
 			<Field
 				label={t('cost_distribution')}
 				for={fid('cost-dist')}
-				hint="Select if this amount is the total cost or cost per person."
+				hint={t('cost_distribution_hint')}
 			>
 				<Select
 					id={fid('cost-dist')}
@@ -399,10 +407,10 @@
 		{#if foreign}
 			<div class="flex flex-col gap-1">
 				<Field
-					label={`Exchange rate (1 ${cur} = ? ${home})`}
+					label={t('exchange_rate_label', { from: cur, to: home })}
 					for={fid('fx')}
 					error={errors.fxRate}
-					hint="A manual snapshot – no network needed."
+					hint={t('fx_manual_hint')}
 				>
 					<Input
 						id={fid('fx')}
@@ -418,14 +426,17 @@
 				</Field>
 				{#if suggestedRate}
 					<div class="-mt-1 flex items-center gap-1.5 text-xs text-ink-muted">
-						<span>Taxa de mercado sugerida: <strong class="text-ink">{suggestedRate}</strong></span>
+						<span
+							>{t('suggested_market_rate')}
+							<strong class="text-ink">{suggestedRate}</strong></span
+						>
 						{#if form.fxRate !== String(suggestedRate)}
 							<button
 								type="button"
 								class="cursor-pointer font-medium text-primary-600 underline hover:text-primary-700"
 								onclick={() => (form.fxRate = String(suggestedRate))}
 							>
-								Usar esta taxa
+								{t('use_this_rate')}
 							</button>
 						{/if}
 					</div>
@@ -435,22 +446,20 @@
 				<p
 					class="mt-2 rounded-md border border-warning/30 bg-warning/10 px-3 py-2 text-xs text-warning"
 				>
-					Without a rate this expense is excluded from {home} totals until you add one.
+					{t('fx_missing_warning', { currency: home })}
 				</p>
 			{:else}
 				<p class="mt-2 text-xs tabular-nums text-ink-muted">
-					{#if estNum != null}Estimated = {formatMoney(
-							convertToHome(estNum, cur, home, fxNum) ?? 0,
-							home
-						)}{/if}
+					{#if estNum != null}{t('estimated_equals', {
+							amount: formatMoney(convertToHome(estNum, cur, home, fxNum) ?? 0, home)
+						})}{/if}
 					{#if estNum != null && actNum != null}<span aria-hidden="true"> · </span>{/if}
-					{#if actNum != null}Actual = {formatMoney(
-							convertToHome(actNum, cur, home, fxNum) ?? 0,
-							home
-						)}{/if}
+					{#if actNum != null}{t('actual_equals', {
+							amount: formatMoney(convertToHome(actNum, cur, home, fxNum) ?? 0, home)
+						})}{/if}
 					{#if estNum != null || actNum != null}
 						<span class="block text-ink-muted/60">
-							Enter an amount to preview the converted total.
+							{t('enter_amount_preview')}
 						</span>
 					{/if}
 				</p>
@@ -458,7 +467,7 @@
 		{/if}
 
 		<div class="flex flex-col gap-2">
-			<Field label="Day" for={fid('date')} class={form.wholeTrip ? 'opacity-50' : ''}>
+			<Field label={t('label_day')} for={fid('date')} class={form.wholeTrip ? 'opacity-50' : ''}>
 				<Input
 					id={fid('date')}
 					type="date"
@@ -469,8 +478,8 @@
 			</Field>
 			{#if !isLinked}
 				<Checkbox
-					label="Whole-trip cost (no specific day)"
-					description="Flights, insurance and other trip-wide spend."
+					label={t('whole_trip_cost')}
+					description={t('whole_trip_cost_desc')}
 					bind:checked={form.wholeTrip}
 					onchange={(e) => (form.wholeTrip = e.currentTarget.checked)}
 				/>
@@ -478,29 +487,29 @@
 		</div>
 
 		{#if !isLinked}
-			<Field label="Link to a booking (optional)" for={fid('link')}>
+			<Field label={t('link_to_booking')} for={fid('link')}>
 				<Select
 					id={fid('link')}
 					value={form.link}
 					onchange={(e) => (form.link = e.currentTarget.value)}
 				>
-					<option value="">None</option>
+					<option value="">{t('none')}</option>
 					{#if flightOpts.length > 0}
-						<optgroup label="Flights">
+						<optgroup label={t('flights')}>
 							{#each flightOpts as opt (opt.id)}
 								<option value={`flight:${opt.id}`}>{opt.label}</option>
 							{/each}
 						</optgroup>
 					{/if}
 					{#if resOpts.length > 0}
-						<optgroup label="Reservations">
+						<optgroup label={t('reservations')}>
 							{#each resOpts as opt (opt.id)}
 								<option value={`reservation:${opt.id}`}>{opt.label}</option>
 							{/each}
 						</optgroup>
 					{/if}
 					{#if itemOpts.length > 0}
-						<optgroup label="Itinerary">
+						<optgroup label={t('itinerary')}>
 							{#each itemOpts as opt (opt.id)}
 								<option value={`itineraryItem:${opt.id}`}>{opt.label}</option>
 							{/each}
@@ -511,8 +520,8 @@
 		{/if}
 
 		<Checkbox
-			label={t('paid') || 'Paid'}
-			description="Cleared from your outstanding (unpaid) total."
+			label={t('paid')}
+			description={t('paid_desc')}
 			bind:checked={form.paid}
 			onchange={(e) => (form.paid = e.currentTarget.checked)}
 		/>

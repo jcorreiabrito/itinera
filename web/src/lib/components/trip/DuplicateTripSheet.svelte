@@ -5,7 +5,10 @@
 <script lang="ts">
 	import { trips } from '$lib/db';
 	import type { Trip } from '$lib/db';
+	import { untrack } from 'svelte';
 	import { Button, Checkbox, Field, Input, Sheet, toast } from '$lib/components/ui';
+	import { t } from '$lib/i18n.svelte';
+	import { isDirty, snapshot } from '$lib/utils/form-dirty';
 
 	interface Props {
 		open?: boolean;
@@ -35,6 +38,12 @@
 		expenses: false
 	});
 
+	/** Everything the form can change, so "edited?" stays one comparison. */
+	const fields = () => ({ title, newStartDate, opts });
+	/** The same fields as loaded; `null` until the sheet has read the source. */
+	let baseline = $state<string | null>(null);
+	const dirty = $derived(isDirty(baseline, fields()));
+
 	function initForm() {
 		title = `${source?.title ?? 'Trip'} (copy)`;
 		newStartDate = source?.startDate ?? '';
@@ -46,6 +55,9 @@
 			budgetTargets: false,
 			expenses: false
 		};
+		// `untrack`: taking the baseline must not make the open/close effect
+		// depend on every field, or it would re-run on each keystroke.
+		baseline = untrack(() => snapshot(fields()));
 	}
 
 	$effect(() => {
@@ -70,7 +82,7 @@
 			open = false;
 			onsaved?.(copy);
 		} catch {
-			toast.error('Could not duplicate the trip. Please try again.');
+			toast.error(t('could_not_duplicate_trip'));
 		} finally {
 			saving = false;
 		}
@@ -80,15 +92,18 @@
 <Sheet
 	bind:open
 	side="right"
-	title="Duplicate trip"
-	description={source?.title ? `Make a copy of "${source.title}".` : 'Make a copy of this trip.'}
+	{dirty}
+	title={t('duplicate_trip_title')}
+	description={source?.title
+		? t('duplicate_trip_desc_named', { title: source.title })
+		: t('duplicate_trip_desc')}
 >
 	<div class="flex flex-col gap-4">
-		<Field label="New trip name" for={fid('title')}>
+		<Field label={t('new_trip_name')} for={fid('title')}>
 			<Input id={fid('title')} value={title} oninput={(e) => (title = e.currentTarget.value)} />
 		</Field>
 
-		<Field label="Start date" for={fid('start')} hint="Dates shift to start here.">
+		<Field label={t('start_date')} for={fid('start')} hint={t('dates_shift_hint')}>
 			<Input
 				id={fid('start')}
 				type="date"
@@ -98,42 +113,42 @@
 		</Field>
 
 		<fieldset class="flex flex-col gap-1 rounded-md border border-border p-3">
-			<legend class="px-1 text-sm font-medium text-ink">What to copy</legend>
+			<legend class="px-1 text-sm font-medium text-ink">{t('what_to_copy')}</legend>
 
 			<Checkbox
-				label="Checklist"
-				description="Copied and reset to unchecked."
+				label={t('checklist')}
+				description={t('copied_unchecked')}
 				checked={opts.checklist}
 				onchange={(e) => (opts.checklist = e.currentTarget.checked)}
 			/>
 
 			<Checkbox
-				label="Itinerary"
-				description="Days and items, shifted to the new dates."
+				label={t('itinerary')}
+				description={t('shifted_to_new_dates')}
 				checked={opts.itinerary}
 				onchange={(e) => (opts.itinerary = e.currentTarget.checked)}
 			/>
 
 			<Checkbox
-				label="Flights"
+				label={t('flights')}
 				checked={opts.flights}
 				onchange={(e) => (opts.flights = e.currentTarget.checked)}
 			/>
 
 			<Checkbox
-				label="Reservations"
+				label={t('reservations')}
 				checked={opts.reservations}
 				onchange={(e) => (opts.reservations = e.currentTarget.checked)}
 			/>
 
 			<Checkbox
-				label="Budget targets"
+				label={t('budget_targets')}
 				checked={opts.budgetTargets}
 				onchange={(e) => (opts.budgetTargets = e.currentTarget.checked)}
 			/>
 
 			<Checkbox
-				label="Expenses"
+				label={t('expenses')}
 				checked={opts.expenses}
 				onchange={(e) => (opts.expenses = e.currentTarget.checked)}
 			/>
@@ -141,9 +156,9 @@
 	</div>
 
 	{#snippet footer()}
-		<Button variant="ghost" onclick={() => (open = false)} disabled={saving}>Cancel</Button>
+		<Button variant="ghost" onclick={() => (open = false)} disabled={saving}>{t('cancel')}</Button>
 		<Button onclick={save} disabled={saving || !source}>
-			{saving ? 'Duplicating...' : 'Duplicate'}
+			{saving ? t('duplicating') : t('duplicate')}
 		</Button>
 	{/snippet}
 </Sheet>

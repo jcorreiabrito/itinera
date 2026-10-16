@@ -4,6 +4,7 @@
 	import { ExternalLink, MoreVertical, Paperclip, Pencil, Phone, Trash2 } from 'lucide-svelte';
 	import { Badge, MenuItem, Popover } from '$lib/components/ui';
 	import { formatMoney, formatNights } from '$lib/format';
+	import { t } from '$lib/i18n.svelte';
 	import { detailSummary, kindMeta, type ReservationRowKind } from './kinds';
 
 	interface Props {
@@ -33,7 +34,7 @@
 	const time = $derived(rowKind === 'checkout' ? reservation.end : reservation.start);
 	const summary = $derived(detailSummary(reservation));
 	const placement = $derived(
-		rowKind === 'checkin' ? 'Check-in' : rowKind === 'checkout' ? 'Check-out' : ''
+		rowKind === 'checkin' ? t('check_in') : rowKind === 'checkout' ? t('check_out') : ''
 	);
 	const contact = $derived(reservation.contact);
 
@@ -79,12 +80,12 @@
 			</div>
 
 			<div class="-mr-1 -mt-1 shrink-0">
-				<Popover bind:open={menuOpen} label="Reservation actions" align="end">
+				<Popover bind:open={menuOpen} label={t('reservation_actions')} align="end">
 					{#snippet trigger({ toggle, open })}
 						<button
 							type="button"
 							onclick={toggle}
-							aria-label="Reservation actions"
+							aria-label={t('reservation_actions')}
 							aria-haspopup="true"
 							aria-expanded={open}
 							class="grid size-11 min-h-[44px] min-w-[44px] shrink-0 place-items-center rounded-md text-ink-muted transition-colors hover:bg-surface-sunken hover:text-ink sm:size-8 sm:min-h-0 sm:min-w-0 [&_svg]:size-5 sm:[&_svg]:size-4"
@@ -92,8 +93,10 @@
 							<MoreVertical />
 						</button>
 					{/snippet}
-					<MenuItem icon={Pencil} onclick={() => act(onedit)}>Edit</MenuItem>
-					<MenuItem icon={Trash2} tone="danger" onclick={() => act(ondelete)}>Delete</MenuItem>
+					<MenuItem icon={Pencil} onclick={() => act(onedit)}>{t('edit')}</MenuItem>
+					<MenuItem icon={Trash2} tone="danger" onclick={() => act(ondelete)}
+						>{t('delete')}</MenuItem
+					>
 				</Popover>
 			</div>
 		</div>
@@ -104,7 +107,7 @@
 					<Badge variant="neutral">{reservation.location.name}</Badge>
 				{/if}
 				{#if reservation.confirmation}
-					<Badge variant="neutral">Conf. {reservation.confirmation}</Badge>
+					<Badge variant="neutral">{t('conf_short')} {reservation.confirmation}</Badge>
 				{/if}
 				{#if reservation.cost != null}
 					<Badge variant="neutral"
@@ -124,7 +127,8 @@
 						rel="noopener noreferrer external"
 						class="inline-flex min-h-[44px] items-center gap-1.5 rounded-md px-2 py-1 text-xs font-medium text-primary-700 hover:bg-primary-100 hover:underline sm:min-h-0 [&_svg]:size-3.5"
 					>
-						<ExternalLink /> Website
+						<ExternalLink />
+						{t('website')}
 					</a>
 				{/if}
 				{#if contact?.phone}
@@ -132,7 +136,8 @@
 						href={`tel:${contact.phone}`}
 						class="inline-flex min-h-[44px] items-center gap-1.5 rounded-md px-2 py-1 text-xs font-medium text-primary-700 hover:bg-primary-100 hover:underline sm:min-h-0 [&_svg]:size-3.5"
 					>
-						<Phone /> Call
+						<Phone />
+						{t('call')}
 					</a>
 				{/if}
 			</div>

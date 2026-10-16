@@ -7,6 +7,7 @@
 	import type { Snippet } from 'svelte';
 	import { X } from 'lucide-svelte';
 	import { cn } from '$lib/utils';
+	import { t } from '$lib/i18n.svelte';
 	import Button from './Button.svelte';
 
 	interface Props {
@@ -15,6 +16,11 @@
 		title?: string;
 		description?: string;
 		class?: string;
+		/**
+		 * Leave unset to use the translated default. The fallbacks are applied
+		 * where they are read rather than in the destructuring above, so they
+		 * follow a language change instead of freezing at mount.
+		 */
 		closeLabel?: string;
 		/**
 		 * Set while the sheet holds edits that have not been saved. Every way out
@@ -37,12 +43,12 @@
 		title,
 		description,
 		class: className,
-		closeLabel = 'Close',
+		closeLabel,
 		dirty = false,
-		discardTitle = 'Discard unsaved changes?',
-		discardBody = 'Your edits will be lost.',
-		discardLabel = 'Discard',
-		keepEditingLabel = 'Keep editing',
+		discardTitle,
+		discardBody,
+		discardLabel,
+		keepEditingLabel,
 		onclose,
 		children,
 		footer
@@ -264,7 +270,7 @@
 				<button
 					type="button"
 					onclick={requestClose}
-					aria-label={closeLabel}
+					aria-label={closeLabel ?? t('close')}
 					class="grid size-11 min-h-[44px] min-w-[44px] shrink-0 place-items-center rounded-md text-ink-muted transition-colors hover:bg-surface-sunken hover:text-ink active:scale-95 sm:size-9 sm:min-h-0 sm:min-w-0"
 				>
 					<X class="size-5" />
@@ -315,11 +321,19 @@
 					aria-describedby={confirmBodyId}
 					class="w-full max-w-sm rounded-xl border border-border bg-surface p-4 shadow-soft outline-none"
 				>
-					<h3 id={confirmTitleId} class="text-base font-semibold">{discardTitle}</h3>
-					<p id={confirmBodyId} class="mt-1 text-sm text-ink-muted">{discardBody}</p>
+					<h3 id={confirmTitleId} class="text-base font-semibold">
+						{discardTitle ?? t('discard_unsaved_title')}
+					</h3>
+					<p id={confirmBodyId} class="mt-1 text-sm text-ink-muted">
+						{discardBody ?? t('discard_unsaved_body')}
+					</p>
 					<div class="mt-4 flex flex-col-reverse gap-2 sm:flex-row sm:justify-end">
-						<Button variant="ghost" onclick={keepEditing}>{keepEditingLabel}</Button>
-						<Button variant="destructive" onclick={discardChanges}>{discardLabel}</Button>
+						<Button variant="ghost" onclick={keepEditing}
+							>{keepEditingLabel ?? t('keep_editing')}</Button
+						>
+						<Button variant="destructive" onclick={discardChanges}
+							>{discardLabel ?? t('discard')}</Button
+						>
 					</div>
 				</div>
 			</div>

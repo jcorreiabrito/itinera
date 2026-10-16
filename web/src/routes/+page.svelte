@@ -26,6 +26,7 @@
 		toast
 	} from '$lib/components/ui';
 	import ConflictLogModal from '$lib/components/ui/ConflictLogModal.svelte';
+	import IosStorageNotice from '$lib/components/ui/IosStorageNotice.svelte';
 	import TripTemplateModal from '$lib/components/trip/TripTemplateModal.svelte';
 	import { DuplicateTripSheet, NewTripSheet, TripCard, TripFormSheet } from '$lib/components/trip';
 	import ItineraLogo from '$lib/components/brand/ItineraLogo.svelte';
@@ -225,7 +226,7 @@
 
 <svelte:head>
 	<title>Itinera – {t('trips')}</title>
-	<meta name="description" content="Plan and organize your trips, fully offline." />
+	<meta name="description" content={t('app_meta_description')} />
 </svelte:head>
 
 <header class="pt-safe glass-header sticky top-0 z-30 animate-slide-down">
@@ -246,8 +247,8 @@
 				<button
 					type="button"
 					onclick={() => (conflictOpen = true)}
-					aria-label="View sync conflict history"
-					title="View sync conflict history"
+					aria-label={t('sync_conflict_history')}
+					title={t('sync_conflict_history')}
 					class="hidden size-9 place-items-center rounded-md text-ink-muted transition-colors hover:bg-surface-sunken hover:text-ink active:scale-95 sm:grid [&_svg]:size-4"
 				>
 					<History />
@@ -327,6 +328,7 @@
 </header>
 
 <main id="page-content" class="mx-auto w-full max-w-6xl flex-1 px-4 pb-28 pt-5 sm:px-6 lg:pb-12">
+	<IosStorageNotice compact />
 	<ErrorBoundary>
 		{#if loading && !sectionsData}
 			<div class="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">

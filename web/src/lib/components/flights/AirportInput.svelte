@@ -7,6 +7,7 @@
 	import type { AirportRecord, AirportSnapshot } from '$lib/db';
 	import { Check, MapPin, PencilLine, Search, X } from 'lucide-svelte';
 	import { cn } from '$lib/utils';
+	import { t } from '$lib/i18n.svelte';
 
 	interface Props {
 		value?: AirportSnapshot | undefined;
@@ -16,13 +17,7 @@
 		onchange: (value: AirportSnapshot | undefined) => void;
 	}
 
-	let {
-		value = undefined,
-		id,
-		placeholder = 'Search city or code (e.g. FCO)',
-		invalid = false,
-		onchange
-	}: Props = $props();
+	let { value = undefined, id, placeholder = '', invalid = false, onchange }: Props = $props();
 
 	const uid = ++nextId;
 	const listId = `airport-list-${uid}`;
@@ -41,7 +36,7 @@
 	const showSearch = $derived(searching || !value);
 
 	const chipLabel = $derived(
-		value ? `${value.code ? `${value.code} ` : ''}${value.city ?? value.name ?? 'Airport'}` : ''
+		value ? `${value.code ? `${value.code} ` : ''}${value.city ?? value.name ?? t('airport')}` : ''
 	);
 
 	function runSearch(q: string) {
@@ -143,7 +138,7 @@
 			onclick={clear}
 			class="shrink-0 rounded px-1.5 py-0.5 text-xs font-medium text-primary-700 hover:underline"
 		>
-			Change
+			{t('change')}
 		</button>
 	</div>
 {:else if manual}
@@ -152,15 +147,15 @@
 		<input
 			value={manualName}
 			oninput={(e) => (manualName = e.currentTarget.value)}
-			placeholder="Airport / place name"
-			aria-label="Airport name"
+			placeholder={t('airport_name_placeholder')}
+			aria-label={t('airport_name')}
 			class="h-10 w-full rounded-md border border-border bg-surface px-3 text-sm text-ink focus:border-primary-600 focus:outline-none focus:ring-2 focus:ring-primary-600/30"
 		/>
 		<input
 			value={manualTz}
 			oninput={(e) => (manualTz = e.currentTarget.value)}
-			placeholder="Timezone, e.g. Europe/Madrid"
-			aria-label="Timezone (IANA)"
+			placeholder={t('timezone_placeholder')}
+			aria-label={t('timezone_iana')}
 			class="h-10 w-full rounded-md border border-border bg-surface px-3 text-sm text-ink focus:border-primary-600 focus:outline-none focus:ring-2 focus:ring-primary-600/30"
 		/>
 		<div class="flex items-center justify-between">
@@ -169,7 +164,7 @@
 				onclick={() => (manual = false)}
 				class="text-xs font-medium text-ink-muted hover:text-ink"
 			>
-				Back to search
+				{t('back_to_search')}
 			</button>
 			<button
 				type="button"
@@ -177,10 +172,11 @@
 				disabled={!manualName.trim()}
 				class="inline-flex items-center gap-1 rounded-md bg-primary-600 px-3 py-1.5 text-xs font-medium text-white transition-colors hover:bg-primary-700 disabled:opacity-50 [&_svg]:size-3.5"
 			>
-				<Check /> Use this
+				<Check />
+				{t('use_this')}
 			</button>
 		</div>
-		<p class="text-[0.7rem] text-ink-muted">Times use this zone for duration and layover maths.</p>
+		<p class="text-[0.7rem] text-ink-muted">{t('timezone_hint')}</p>
 	</div>
 {:else}
 	<div class="relative">
@@ -199,7 +195,7 @@
 				aria-invalid={invalid || undefined}
 				autocomplete="off"
 				value={query}
-				{placeholder}
+				placeholder={placeholder || t('airport_search_placeholder')}
 				oninput={onInput}
 				onkeydown={onKeydown}
 				onfocus={() => (open = query.trim().length > 0)}
@@ -212,7 +208,7 @@
 				<button
 					type="button"
 					onclick={clear}
-					aria-label="Clear airport"
+					aria-label={t('clear_airport')}
 					class="absolute right-2 top-1/2 grid size-7 -translate-y-1/2 place-items-center rounded-md text-ink-muted hover:bg-surface-sunken hover:text-ink [&_svg]:size-4"
 				>
 					<X />
@@ -224,7 +220,7 @@
 			<ul
 				id={listId}
 				role="listbox"
-				aria-label="Airport results"
+				aria-label={t('airport_results')}
 				class="absolute z-50 mt-1 max-h-64 w-full overflow-y-auto rounded-lg border border-border bg-surface p-1 shadow-card"
 			>
 				{#each results as rec, i (rec.code)}
@@ -255,7 +251,7 @@
 						</span>
 					</li>
 				{:else}
-					<li class="px-2.5 py-2 text-sm text-ink-muted">No matches.</li>
+					<li class="px-2.5 py-2 text-sm text-ink-muted">{t('no_matches')}</li>
 				{/each}
 				<!-- svelte-ignore a11y_click_events_have_key_events -->
 				<li
@@ -265,7 +261,8 @@
 					onclick={startManual}
 					class="mt-1 flex cursor-pointer items-center gap-2 rounded-md border-t border-border px-2.5 py-2 text-sm text-primary-700 hover:bg-surface-sunken [&_svg]:size-4"
 				>
-					<PencilLine /> Enter manually.
+					<PencilLine />
+					{t('enter_manually')}
 				</li>
 			</ul>
 		{/if}

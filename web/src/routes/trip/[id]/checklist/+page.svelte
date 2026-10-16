@@ -1,7 +1,7 @@
 <script lang="ts">
 	import { onMount } from 'svelte';
 	import { page } from '$app/state';
-	import { checklist, trips } from '$lib/db';
+	import { checklist, trash, trips } from '$lib/db';
 	import type { ChecklistItem, Trip } from '$lib/db';
 	import { eachDateInRange } from '$lib/db/datetime';
 	import { BUILTIN_TEMPLATES } from '$lib/db/builtin-templates';
@@ -188,10 +188,28 @@
 		}
 	}
 
+	/*
+	 * Deleting here is a soft delete — the item goes to the Trash — so the toast
+	 * offers the same undo the Trash does, without the trip through Settings.
+	 * An item deleted from a group inside a completed group is restored to the
+	 * group it left, which `restore` already preserves.
+	 */
 	async function deleteItem(item: ChecklistItem) {
 		try {
 			await checklist.softDelete(item._id);
-			toast.success(t('item_deleted'));
+			toast.success(t('item_deleted'), {
+				action: {
+					label: t('undo'),
+					onClick: async () => {
+						try {
+							await checklist.restore(item._id);
+							loadAll(id);
+						} catch {
+							toast.error(t('could_not_restore'));
+						}
+					}
+				}
+			});
 			loadAll(id);
 		} catch {
 			toast.error(t('could_not_delete_item'));
@@ -208,10 +226,28 @@
 		}
 	}
 
+	/** The completed items cleared, remembered so the toast can put them back. */
+	let lastCleared = $state<string[]>([]);
+
 	async function cleanCompleted() {
 		try {
-			await checklist.cleanCompleted(id);
-			toast.success(t('cleared_completed_items'));
+			// `cleanCompleted` soft-deletes, so this is a move to the Trash, not a
+			// purge — the copy in the dialog and the Undo action both say so.
+			const cleared = await checklist.cleanCompleted(id);
+			lastCleared = cleared;
+			toast.success(t('cleared_completed_items'), {
+				action: {
+					label: t('undo'),
+					onClick: async () => {
+						try {
+							await trash.restoreMany(lastCleared);
+							loadAll(id);
+						} catch {
+							toast.error(t('could_not_restore'));
+						}
+					}
+				}
+			});
 			loadAll(id);
 		} catch {
 			toast.error(t('could_not_clear_completed'));
@@ -543,13 +579,10 @@
 </Dialog>
 
 <Dialog bind:open={confirmClearOpen} title={t('clear_completed')}>
-	<p class="text-sm text-ink-muted">
-		Are you sure you want to permanently clear all completed checklist items?
-	</p>
-	<div class="mt-4 flex justify-end gap-2">
+	<p class="text-sm text-ink-muted">{t('clear_completed_confirm')}</p>
+	{#snippet footer()}
 		<Button variant="ghost" onclick={() => (confirmClearOpen = false)}>{t('cancel')}</Button>
 		<Button
-			variant="destructive"
 			onclick={() => {
 				confirmClearOpen = false;
 				cleanCompleted();
@@ -557,5 +590,5 @@
 		>
 			{t('clear_completed')}
 		</Button>
-	</div>
+	{/snippet}
 </Dialog>

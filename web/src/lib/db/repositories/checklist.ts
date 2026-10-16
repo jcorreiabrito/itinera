@@ -213,14 +213,22 @@ export async function checkAllInGroup(tripid: string, group: string): Promise<vo
 	if (updated.length) await bulkPut(updated);
 }
 
-/** Soft-delete all completed items. */
-export async function cleanCompleted(tripid: string): Promise<void> {
+/**
+ * Soft-delete all completed items, returning the ids it moved.
+ *
+ * The ids come back so the caller can offer an Undo that restores exactly what
+ * this call took, rather than re-deriving the set from a reload that may have
+ * moved on in the meantime.
+ */
+export async function cleanCompleted(tripid: string): Promise<string[]> {
 	const items = await byTrip(tripid);
 	const now = nowIso();
 	const updated = items
 		.filter((i) => i.done)
 		.map((i) => ({ ...i, deletedAt: now, updatedAt: now }));
-	if (updated.length) await bulkPut(updated);
+	if (!updated.length) return [];
+	await bulkPut(updated);
+	return updated.map((i) => i._id);
 }
 
 // --- Templates -----------------------------------------------------------

@@ -64,7 +64,7 @@
 			type="button"
 			onclick={goPrev}
 			disabled={!canPrev}
-			aria-label="Previous day"
+			aria-label={t('previous_day')}
 			class="hidden size-9 shrink-0 place-items-center rounded-lg border border-border bg-surface text-ink-muted transition-colors hover:bg-surface-sunken hover:text-ink disabled:pointer-events-none disabled:opacity-30 sm:grid [&_svg]:size-4"
 		>
 			<ChevronLeft />
@@ -82,7 +82,7 @@
 					: 'border-border bg-surface text-primary-700 hover:bg-primary-100'
 			)}
 		>
-			{t('today') || 'Today'}
+			{t('today')}
 		</button>
 	{/if}
 
@@ -90,7 +90,7 @@
 		bind:this={stripEl}
 		class="flex flex-1 snap-x snap-mandatory gap-1.5 overflow-x-auto overscroll-x-contain scroll-smooth pb-1 [mask-image:linear-gradient(to_right,transparent,black_12px,black_calc(100%-12px),transparent)] [scrollbar-width:thin] sm:[mask-image:none]"
 		role="group"
-		aria-label="Trip days"
+		aria-label={t('trip_days')}
 	>
 		{#each dates as date (date)}
 			{@const p = parts(date)}
@@ -131,7 +131,7 @@
 				)}
 			>
 				<Lightbulb class="size-4" />
-				<span class="text-[0.7rem] font-medium">{t('ideas') || 'Ideas'} ({ideasCount})</span>
+				<span class="text-[0.7rem] font-medium">{t('ideas')} ({ideasCount})</span>
 			</button>
 		{/if}
 	</div>
@@ -141,7 +141,7 @@
 			type="button"
 			onclick={goNext}
 			disabled={!canNext}
-			aria-label="Next day"
+			aria-label={t('next_day')}
 			class="hidden size-9 shrink-0 place-items-center rounded-lg border border-border bg-surface text-ink-muted transition-colors hover:bg-surface-sunken hover:text-ink disabled:pointer-events-none disabled:opacity-30 sm:grid [&_svg]:size-4"
 		>
 			<ChevronRight />

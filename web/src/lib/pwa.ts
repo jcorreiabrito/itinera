@@ -28,8 +28,17 @@ export function registerServiceWorker(): void {
 		return;
 	}
 
+	/*
+	 * Captured before registering. The worker calls `clients.claim()` when it
+	 * activates, which fires `controllerchange` on the very first visit too —
+	 * when there was no controller to replace. Reloading then throws away the
+	 * page the user has just loaded, which is what made a brand-new install
+	 * appear to reload itself a second after opening.
+	 */
+	const hadController = !!navigator.serviceWorker.controller;
+
 	navigator.serviceWorker.addEventListener('controllerchange', () => {
-		if (updateApplied || reloading) return;
+		if (!hadController || updateApplied || reloading) return;
 		reloading = true;
 		location.reload();
 	});

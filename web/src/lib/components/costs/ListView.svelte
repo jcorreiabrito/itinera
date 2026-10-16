@@ -4,6 +4,7 @@
 	import { expenseAmounts } from '$lib/db';
 	import type { Expense } from '$lib/db';
 	import { Input, Select } from '$lib/components/ui';
+	import { t } from '$lib/i18n.svelte';
 	import { categoryLabel } from './labels';
 	import ExpenseRow from './ExpenseRow.svelte';
 
@@ -87,7 +88,7 @@
 		<Input
 			type="search"
 			value={search}
-			placeholder="Search expenses..."
+			placeholder={t('search_expenses')}
 			class="pl-9"
 			oninput={(e) => (search = e.currentTarget.value)}
 		/>
@@ -95,39 +96,39 @@
 
 	<div class="flex flex-wrap items-center justify-between gap-3">
 		{#if !unpaidOnly}
-			<div class="flex flex-wrap gap-2" role="group" aria-label="Filter by paid status">
+			<div class="flex flex-wrap gap-2" role="group" aria-label={t('filter_by_paid_status')}>
 				<button
 					type="button"
 					onclick={() => (paidFilter = 'all')}
 					aria-pressed={paidFilter === 'all'}
-					class={chipClass(paidFilter === 'all')}>All</button
+					class={chipClass(paidFilter === 'all')}>{t('filter_all')}</button
 				>
 				<button
 					type="button"
 					onclick={() => (paidFilter = 'unpaid')}
 					aria-pressed={paidFilter === 'unpaid'}
-					class={chipClass(paidFilter === 'unpaid')}>Unpaid</button
+					class={chipClass(paidFilter === 'unpaid')}>{t('unpaid')}</button
 				>
 				<button
 					type="button"
 					onclick={() => (paidFilter = 'paid')}
 					aria-pressed={paidFilter === 'paid'}
-					class={chipClass(paidFilter === 'paid')}>Paid</button
+					class={chipClass(paidFilter === 'paid')}>{t('paid')}</button
 				>
 			</div>
 		{:else}
-			<p class="text-sm text-ink-muted">Showing unpaid only.</p>
+			<p class="text-sm text-ink-muted">{t('showing_unpaid_only')}</p>
 		{/if}
 
 		<label class="flex items-center gap-2 text-sm text-ink-muted">
-			<span>Sort</span>
+			<span>{t('sort')}</span>
 			<Select
 				value={sort}
 				class="h-9 w-auto"
 				onchange={(e) => (sort = e.currentTarget.value as 'date' | 'amount')}
 			>
-				<option value="date">By date</option>
-				<option value="amount">By amount</option>
+				<option value="date">{t('by_date')}</option>
+				<option value="amount">{t('by_amount')}</option>
 			</Select>
 		</label>
 	</div>
@@ -136,10 +137,14 @@
 		<p
 			class="rounded-lg border border-dashed border-border bg-surface-sunken px-4 py-8 text-center text-sm text-ink-muted"
 		>
-			No matching expenses.
+			{t('no_matching_expenses')}
 		</p>
 	{:else}
-		<p class="text-xs text-ink-muted">{rows.length} {rows.length === 1 ? 'expense' : 'expenses'}</p>
+		<p class="text-xs text-ink-muted">
+			{rows.length === 1
+				? t('expense_count_one', { n: String(rows.length) })
+				: t('expense_count_many', { n: String(rows.length) })}
+		</p>
 		<ul class="space-y-2.5">
 			{#each rows as expense (expense._id)}
 				<ExpenseRow

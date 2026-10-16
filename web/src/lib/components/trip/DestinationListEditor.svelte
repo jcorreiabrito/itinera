@@ -82,15 +82,17 @@
 			{t('destinations')} ({items.length})
 		</label>
 		<Button type="button" variant="ghost" size="sm" onclick={addDestination}>
-			<Plus class="size-4" /> Add stop / destination
+			<Plus class="size-4" />
+			{t('add_stop')}
 		</Button>
 	</div>
 
 	{#if items.length === 0}
 		<div class="rounded-lg border border-dashed border-border bg-surface-sunken p-4 text-center">
-			<p class="text-sm text-ink-muted">No destinations added yet.</p>
+			<p class="text-sm text-ink-muted">{t('no_destinations_yet')}</p>
 			<Button type="button" variant="ghost" size="sm" class="mt-2" onclick={addDestination}>
-				<Plus class="size-4" /> Add first destination
+				<Plus class="size-4" />
+				{t('add_first_destination')}
 			</Button>
 		</div>
 	{:else}
@@ -101,7 +103,8 @@
 				>
 					<div class="mb-2 flex items-center justify-between gap-2 border-b border-border/50 pb-2">
 						<span class="flex items-center gap-1.5 text-xs font-semibold text-primary-700">
-							<MapPin class="size-3.5" /> Stop #{index + 1}
+							<MapPin class="size-3.5" />
+							{t('stop_number', { n: String(index + 1) })}
 						</span>
 						<div class="flex items-center gap-1">
 							{#if items.length > 1}
@@ -109,7 +112,8 @@
 									type="button"
 									disabled={index === 0}
 									onclick={() => moveUp(index)}
-									aria-label="Move destination up"
+									aria-label={t('move_destination_up')}
+									title={t('move_destination_up')}
 									class="rounded p-1 text-ink-muted transition-colors hover:bg-surface-sunken hover:text-ink disabled:opacity-30"
 								>
 									<ArrowUp class="size-3.5" />
@@ -118,7 +122,8 @@
 									type="button"
 									disabled={index === items.length - 1}
 									onclick={() => moveDown(index)}
-									aria-label="Move destination down"
+									aria-label={t('move_destination_down')}
+									title={t('move_destination_down')}
 									class="rounded p-1 text-ink-muted transition-colors hover:bg-surface-sunken hover:text-ink disabled:opacity-30"
 								>
 									<ArrowDown class="size-3.5" />
@@ -127,7 +132,8 @@
 							<button
 								type="button"
 								onclick={() => removeDestination(index)}
-								aria-label="Remove destination"
+								aria-label={t('remove_destination')}
+								title={t('remove_destination')}
 								class="rounded p-1 text-ink-muted transition-colors hover:bg-surface-sunken hover:text-accent-terracotta"
 							>
 								<Trash2 class="size-3.5" />
@@ -136,23 +142,23 @@
 					</div>
 
 					<div class="grid grid-cols-1 gap-2.5 sm:grid-cols-2">
-						<Field label="City / Place Name" required>
+						<Field label={t('destination_name')} required>
 							<Input
 								value={item.name || ''}
-								placeholder="e.g. Curitiba"
+								placeholder={t('destination_name_placeholder')}
 								oninput={(e) => updateField(index, 'name', e.currentTarget.value)}
 							/>
 						</Field>
 
-						<Field label="Country (optional)">
+						<Field label={t('destination_country')}>
 							<Input
 								value={item.country || ''}
-								placeholder="e.g. BR or Brazil"
+								placeholder={t('destination_country_placeholder')}
 								oninput={(e) => updateField(index, 'country', e.currentTarget.value)}
 							/>
 						</Field>
 
-						<Field label="Arrive Date (optional)">
+						<Field label={t('arrive_date')}>
 							<Input
 								type="date"
 								value={item.arriveDate || ''}
@@ -162,7 +168,7 @@
 							/>
 						</Field>
 
-						<Field label="Depart Date (optional)">
+						<Field label={t('depart_date')}>
 							<Input
 								type="date"
 								value={item.departDate || ''}

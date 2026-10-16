@@ -9,7 +9,7 @@
 		syncStatus
 	} from '$lib/db';
 	import { downloadAllExport, listBackups, runBackup, type BackupSummary } from '$lib/api';
-	import { t, setLanguage, type Language } from '$lib/i18n.svelte';
+	import { t, setLanguage, type Language, type TranslationKey } from '$lib/i18n.svelte';
 	import {
 		ArrowLeft,
 		Database,
@@ -37,6 +37,7 @@
 	import { relativeTime } from '$lib/format';
 	import type { ChecklistTemplate, Settings } from '$lib/db';
 	import ItineraLogo from '$lib/components/brand/ItineraLogo.svelte';
+	import IosStorageNotice from '$lib/components/ui/IosStorageNotice.svelte';
 
 	const CURRENCIES = [
 		'EUR',
@@ -63,10 +64,11 @@
 		'ZAR'
 	];
 
-	const WEEK_START = [
-		{ v: 1, label: 'Monday' },
-		{ v: 0, label: 'Sunday' },
-		{ v: 6, label: 'Saturday' }
+	// Keys, not strings: the option labels follow the active language.
+	const WEEK_START: { v: number; key: TranslationKey }[] = [
+		{ v: 1, key: 'weekday_monday' },
+		{ v: 0, key: 'weekday_sunday' },
+		{ v: 6, key: 'weekday_saturday' }
 	];
 
 	let current = $state<Settings | null>(null);
@@ -81,6 +83,8 @@
 	let renameId = $state('');
 	let renameName = $state('');
 	let renameSaving = $state(false);
+	/** The template a delete is waiting on confirmation for. */
+	let removeTarget = $state<ChecklistTemplate | null>(null);
 
 	// Storage durability (doc 05).
 	let usage = $state<number | null>(null);
@@ -137,8 +141,8 @@
 			backupsLoaded = true;
 		} catch {
 			backupsLoaded = false;
-			toast.error('Could not list backups – is your home server reachable?', {
-				action: { label: 'Retry', onClick: loadBackups }
+			toast.error(t('could_not_list_backups'), {
+				action: { label: t('retry'), onClick: loadBackups }
 			});
 		} finally {
 			loadingBackups = false;
@@ -158,7 +162,7 @@
 					? (localStorage.getItem('itinera_carto_api_key') ?? '')
 					: '');
 		} catch {
-			toast.error('Could not load settings.');
+			toast.error(t('could_not_load_settings'));
 		}
 		await Promise.all([loadTemplates(), loadStorage()]);
 		if (online) void loadBackups();
@@ -200,7 +204,7 @@
 			setLanguage(language);
 			toast.success(t('settings_saved'));
 		} catch {
-			toast.error('Could not save settings.');
+			toast.error(t('could_not_save_settings'));
 		} finally {
 			saving = false;
 		}
@@ -211,10 +215,10 @@
 		try {
 			const granted = await requestPersistentStorage();
 			persisted = granted;
-			if (granted) toast.success('Storage is now persistent.');
-			else toast.warning('The browser declined persistent storage for now.');
+			if (granted) toast.success(t('storage_now_persistent'));
+			else toast.warning(t('persistent_storage_declined'));
 		} catch {
-			toast.error('Could not request persistent storage.');
+			toast.error(t('could_not_request_persistent'));
 		} finally {
 			persisting = false;
 		}
@@ -225,10 +229,10 @@
 		exporting = true;
 		try {
 			await downloadAllExport();
-			toast.success('Full export downloaded.');
+			toast.success(t('export_downloaded'));
 		} catch {
-			toast.error('Could not export – is your home server reachable?', {
-				action: { label: 'Retry', onClick: exportAll }
+			toast.error(t('could_not_export_server'), {
+				action: { label: t('retry'), onClick: exportAll }
 			});
 		} finally {
 			exporting = false;
@@ -240,13 +244,16 @@
 		backingUp = true;
 		try {
 			const result = await runBackup();
+			const records = String(result.docCount ?? 0);
 			toast.success(
-				`Backed up ${result.docCount ?? 0} records${result.attachmentsWritten ? ` and ${result.attachmentsWritten} files` : ''}.`
+				result.attachmentsWritten
+					? t('backup_done_files', { n: records, files: String(result.attachmentsWritten) })
+					: t('backup_done', { n: records })
 			);
 			await loadBackups();
 		} catch {
-			toast.error('Backup failed – is your home server reachable?', {
-				action: { label: 'Retry', onClick: backupNow }
+			toast.error(t('could_not_backup'), {
+				action: { label: t('retry'), onClick: backupNow }
 			});
 		} finally {
 			backingUp = false;
@@ -257,9 +264,9 @@
 		try {
 			await checklist.templates.setDefault(id);
 			await loadTemplates();
-			toast.success('Default template set.');
+			toast.success(t('default_template_set'));
 		} catch {
-			toast.error('Could not set the default template.');
+			toast.error(t('could_not_set_default_template'));
 		}
 	}
 
@@ -276,9 +283,9 @@
 			await checklist.templates.update(renameId, { name: renameName.trim() });
 			renameOpen = false;
 			await loadTemplates();
-			toast.success('Template renamed.');
+			toast.success(t('template_renamed'));
 		} catch {
-			toast.error('Could not rename the template.');
+			toast.error(t('could_not_rename_template'));
 		} finally {
 			renameSaving = false;
 		}
@@ -298,7 +305,7 @@
 					await caches.delete(key);
 				}
 			}
-			toast.success('Cache limpo! Recarregando...');
+			toast.success(t('cache_cleared_reloading'));
 			setTimeout(() => {
 				window.location.reload();
 			}, 500);
@@ -307,13 +314,15 @@
 		}
 	}
 
-	async function removeTemplate(t: ChecklistTemplate) {
+	/** Confirmed. The removal is a soft delete, so the Trash is the backstop. */
+	async function removeTemplate(tpl: ChecklistTemplate) {
+		removeTarget = null;
 		try {
-			await checklist.templates.remove(t._id);
+			await checklist.templates.remove(tpl._id);
 			await loadTemplates();
-			toast.success('Template deleted.');
+			toast.success(t('template_deleted'));
 		} catch {
-			toast.error('Could not delete the template.');
+			toast.error(t('could_not_delete_template'));
 		}
 	}
 </script>
@@ -359,7 +368,7 @@
 					onchange={(e) => (firstDayOfWeek = Number(e.currentTarget.value))}
 				>
 					{#each WEEK_START as day (day.v)}
-						<option value={String(day.v)}>{day.label}</option>
+						<option value={String(day.v)}>{t(day.key)}</option>
 					{/each}
 				</Select>
 			</Field>
@@ -445,6 +454,11 @@
 			</Button>
 		</div>
 
+		<p class="mt-2 text-xs leading-relaxed text-ink-muted">
+			{t('export_json_records_only')}
+			{t('backup_keeps_files')}
+		</p>
+
 		<div class="mt-5">
 			<div class="flex items-center justify-between gap-2">
 				<h3 class="text-sm font-semibold text-ink">{t('recent_backups')}</h3>
@@ -504,6 +518,8 @@
 			{t('storage_device_desc')}
 		</p>
 
+		<IosStorageNotice />
+
 		<div class="mt-4">
 			<div class="flex items-center justify-between text-sm">
 				<span class="flex text-ink-muted">{t('on_this_device')}</span>
@@ -539,7 +555,7 @@
 				class="text-ink-muted hover:text-ink"
 			>
 				<RefreshCw class="size-3.5" />
-				Limpar Cache / Forçar Atualização
+				{t('clear_cache_force_update')}
 			</Button>
 		</div>
 	</section>
@@ -585,10 +601,11 @@
 					<li class="flex items-center gap-3 py-2.5">
 						<div class="min-w-0 flex-1">
 							<div class="flex flex-wrap items-center gap-2">
-								<span class="truncate font-medium text-ink">{tItem.name ?? '(untitled)'}</span>
+								<span class="truncate font-medium text-ink">{tItem.name ?? t('untitled')}</span>
 								{#if isBuiltin}
 									<Badge variant="primary" class="gap-1 text-[10px]">
-										<Sparkles class="size-3" /> Built-in
+										<Sparkles class="size-3" />
+										{t('builtin_template')}
 									</Badge>
 								{/if}
 								{#if tItem.isDefault}
@@ -618,7 +635,7 @@
 							</button>
 							<button
 								type="button"
-								onclick={() => removeTemplate(tItem)}
+								onclick={() => (removeTarget = tItem)}
 								aria-label={`${t('delete')} ${tItem.name ?? ''}`}
 								class="grid size-9 place-items-center rounded-md text-ink-muted transition-colors hover:bg-danger/10 hover:text-danger [&_svg]:size-4"
 							>
@@ -633,7 +650,7 @@
 
 	<footer class="mt-8 flex flex-col items-center justify-center gap-2 pb-6 text-center">
 		<ItineraLogo size={28} withText />
-		<p class="text-xs text-ink-muted">A cozy, offline-first personal travel planner.</p>
+		<p class="text-xs text-ink-muted">{t('app_tagline')}</p>
 	</footer>
 </main>
 
@@ -642,7 +659,7 @@
 		<Input
 			id="rename-template"
 			value={renameName}
-			placeholder="e.g. Beach trip"
+			placeholder={t('template_name_placeholder')}
 			oninput={(e) => (renameName = e.currentTarget.value)}
 		/>
 	</Field>
@@ -652,6 +669,23 @@
 		</Button>
 		<Button onclick={saveRename} disabled={renameSaving || !renameName.trim()}>
 			{renameSaving ? t('saving') : t('save')}
+		</Button>
+	{/snippet}
+</Dialog>
+
+<Dialog
+	open={removeTarget != null}
+	title={t('delete_template_title', { name: removeTarget?.name ?? '' })}
+	description={t('delete_template_body')}
+	onclose={() => (removeTarget = null)}
+>
+	{#if removeTarget?.isDefault}
+		<p class="text-sm text-ink-muted">{t('delete_template_default_note')}</p>
+	{/if}
+	{#snippet footer()}
+		<Button variant="ghost" onclick={() => (removeTarget = null)}>{t('cancel')}</Button>
+		<Button variant="destructive" onclick={() => removeTarget && removeTemplate(removeTarget)}>
+			{t('delete')}
 		</Button>
 	{/snippet}
 </Dialog>

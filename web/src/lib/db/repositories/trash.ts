@@ -195,7 +195,8 @@ export async function empty(): Promise<number> {
  * Off by default, and off when the number is not a positive one: purging is the
  * only irreversible thing this app does, so a device that has never been told
  * how long to keep deleted documents keeps them forever. The setting is what
- * turns it on (Settings → Data & backups).
+ * turns it on, and the Trash page is where it is set — next to the items it
+ * would remove.
  *
  * `deletedAt` is an ISO-8601 UTC timestamp, so lexicographic order is chronological
  * order and the cutoff needs no date parsing per document.

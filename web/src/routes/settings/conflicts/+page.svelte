@@ -20,9 +20,11 @@
 		try {
 			const [list, allTrips] = await Promise.all([listConflicts(), trips.list()]);
 			reports = list;
-			tripTitles = new Map(allTrips.map((t) => [t._id, t.title?.trim() || 'Untitled trip']));
+			tripTitles = new Map(
+				allTrips.map((trip) => [trip._id, trip.title?.trim() || t('untitled_trip')])
+			);
 		} catch {
-			toast.error('Could not load the change history.');
+			toast.error(t('could_not_load_changes'));
 		} finally {
 			loaded = true;
 		}
@@ -108,7 +110,7 @@
 			reports = reports.filter((r) => r.id !== report.id);
 			toast.success(t('marked_as_reviewed'));
 		} catch {
-			toast.error('Could not update. Try again.');
+			toast.error(t('could_not_update_retry'));
 		} finally {
 			busy = null;
 		}

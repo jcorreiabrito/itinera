@@ -5,12 +5,14 @@
 <script lang="ts">
 	import { flights } from '$lib/db';
 	import type { Attachment, Flight, FlightSegment } from '$lib/db';
+	import { untrack } from 'svelte';
 	import { Button, Field, Input, Select, Sheet, Textarea, toast } from '$lib/components/ui';
 	import { AttachmentField } from '$lib/components/attachments';
 	import { AlertTriangle, ArrowRight, Plane, Plus, Trash2 } from 'lucide-svelte';
 	import FlightLegFields, { type FormLeg } from './FlightLegFields.svelte';
 	import { endpointCode } from './labels';
 	import { t } from '$lib/i18n.svelte';
+	import { isDirty, snapshot } from '$lib/utils/form-dirty';
 
 	interface Props {
 		open?: boolean;
@@ -52,6 +54,12 @@
 	let wasOpen = false;
 
 	let attachmentItems = $state<Attachment[]>([]);
+
+	/** Everything the form can change, so "edited?" stays one comparison. */
+	const fields = () => ({ bookingRef, checkInUrl, cost, currency, notes, costType, legs });
+	/** The same fields as loaded; `null` until the sheet has read the flight. */
+	let baseline = $state<string | null>(null);
+	const dirty = $derived(isDirty(baseline, fields()));
 
 	function blankLeg(from?: FormLeg['from']): FormLeg {
 		return {
@@ -125,6 +133,9 @@
 			legs = [blankLeg()];
 			attachmentItems = [];
 		}
+		// `untrack`: taking the baseline must not make the open/close effect
+		// depend on every field, or it would re-run on each keystroke.
+		baseline = untrack(() => snapshot(fields()));
 	}
 
 	$effect(() => {
@@ -165,18 +176,15 @@
 
 	const legErrors = $derived(
 		computed.segments.map((s) =>
-			s.durationMinutes != null && s.durationMinutes < 0
-				? 'Arrival is before departure – check the times and time zones.'
-				: null
+			s.durationMinutes != null && s.durationMinutes < 0 ? t('leg_time_error') : null
 		)
 	);
 
 	const layoverWarnings = $derived(
 		computed.layovers.map((l) => {
 			if (l.minutes == null) return null;
-			if (l.minutes < 0)
-				return `Overlapping connection (${l.text}) – this leg departs before the previous one lands.`;
-			if (l.tight) return `Tight connection · ${l.text}`;
+			if (l.minutes < 0) return t('overlap_warning', { text: l.text });
+			if (l.tight) return t('tight_connection', { text: l.text });
 			return null;
 		})
 	);
@@ -193,11 +201,11 @@
 
 	function validate(): boolean {
 		if (!routeOk) {
-			formError = 'Add at least a From and To airport for the route.';
+			formError = t('route_required');
 			return false;
 		}
 		if (legErrors.some(Boolean)) {
-			formError = 'Fix the leg times before saving.';
+			formError = t('fix_leg_times');
 			return false;
 		}
 		formError = null;
@@ -237,7 +245,7 @@
 			open = false;
 			onsaved?.();
 		} catch {
-			toast.error('Could not save the flight. Your changes are still here – try again.');
+			toast.error(t('could_not_save_flight_kept'));
 		} finally {
 			saving = false;
 		}
@@ -250,22 +258,22 @@
 		try {
 			await flights.softDelete(id);
 			open = false;
-			toast.success('Flight removed.', {
+			toast.success(t('flight_removed'), {
 				action: {
-					label: 'Undo',
+					label: t('undo'),
 					onClick: async () => {
 						try {
 							await flights.restore(id);
 							onsaved?.();
 						} catch {
-							toast.error('Could not undo. Try restoring from Trash.');
+							toast.error(t('could_not_undo'));
 						}
 					}
 				}
 			});
 			onsaved?.();
 		} catch {
-			toast.error('Could not remove the flight. Try again.');
+			toast.error(t('could_not_remove_flight'));
 		} finally {
 			saving = false;
 		}
@@ -275,8 +283,9 @@
 <Sheet
 	bind:open
 	side="right"
+	{dirty}
 	title={mode === 'create' ? t('add_flight') : t('edit_flight')}
-	description="One booking can hold every leg – outbound, return and connections."
+	description={t('flight_sheet_desc')}
 >
 	<form
 		class="flex flex-col gap-4"
@@ -287,7 +296,7 @@
 	>
 		<!-- Booking-level fields -->
 		<div class="grid grid-cols-1 gap-3 sm:grid-cols-2">
-			<Field label="Booking ref / PNR" for={fid('ref')}>
+			<Field label={t('booking_ref_pnr')} for={fid('ref')}>
 				<Input
 					id={fid('ref')}
 					value={bookingRef}
@@ -298,7 +307,7 @@
 					oninput={(e) => (bookingRef = e.currentTarget.value.toUpperCase())}
 				/>
 			</Field>
-			<Field label="Online check-in URL" for={fid('ci')}>
+			<Field label={t('check_in_url')} for={fid('ci')}>
 				<Input
 					id={fid('ci')}
 					type="url"
@@ -310,11 +319,7 @@
 		</div>
 
 		<div class="grid grid-cols-[1fr_7rem] gap-3">
-			<Field
-				label={t('cost')}
-				for={fid('cost')}
-				hint="Adds one linked expense to your budget – no double-counting."
-			>
+			<Field label={t('cost')} for={fid('cost')} hint={t('cost_adds_expense_no_double')}>
 				<Input
 					id={fid('cost')}
 					type="number"
@@ -341,7 +346,7 @@
 			<Field
 				label={t('cost_distribution')}
 				for={fid('cost-dist')}
-				hint="Select if this flight cost is the total or per person."
+				hint={t('cost_distribution_hint')}
 			>
 				<Select
 					id={fid('cost-dist')}
@@ -358,7 +363,7 @@
 			<Textarea
 				id={fid('notes')}
 				value={notes}
-				placeholder="Anything worth remembering..."
+				placeholder={t('notes_placeholder')}
 				oninput={(e) => (notes = e.currentTarget.value)}
 			/>
 		</Field>
@@ -369,20 +374,20 @@
 				ownerType="flight"
 				ownerId={flight._id}
 				items={attachmentItems}
-				label="Boarding passes & e-tickets"
+				label={t('boarding_passes')}
 				link={(attId) => flights.linkAttachment(flight._id, attId)}
 				unlink={(attId) => flights.unlinkAttachment(flight._id, attId)}
 				onchange={loadAttachments}
 			/>
 		{:else}
 			<p class="rounded-md bg-surface-sunken px-3 py-2 text-xs text-ink-muted">
-				Save the booking to attach boarding passes and e-tickets.
+				{t('save_flight_to_attach')}
 			</p>
 		{/if}
 
 		<!-- Legs -->
 		<div class="flex flex-col gap-3">
-			<h3 class="text-sm font-semibold text-ink">Legs</h3>
+			<h3 class="text-sm font-semibold text-ink">{t('legs')}</h3>
 			{#each legs as leg, i (i)}
 				<FlightLegFields
 					{leg}
@@ -401,9 +406,9 @@
 					>
 						<ArrowRight class="size-3.5 shrink-0" />
 						<span class="font-medium">
-							Layover {endpointCode(leg.to)}
+							{t('layover_label', { code: endpointCode(leg.to) })}
 							{lay?.text ? ` · ${lay.text}` : ''}
-							{#if lay?.changeAirport}<span>🔄 change airport</span>{/if}
+							{#if lay?.changeAirport}<span>{t('change_airport')}</span>{/if}
 						</span>
 						{#if warn}<span class="inline-flex items-center gap-1"
 								><AlertTriangle class="size-3.5" />{warn}</span
@@ -412,7 +417,8 @@
 				{/if}
 			{/each}
 			<Button variant="secondary" onclick={addLeg}>
-				<Plus class="size-4" /> Add leg
+				<Plus class="size-4" />
+				{t('add_leg')}
 			</Button>
 		</div>
 

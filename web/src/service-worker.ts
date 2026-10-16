@@ -4,6 +4,7 @@
 /// <reference lib="webworker" />
 
 import { build, files, version } from '$service-worker';
+import { isCacheableResponse, shouldBypass } from '$lib/sw-policy';
 
 const sw = self as unknown as ServiceWorkerGlobalScope;
 
@@ -55,16 +56,9 @@ sw.addEventListener('fetch', (event) => {
 
 	const url = new URL(request.url);
 	if (!url.protocol.startsWith('http')) return;
-	// Never cache or offline-serve the PouchDB replication channel (/db/) or the
-	// API (/api/): serving stale `_changes`, `_local` checkpoints, docs, or
-	// attachments would hand PouchDB outdated data and break sync convergence
-	// (doc 0%). Bypass the SW entirely so these always hit the network.
-	if (
-		url.origin === location.origin &&
-		(url.pathname.startsWith('/db/') || url.pathname.startsWith('/api/'))
-	) {
-		return;
-	}
+	// The PouchDB replication channel and the API always hit the network — see
+	// `shouldBypass` for why serving them from cache breaks sync convergence.
+	if (shouldBypass(url, location.origin)) return;
 
 	event.respondWith(
 		(async () => {
@@ -114,15 +108,11 @@ sw.addEventListener('fetch', (event) => {
 			}
 
 			// 3. Network-first for everything else, with an offline fallback to cache.
+			// Only the third-party tiles and rates are stored — see
+			// `isCacheableResponse` for why a same-origin response must not be.
 			try {
 				const response = await fetch(request);
-				const isCacheableExternal =
-					url.hostname.includes('tile.openstreetmap.org') ||
-					url.hostname.includes('basemaps.cartocdn.com') ||
-					url.hostname.includes('open.er-api.com') ||
-					url.hostname.includes('open-meteo.com');
-
-				if (response.ok && (url.origin === location.origin || isCacheableExternal)) {
+				if (isCacheableResponse(url, response)) {
 					cache.put(request, response.clone());
 				}
 				return response;

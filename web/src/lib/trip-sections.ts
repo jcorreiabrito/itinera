@@ -32,6 +32,16 @@ export interface TripSection {
 	separated?: boolean;
 	/** Heading that introduces a titled block in the desktop sidebar. */
 	group?: TranslationKey;
+	/**
+	 * Whether the page is a plan to work on rather than prose to read, and so
+	 * takes the wider content column at `2xl` — see the `main` element in
+	 * `trip/[id]/+layout.svelte`.
+	 *
+	 * A day list, a cost table and a checklist all put more on one line as the
+	 * window grows; a trip's notes do not, and a 1280px measure is uncomfortable
+	 * to read. The split is per section rather than global for that reason.
+	 */
+	wide?: boolean;
 	/** How the mobile bottom bar shows this section; omit to hide it there. */
 	mobile?: {
 		labelKey: TranslationKey;
@@ -61,6 +71,7 @@ export const TRIP_SECTIONS: TripSection[] = [
 		id: 'itinerary',
 		labelKey: 'itinerary',
 		icon: CalendarDays,
+		wide: true,
 		path: (id) => resolve('/trip/[id]/itinerary', { id }),
 		isActive: (pathname, id) => under(pathname, id, 'itinerary'),
 		mobile: {
@@ -73,6 +84,7 @@ export const TRIP_SECTIONS: TripSection[] = [
 		id: 'checklist',
 		labelKey: 'checklist',
 		icon: ListChecks,
+		wide: true,
 		path: (id) => resolve('/trip/[id]/checklist', { id }),
 		isActive: (pathname, id) => under(pathname, id, 'checklist'),
 		mobile: {
@@ -85,6 +97,7 @@ export const TRIP_SECTIONS: TripSection[] = [
 		id: 'flights',
 		labelKey: 'flights',
 		icon: Plane,
+		wide: true,
 		separated: true,
 		group: 'bookings',
 		path: (id) => resolve('/trip/[id]/bookings?tab=flights', { id }),
@@ -100,6 +113,7 @@ export const TRIP_SECTIONS: TripSection[] = [
 		id: 'reservations',
 		labelKey: 'reservations',
 		icon: BedDouble,
+		wide: true,
 		path: (id) => resolve('/trip/[id]/bookings?tab=reservations', { id }),
 		isActive: (pathname, id, tab) => under(pathname, id, 'bookings') && tab === 'reservations'
 	},
@@ -107,6 +121,7 @@ export const TRIP_SECTIONS: TripSection[] = [
 		id: 'costs',
 		labelKey: 'costs',
 		icon: Wallet,
+		wide: true,
 		separated: true,
 		path: (id) => resolve('/trip/[id]/costs', { id }),
 		isActive: (pathname, id) => under(pathname, id, 'costs'),

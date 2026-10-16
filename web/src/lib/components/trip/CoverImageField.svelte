@@ -5,6 +5,7 @@
 	import { attachments, fullTripid, trips } from '$lib/db';
 	import { ImagePlus, Loader2, Trash2 } from 'lucide-svelte';
 	import { Button, toast } from '$lib/components/ui';
+	import { t } from '$lib/i18n.svelte';
 	import TripCover from './TripCover.svelte';
 
 	interface Props {
@@ -31,7 +32,7 @@
 		const file = event.currentTarget.files?.[0];
 		if (!file) return;
 		if (!file.type.startsWith('image/')) {
-			toast.error('Please choose an image file for the cover.');
+			toast.error(t('choose_image_file'));
 			event.currentTarget.value = '';
 			return;
 		}
@@ -47,9 +48,9 @@
 			await trips.setCover(tripId, att._id);
 			localAttId = att._id;
 			onchange(att._id);
-			toast.success('Cover photo updated.');
+			toast.success(t('cover_photo_updated'));
 		} catch {
-			toast.error('Could not upload that image. Please try another.');
+			toast.error(t('could_not_upload_image'));
 		} finally {
 			uploading = false;
 			if (inputEl) inputEl.value = '';
@@ -63,7 +64,7 @@
 			localAttId = null;
 			onchange(null);
 		} catch {
-			toast.error('Could not remove the cover photo.');
+			toast.error(t('could_not_remove_cover'));
 		} finally {
 			uploading = false;
 		}
@@ -83,12 +84,12 @@
 	<div class="flex flex-wrap items-center gap-2">
 		<Button variant="secondary" size="sm" onclick={() => inputEl?.click()} disabled={uploading}>
 			<ImagePlus class="size-4" />
-			{localAttId ? 'Change photo' : 'Add photo'}
+			{localAttId ? t('change_photo') : t('add_photo')}
 		</Button>
 		{#if localAttId}
 			<Button variant="ghost" size="sm" onclick={removeCover} disabled={uploading}>
 				<Trash2 class="size-4" />
-				Remove
+				{t('remove')}
 			</Button>
 		{/if}
 
@@ -97,7 +98,7 @@
 			type="file"
 			accept="image/*"
 			class="hidden"
-			aria-label="Upload cover photo"
+			aria-label={t('upload_cover_photo')}
 			onchange={onFile}
 		/>
 	</div>
