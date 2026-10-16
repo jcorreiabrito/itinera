@@ -14,9 +14,9 @@ import { SCHEMA_VERSION } from './constants';
 
 /** A loosely-typed document during migration (we only touch known fields). */
 export type MigratableDoc = Record<string, unknown> & {
-  _id?: string;
-  type?: string;
-  schemaVersion?: number;
+	_id?: string;
+	type?: string;
+	schemaVersion?: number;
 };
 
 /** A migration transforms a document from version `n-1` to version `n`. */
@@ -30,26 +30,26 @@ export type Migration = (doc: MigratableDoc) => MigratableDoc;
  * and the boolean defaults each type relies on in queries.
  */
 function migrateToV1(doc: MigratableDoc): MigratableDoc {
-  const next: MigratableDoc = { ...doc, schemaVersion: 1 };
-  if (next.deletedAt === undefined) next.deletedAt = null;
+	const next: MigratableDoc = { ...doc, schemaVersion: 1 };
+	if (next.deletedAt === undefined) next.deletedAt = null;
 
-  switch (next.type) {
-    case 'trip':
-      if (next.archived === undefined) next.archived = false;
-      break;
-    case 'itineraryItem':
-      if (next.allDay === undefined) next.allDay = false;
-      break;
-    case 'checklistItem':
-      if (next.done === undefined) next.done = false;
-      break;
-    case 'expense':
-      if (next.paid === undefined) next.paid = false;
-      break;
-    default:
-      break;
-  }
-  return next;
+	switch (next.type) {
+		case 'trip':
+			if (next.archived === undefined) next.archived = false;
+			break;
+		case 'itineraryItem':
+			if (next.allDay === undefined) next.allDay = false;
+			break;
+		case 'checklistItem':
+			if (next.done === undefined) next.done = false;
+			break;
+		case 'expense':
+			if (next.paid === undefined) next.paid = false;
+			break;
+		default:
+			break;
+	}
+	return next;
 }
 
 /**
@@ -58,14 +58,14 @@ function migrateToV1(doc: MigratableDoc): MigratableDoc {
  * document's current version.
  */
 export const MIGRATIONS: Record<number, Migration> = {
-  1: migrateToV1
+	1: migrateToV1
 };
 
 /** Result of attempting to migrate a single document. */
 export interface MigrationResult {
-  doc: MigratableDoc;
-  /** True when the document was changed and must be written back. */
-  changed: boolean;
+	doc: MigratableDoc;
+	/** True when the document was changed and must be written back. */
+	changed: boolean;
 }
 
 /**
@@ -73,15 +73,15 @@ export interface MigrationResult {
  * Returns the (possibly new) document and whether anything changed.
  */
 export function migrateDoc(doc: MigratableDoc, target: number = SCHEMA_VERSION): MigrationResult {
-  const from = typeof doc.schemaVersion === 'number' ? doc.schemaVersion : 0;
-  if (from >= target) return { doc, changed: false };
+	const from = typeof doc.schemaVersion === 'number' ? doc.schemaVersion : 0;
+	if (from >= target) return { doc, changed: false };
 
-  let current = doc;
-  for (let v = from + 1; v <= target; v++) {
-    const migration = MIGRATIONS[v];
-    if (migration) current = migration(current);
-  }
-  // Guarantee the version lands exactly on target even if a step was missing.
-  if (current.schemaVersion !== target) current = { ...current, schemaVersion: target };
-  return { doc: current, changed: true };
+	let current = doc;
+	for (let v = from + 1; v <= target; v++) {
+		const migration = MIGRATIONS[v];
+		if (migration) current = migration(current);
+	}
+	// Guarantee the version lands exactly on target even if a step was missing.
+	if (current.schemaVersion !== target) current = { ...current, schemaVersion: target };
+	return { doc: current, changed: true };
 }

@@ -15,40 +15,40 @@
 import { subscribeChanges } from '$lib/db';
 
 export function startLive(reload: () => void, debounceMs = 200): () => void {
-  if (typeof window === 'undefined') return () => {};
+	if (typeof window === 'undefined') return () => {};
 
-  let timer: ReturnType<typeof setTimeout> | null = null;
-  const fire = () => {
-    if (timer) clearTimeout(timer);
-    timer = setTimeout(() => {
-      timer = null;
-      reload();
-    }, debounceMs);
-  };
+	let timer: ReturnType<typeof setTimeout> | null = null;
+	const fire = () => {
+		if (timer) clearTimeout(timer);
+		timer = setTimeout(() => {
+			timer = null;
+			reload();
+		}, debounceMs);
+	};
 
-  const onVisible = () => {
-    if (document.visibilityState === 'visible') fire();
-  };
+	const onVisible = () => {
+		if (document.visibilityState === 'visible') fire();
+	};
 
-  window.addEventListener('focus', fire);
-  document.addEventListener('visibilitychange', onVisible);
+	window.addEventListener('focus', fire);
+	document.addEventListener('visibilitychange', onVisible);
 
-  // Best-effort: observe the local change feed for live updates from sync.
-  let feed: ReturnType<typeof subscribeChanges> | null = null;
-  try {
-    feed = subscribeChanges(() => fire());
-  } catch {
-    feed = null;
-  }
+	// Best-effort: observe the local change feed for live updates from sync.
+	let feed: ReturnType<typeof subscribeChanges> | null = null;
+	try {
+		feed = subscribeChanges(() => fire());
+	} catch {
+		feed = null;
+	}
 
-  return () => {
-    if (timer) clearTimeout(timer);
-    window.removeEventListener('focus', fire);
-    document.removeEventListener('visibilitychange', onVisible);
-    try {
-      feed?.cancel();
-    } catch {
-      /* feed already cancelled / db unavailable */
-    }
-  };
+	return () => {
+		if (timer) clearTimeout(timer);
+		window.removeEventListener('focus', fire);
+		document.removeEventListener('visibilitychange', onVisible);
+		try {
+			feed?.cancel();
+		} catch {
+			/* feed already cancelled / db unavailable */
+		}
+	};
 }

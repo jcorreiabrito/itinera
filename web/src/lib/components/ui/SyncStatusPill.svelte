@@ -1,158 +1,178 @@
 <script lang="ts">
-    import { listConflicts, syncNow, syncStatus } from '$lib/db';
-    import { t } from '$lib/i18n.svelte';
-    import { Check, CloudOff, GitMerge, RefreshCw, TriangleAlert, UploadCloud } from 'lucide-svelte';
-    import { cn } from '$lib/utils';
-    import { relativeTime } from '$lib/format';
-    import Popover from './Popover.svelte';
-    import Button from './Button.svelte';
+	import { listConflicts, syncNow, syncStatus } from '$lib/db';
+	import { resolve } from '$app/paths';
+	import { t, type TranslationKey } from '$lib/i18n.svelte';
+	import { Check, CloudOff, GitMerge, RefreshCw, TriangleAlert, UploadCloud } from 'lucide-svelte';
+	import { cn } from '$lib/utils';
+	import { relativeTime } from '$lib/format';
+	import Popover from './Popover.svelte';
+	import Button from './Button.svelte';
 
-    interface Props {
-        class?: string;
-    }
+	interface Props {
+		class?: string;
+	}
 
-    let { class: className }: Props = $props();
+	let { class: className }: Props = $props();
 
-    let open = $state(false);
-    let conflicts = $state<Awaited<ReturnType<typeof listConflicts>>>([]);
-    let conflictsLoaded = $state(false);
-    let syncing = $state(false);
+	let open = $state(false);
+	let conflicts = $state<Awaited<ReturnType<typeof listConflicts>>>([]);
+	let conflictsLoaded = $state(false);
+	let syncing = $state(false);
 
-    type State = 'synced' | 'syncing' | 'offline' | 'pending' | 'error';
+	type State = 'synced' | 'syncing' | 'offline' | 'pending' | 'error';
 
-    const config: Record<State, { labelKey: string; tone: string }> = {
-        synced: { labelKey: 'synced', tone: 'border-primary-100 bg-primary-100 text-primary-700 dark:border-primary-700/40 dark:bg-primary-900/30 dark:text-emerald-400' },
-        syncing: { labelKey: 'syncing', tone: 'border-info/20 bg-info/10 text-info dark:text-sky-300' },
-        pending: { labelKey: 'pending', tone: 'border-warning/20 bg-warning/10 text-amber-900 dark:text-amber-300' },
-        offline: { labelKey: 'offline', tone: 'border-border bg-surface-sunken text-ink-muted' },
-        error: { labelKey: 'sync_error', tone: 'border-danger/20 bg-danger/10 text-danger dark:text-rose-400' },
-    };
+	const config: Record<State, { labelKey: TranslationKey; tone: string }> = {
+		synced: {
+			labelKey: 'synced',
+			tone: 'border-primary-100 bg-primary-100 text-primary-700 dark:border-primary-700/40 dark:bg-primary-900/30 dark:text-emerald-400'
+		},
+		syncing: { labelKey: 'syncing', tone: 'border-info/20 bg-info/10 text-info dark:text-sky-300' },
+		pending: {
+			labelKey: 'pending',
+			tone: 'border-warning/20 bg-warning/10 text-amber-900 dark:text-amber-300'
+		},
+		offline: { labelKey: 'offline', tone: 'border-border bg-surface-sunken text-ink-muted' },
+		error: {
+			labelKey: 'sync_error',
+			tone: 'border-danger/20 bg-danger/10 text-danger dark:text-rose-400'
+		}
+	};
 
-    const current = $derived({
-        tone: config[$syncStatus.state]?.tone ?? config.offline.tone,
-        label: t(config[$syncStatus.state]?.labelKey ?? 'offline')
-    });
+	const current = $derived({
+		tone: config[$syncStatus.state]?.tone ?? config.offline.tone,
+		label: t(config[$syncStatus.state]?.labelKey ?? 'offline')
+	});
 
-    async function refreshConflicts() {
-        try {
-            conflicts = await listConflicts();
-        } catch {
-            conflicts = [];
-        }
-        conflictsLoaded = true;
-    }
+	async function refreshConflicts() {
+		try {
+			conflicts = await listConflicts();
+		} catch {
+			conflicts = [];
+		}
+		conflictsLoaded = true;
+	}
 
-    $effect(() => {
-        if (open && !conflictsLoaded) refreshConflicts();
-    });
+	$effect(() => {
+		if (open && !conflictsLoaded) refreshConflicts();
+	});
 
-    async function doSyncNow() {
-        syncing = true;
-        try {
-            await syncNow();
-            // the error is reflected in the sync status store
-        } catch {
-            // ignore (the error is reflected in the sync status store)
-        } finally {
-            syncing = false;
-            await refreshConflicts();
-        }
-    }
+	async function doSyncNow() {
+		syncing = true;
+		try {
+			await syncNow();
+			// the error is reflected in the sync status store
+		} catch {
+			// ignore (the error is reflected in the sync status store)
+		} finally {
+			syncing = false;
+			await refreshConflicts();
+		}
+	}
 </script>
 
 <Popover bind:open align="end" label={t('sync_status_options')} class={className}>
-    {#snippet trigger({ toggle, open: isOpen })}
-        <button
-            type="button"
-            onclick={toggle}
-            aria-haspopup="true"
-            aria-expanded={isOpen}
-            aria-label={`${current.label}.`}
-            class={cn(
-                'relative inline-flex min-h-[44px] min-w-[44px] sm:min-h-0 sm:min-w-0 h-11 sm:h-7 items-center justify-center sm:justify-start gap-1.5 rounded-full border px-3 sm:px-2.5 py-1 text-xs font-medium transition-colors hover:brightness-95 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary-600 focus-visible:ring-offset-2 focus-visible:ring-offset-bg',
-                current.tone
-            )}
-        >
-            {#if $syncStatus.state === 'synced'}
-                <Check class="size-3.5" />
-            {:else if $syncStatus.state === 'syncing'}
-                <RefreshCw class="size-3.5 animate-spin" />
-            {:else if $syncStatus.state === 'pending'}
-                <UploadCloud class="size-3.5" />
-            {:else if $syncStatus.state === 'error'}
-                <TriangleAlert class="size-3.5" />
-            {:else}
-                <CloudOff class="size-3.5" />
-            {/if}
-            <span class="hidden sm:inline" aria-label={current.label}>{current.label}</span>
-            {#if $syncStatus.state === 'pending' && $syncStatus.pendingChanges}
-                <span class="absolute -right-0.5 -top-0.5 size-2 rounded-full bg-warning ring-1 ring-bg" aria-hidden="true"></span>
-            {/if}
-        </button>
-    {/snippet}
+	{#snippet trigger({ toggle, open: isOpen })}
+		<button
+			type="button"
+			onclick={toggle}
+			aria-haspopup="true"
+			aria-expanded={isOpen}
+			aria-label={`${current.label}.`}
+			class={cn(
+				'relative inline-flex h-11 min-h-[44px] min-w-[44px] items-center justify-center gap-1.5 rounded-full border px-3 py-1 text-xs font-medium transition-colors hover:brightness-95 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary-600 focus-visible:ring-offset-2 focus-visible:ring-offset-bg sm:h-7 sm:min-h-0 sm:min-w-0 sm:justify-start sm:px-2.5',
+				current.tone
+			)}
+		>
+			{#if $syncStatus.state === 'synced'}
+				<Check class="size-3.5" />
+			{:else if $syncStatus.state === 'syncing'}
+				<RefreshCw class="size-3.5 animate-spin" />
+			{:else if $syncStatus.state === 'pending'}
+				<UploadCloud class="size-3.5" />
+			{:else if $syncStatus.state === 'error'}
+				<TriangleAlert class="size-3.5" />
+			{:else}
+				<CloudOff class="size-3.5" />
+			{/if}
+			<span class="hidden sm:inline" aria-label={current.label}>{current.label}</span>
+			{#if $syncStatus.state === 'pending' && $syncStatus.pendingChanges}
+				<span
+					class="absolute -right-0.5 -top-0.5 size-2 rounded-full bg-warning ring-1 ring-bg"
+					aria-hidden="true"
+				></span>
+			{/if}
+		</button>
+	{/snippet}
 
-    <div class="w-64 p-2">
-        <div class="flex items-center justify-between gap-2 px-1">
-            <span class="text-sm font-semibold text-ink">{current.label}</span>
-            {#if $syncStatus.pendingChanges}
-                <span class="text-xs text-warning">{t('unsynced_changes')}</span>
-            {/if}
-        </div>
+	<div class="w-64 p-2">
+		<div class="flex items-center justify-between gap-2 px-1">
+			<span class="text-sm font-semibold text-ink">{current.label}</span>
+			{#if $syncStatus.pendingChanges}
+				<span class="text-xs text-warning">{t('unsynced_changes')}</span>
+			{/if}
+		</div>
 
-        <p class="mt-0.5 px-1 text-xs text-ink-muted">
-            {#if $syncStatus.lastSyncedAt}
-                {t('last_synced', { time: relativeTime($syncStatus.lastSyncedAt) })}
-            {:else}
-                {t('not_yet_synced')}
-            {/if}
-        </p>
+		<p class="mt-0.5 px-1 text-xs text-ink-muted">
+			{#if $syncStatus.lastSyncedAt}
+				{t('last_synced', { time: relativeTime($syncStatus.lastSyncedAt) })}
+			{:else}
+				{t('not_yet_synced')}
+			{/if}
+		</p>
 
-        {#if $syncStatus.state === 'error' && $syncStatus.error}
-            <p class="mt-1 line-clamp-2 rounded-md bg-danger/10 px-2 py-1 text-xs text-danger">
-                {$syncStatus.error}
-            </p>
-        {/if}
+		{#if $syncStatus.state === 'error' && $syncStatus.error}
+			<p class="mt-1 line-clamp-2 rounded-md bg-danger/10 px-2 py-1 text-xs text-danger">
+				{$syncStatus.error}
+			</p>
+		{/if}
 
-        <div class="mt-2">
-            <Button
-                variant="secondary"
-                size="sm"
-                class="w-full"
-                onclick={doSyncNow}
-                disabled={syncing || $syncStatus.state === 'syncing'}
-            >
-                <RefreshCw class={cn('size-4', (syncing || $syncStatus.state === 'syncing') && 'animate-spin')} />
-                {syncing || $syncStatus.state === 'syncing' ? t('syncing') : t('sync_now')}
-            </Button>
-        </div>
+		<div class="mt-2">
+			<Button
+				variant="secondary"
+				size="sm"
+				class="w-full"
+				onclick={doSyncNow}
+				disabled={syncing || $syncStatus.state === 'syncing'}
+			>
+				<RefreshCw
+					class={cn('size-4', (syncing || $syncStatus.state === 'syncing') && 'animate-spin')}
+				/>
+				{syncing || $syncStatus.state === 'syncing' ? t('syncing') : t('sync_now')}
+			</Button>
+		</div>
 
-        <div class="mt-3 border-t border-border px-1 pt-2">
-            {#if conflictsLoaded}
-                {#if conflicts.length > 0}
-                    <a
-                        href="/settings/conflicts"
-                        onclick={() => { open = false; }}
-                        class="flex items-center justify-between gap-2 rounded-md px-1.5 py-1.5 text-xs font-medium text-ink transition-colors hover:bg-surface-sunken"
-                    >
-                        <span class="flex items-center gap-1.5">
-                            <GitMerge class="size-3.5 text-primary-700" /> {t('review_changes')}
-                        </span>
-                        <span
-                            class="rounded-full bg-primary-100 px-1.5 py-0.5 text-[0.7rem] font-semibold text-primary-700"
-                        >
-                            {conflicts.length}
-                        </span>
-                    </a>
-                {:else}
-                    <p class="flex items-center gap-1.5 text-xs text-ink-muted">
-                        <GitMerge class="size-3.5" /> {t('no_conflicts')}
-                    </p>
-                {/if}
-            {:else}
-                <p class="flex items-center gap-1.5 text-xs text-ink-muted">
-                    <RefreshCw class="size-3.5 animate-spin" /> {t('checking_conflicts')}
-                </p>
-            {/if}
-        </div>
-    </div>
+		<div class="mt-3 border-t border-border px-1 pt-2">
+			{#if conflictsLoaded}
+				{#if conflicts.length > 0}
+					<a
+						href={resolve('/settings/conflicts')}
+						onclick={() => {
+							open = false;
+						}}
+						class="flex items-center justify-between gap-2 rounded-md px-1.5 py-1.5 text-xs font-medium text-ink transition-colors hover:bg-surface-sunken"
+					>
+						<span class="flex items-center gap-1.5">
+							<GitMerge class="size-3.5 text-primary-700" />
+							{t('review_changes')}
+						</span>
+						<span
+							class="rounded-full bg-primary-100 px-1.5 py-0.5 text-[0.7rem] font-semibold text-primary-700"
+						>
+							{conflicts.length}
+						</span>
+					</a>
+				{:else}
+					<p class="flex items-center gap-1.5 text-xs text-ink-muted">
+						<GitMerge class="size-3.5" />
+						{t('no_conflicts')}
+					</p>
+				{/if}
+			{:else}
+				<p class="flex items-center gap-1.5 text-xs text-ink-muted">
+					<RefreshCw class="size-3.5 animate-spin" />
+					{t('checking_conflicts')}
+				</p>
+			{/if}
+		</div>
+	</div>
 </Popover>

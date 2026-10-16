@@ -13,18 +13,18 @@ import type { Readable } from 'svelte/store';
 const KEY = Symbol('itinera-trip-shell');
 
 export interface TripShellContext {
-  /** Increments whenever trip-level data changes; sections re-query on change. */
-  reloadSignal: Readable<number>;
-  /** Ask the shell to reload the header and notify sections. */
-  requestReload: () => void;
-  /** Open the trip editor sheet (owned by the shell header). */
-  openEditor: () => void;
+	/** Increments whenever trip-level data changes; sections re-query on change. */
+	reloadSignal: Readable<number>;
+	/** Ask the shell to reload the header and notify sections. */
+	requestReload: () => void;
+	/** Open the trip editor sheet (owned by the shell header). */
+	openEditor: () => void;
 }
 
 export function setTripShellContext(ctx: TripShellContext): void {
-  setContext(KEY, ctx);
+	setContext(KEY, ctx);
 }
 
 export function getTripShellContext(): TripShellContext {
-  return getContext(KEY);
+	return getContext(KEY);
 }

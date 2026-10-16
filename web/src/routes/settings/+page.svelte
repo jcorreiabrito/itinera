@@ -1,604 +1,657 @@
 <script lang="ts">
-  import { onMount } from 'svelte';
-  import { checklist, requestPersistentStorage, settings, storageEstimate, syncStatus } from '$lib/db';
-  import { downloadAllExport, listBackups, runBackup, type BackupSummary } from '$lib/api';
-  import { t, setLanguage, getLanguage, type Language } from '$lib/i18n.svelte';
-  import {
-    ArrowLeft,
-    Database,
-    Download,
-    GitMerge,
-    HardDrive,
-    Pencil,
-    RefreshCw,
-    ShieldCheck,
-    Sparkles,
-    Star,
-    Trash2,
-    WifiOff
-  } from 'lucide-svelte';
-  import {
-    Badge,
-    Button,
-    Dialog,
-    Field,
-    Input,
-    Select,
-    SyncStatusPill,
-    toast
-  } from '$lib/components/ui';
-  import { relativeTime } from '$lib/format';
-  import type { ChecklistTemplate, Settings } from '$lib/db';
-  import ItineraLogo from '$lib/components/brand/ItineraLogo.svelte';
+	import { onMount } from 'svelte';
+	import { resolve } from '$app/paths';
+	import {
+		checklist,
+		requestPersistentStorage,
+		settings,
+		storageEstimate,
+		syncStatus
+	} from '$lib/db';
+	import { downloadAllExport, listBackups, runBackup, type BackupSummary } from '$lib/api';
+	import { t, setLanguage, type Language } from '$lib/i18n.svelte';
+	import {
+		ArrowLeft,
+		Database,
+		Download,
+		GitMerge,
+		HardDrive,
+		Pencil,
+		RefreshCw,
+		ShieldCheck,
+		Sparkles,
+		Star,
+		Trash2,
+		WifiOff
+	} from 'lucide-svelte';
+	import {
+		Badge,
+		Button,
+		Dialog,
+		Field,
+		Input,
+		Select,
+		SyncStatusPill,
+		toast
+	} from '$lib/components/ui';
+	import { relativeTime } from '$lib/format';
+	import type { ChecklistTemplate, Settings } from '$lib/db';
+	import ItineraLogo from '$lib/components/brand/ItineraLogo.svelte';
 
-  const CURRENCIES = [
-    'EUR', 'USD', 'GBP', 'JPY', 'CHF', 'CAD', 'AUD', 'SEK', 'NOK', 'DKK', 'PLN', 'CZK', 'HUF',
-    'MXN', 'BRL', 'CLP', 'RON', 'TRY', 'SGD', 'INR', 'AED', 'ZAR'
-  ];
+	const CURRENCIES = [
+		'EUR',
+		'USD',
+		'GBP',
+		'JPY',
+		'CHF',
+		'CAD',
+		'AUD',
+		'SEK',
+		'NOK',
+		'DKK',
+		'PLN',
+		'CZK',
+		'HUF',
+		'MXN',
+		'BRL',
+		'CLP',
+		'RON',
+		'TRY',
+		'SGD',
+		'INR',
+		'AED',
+		'ZAR'
+	];
 
-  const WEEK_START = [
-    { v: 1, label: 'Monday' },
-    { v: 0, label: 'Sunday' },
-    { v: 6, label: 'Saturday' }
-  ];
+	const WEEK_START = [
+		{ v: 1, label: 'Monday' },
+		{ v: 0, label: 'Sunday' },
+		{ v: 6, label: 'Saturday' }
+	];
 
-  let current = $state<Settings | null>(null);
-  let homeCurrency = $state('EUR');
-  let firstDayOfWeek = $state(1);
-  let language = $state<Language>('en');
-  let cartoApiKey = $state('');
-  let saving = $state(false);
+	let current = $state<Settings | null>(null);
+	let homeCurrency = $state('EUR');
+	let firstDayOfWeek = $state(1);
+	let language = $state<Language>('en');
+	let cartoApiKey = $state('');
+	let saving = $state(false);
 
-  let templates = $state<ChecklistTemplate[]>([]);
-  let renameOpen = $state(false);
-  let renameId = $state('');
-  let renameName = $state('');
-  let renameSaving = $state(false);
+	let templates = $state<ChecklistTemplate[]>([]);
+	let renameOpen = $state(false);
+	let renameId = $state('');
+	let renameName = $state('');
+	let renameSaving = $state(false);
 
-  // Storage durability (doc 05).
-  let usage = $state<number | null>(null);
-  let quota = $state<number | null>(null);
-  let persisted = $state(false);
-  let persisting = $state(false);
+	// Storage durability (doc 05).
+	let usage = $state<number | null>(null);
+	let quota = $state<number | null>(null);
+	let persisted = $state(false);
+	let persisting = $state(false);
 
-  // Data & backups (server-backed; require connectivity).
-  let backups = $state<BackupSummary[]>([]);
-  let backupsLoaded = $state(false);
-  let exporting = $state(false);
-  let backingUp = $state(false);
-  let loadingBackups = $state(false);
+	// Data & backups (server-backed; require connectivity).
+	let backups = $state<BackupSummary[]>([]);
+	let backupsLoaded = $state(false);
+	let exporting = $state(false);
+	let backingUp = $state(false);
+	let loadingBackups = $state(false);
 
-  import { network } from '$lib/stores/network.svelte';
+	import { network } from '$lib/stores/network.svelte';
 
-  const online = $derived(network.isOnline && $syncStatus.state !== 'offline' && $syncStatus.state !== 'error');
+	const online = $derived(
+		network.isOnline && $syncStatus.state !== 'offline' && $syncStatus.state !== 'error'
+	);
 
-  async function loadTemplates() {
-    try {
-      templates = await checklist.templates.list();
-    } catch {
-      // non-fatal; templates simply won't list
-    }
-  }
+	async function loadTemplates() {
+		try {
+			templates = await checklist.templates.list();
+		} catch {
+			// non-fatal; templates simply won't list
+		}
+	}
 
-  async function loadStorage() {
-    try {
-      const est = await storageEstimate();
-      usage = est?.usage ?? null;
-      quota = est?.quota ?? null;
-    } catch {
-      usage = null;
-      quota = null;
-    }
-    try {
-      persisted =
-        typeof navigator !== 'undefined' && navigator.storage?.persisted
-          ? await navigator.storage.persisted()
-          : false;
-    } catch {
-      persisted = false;
-    }
-  }
+	async function loadStorage() {
+		try {
+			const est = await storageEstimate();
+			usage = est?.usage ?? null;
+			quota = est?.quota ?? null;
+		} catch {
+			usage = null;
+			quota = null;
+		}
+		try {
+			persisted =
+				typeof navigator !== 'undefined' && navigator.storage?.persisted
+					? await navigator.storage.persisted()
+					: false;
+		} catch {
+			persisted = false;
+		}
+	}
 
-  async function loadBackups() {
-    if (!online) return;
-    loadingBackups = true;
-    try {
-      const res = await listBackups();
-      backups = res.backups ?? [];
-      backupsLoaded = true;
-    } catch {
-      backupsLoaded = false;
-      toast.error('Could not list backups – is your home server reachable?', {
-        action: { label: 'Retry', onClick: loadBackups }
-      });
-    } finally {
-      loadingBackups = false;
-    }
-  }
+	async function loadBackups() {
+		if (!online) return;
+		loadingBackups = true;
+		try {
+			const res = await listBackups();
+			backups = res.backups ?? [];
+			backupsLoaded = true;
+		} catch {
+			backupsLoaded = false;
+			toast.error('Could not list backups – is your home server reachable?', {
+				action: { label: 'Retry', onClick: loadBackups }
+			});
+		} finally {
+			loadingBackups = false;
+		}
+	}
 
-  onMount(async () => {
-    try {
-      const s = await settings.get();
-      current = s;
-      homeCurrency = s.homeCurrencyDefault ?? 'EUR';
-      firstDayOfWeek = s.firstDayOfWeek ?? 1;
-      language = (s.language as Language) ?? 'en';
-      cartoApiKey = s.cartoApiKey ?? (typeof localStorage !== 'undefined' ? localStorage.getItem('itinera_carto_api_key') ?? '' : '');
-    } catch {
-      toast.error('Could not load settings.');
-    }
-    await Promise.all([loadTemplates(), loadStorage()]);
-    if (online) void loadBackups();
-  });
+	onMount(async () => {
+		try {
+			const s = await settings.get();
+			current = s;
+			homeCurrency = s.homeCurrencyDefault ?? 'EUR';
+			firstDayOfWeek = s.firstDayOfWeek ?? 1;
+			language = (s.language as Language) ?? 'en';
+			cartoApiKey =
+				s.cartoApiKey ??
+				(typeof localStorage !== 'undefined'
+					? (localStorage.getItem('itinera_carto_api_key') ?? '')
+					: '');
+		} catch {
+			toast.error('Could not load settings.');
+		}
+		await Promise.all([loadTemplates(), loadStorage()]);
+		if (online) void loadBackups();
+	});
 
-  const currencyOptions = $derived(
-    CURRENCIES.includes(homeCurrency) ? CURRENCIES : [homeCurrency, ...CURRENCIES]
-  );
+	const currencyOptions = $derived(
+		CURRENCIES.includes(homeCurrency) ? CURRENCIES : [homeCurrency, ...CURRENCIES]
+	);
 
-  const storagePct = $derived(
-    usage != null && quota != null ? Math.min(100, Math.round((usage / quota) * 100)) : null
-  );
+	const storagePct = $derived(
+		usage != null && quota != null ? Math.min(100, Math.round((usage / quota) * 100)) : null
+	);
 
-  function formatBytes(n: number | null): string {
-    if (n == null) return '--';
-    if (n < 1024) return `${n} B`;
-    const units = ['KB', 'MB', 'GB', 'TB'];
-    let v = n / 1024;
-    let i = 0;
-    while (v >= 1024 && i < units.length - 1) {
-      v /= 1024;
-      i += 1;
-    }
-    return `${v.toFixed(v < 10 ? 1 : 0)} ${units[i]}`;
-  }
+	function formatBytes(n: number | null): string {
+		if (n == null) return '--';
+		if (n < 1024) return `${n} B`;
+		const units = ['KB', 'MB', 'GB', 'TB'];
+		let v = n / 1024;
+		let i = 0;
+		while (v >= 1024 && i < units.length - 1) {
+			v /= 1024;
+			i += 1;
+		}
+		return `${v.toFixed(v < 10 ? 1 : 0)} ${units[i]}`;
+	}
 
-  async function save() {
-    saving = true;
-    try {
-      await settings.update({
-        homeCurrencyDefault: homeCurrency,
-        firstDayOfWeek,
-        language,
-        cartoApiKey: cartoApiKey.trim()
-      });
-      if (typeof localStorage !== 'undefined') {
-        localStorage.setItem('itinera_carto_api_key', cartoApiKey.trim());
-      }
-      setLanguage(language);
-      toast.success(t('settings_saved'));
-    } catch {
-      toast.error('Could not save settings.');
-    } finally {
-      saving = false;
-    }
-  }
+	async function save() {
+		saving = true;
+		try {
+			await settings.update({
+				homeCurrencyDefault: homeCurrency,
+				firstDayOfWeek,
+				language,
+				cartoApiKey: cartoApiKey.trim()
+			});
+			if (typeof localStorage !== 'undefined') {
+				localStorage.setItem('itinera_carto_api_key', cartoApiKey.trim());
+			}
+			setLanguage(language);
+			toast.success(t('settings_saved'));
+		} catch {
+			toast.error('Could not save settings.');
+		} finally {
+			saving = false;
+		}
+	}
 
-  async function makePersistent() {
-    persisting = true;
-    try {
-      const granted = await requestPersistentStorage();
-      persisted = granted;
-      if (granted) toast.success('Storage is now persistent.');
-      else toast.warning('The browser declined persistent storage for now.');
-    } catch {
-      toast.error('Could not request persistent storage.');
-    } finally {
-      persisting = false;
-    }
-  }
+	async function makePersistent() {
+		persisting = true;
+		try {
+			const granted = await requestPersistentStorage();
+			persisted = granted;
+			if (granted) toast.success('Storage is now persistent.');
+			else toast.warning('The browser declined persistent storage for now.');
+		} catch {
+			toast.error('Could not request persistent storage.');
+		} finally {
+			persisting = false;
+		}
+	}
 
-  async function exportAll() {
-    if (!online || exporting) return;
-    exporting = true;
-    try {
-      await downloadAllExport();
-      toast.success('Full export downloaded.');
-    } catch {
-      toast.error('Could not export – is your home server reachable?', {
-        action: { label: 'Retry', onClick: exportAll }
-      });
-    } finally {
-      exporting = false;
-    }
-  }
+	async function exportAll() {
+		if (!online || exporting) return;
+		exporting = true;
+		try {
+			await downloadAllExport();
+			toast.success('Full export downloaded.');
+		} catch {
+			toast.error('Could not export – is your home server reachable?', {
+				action: { label: 'Retry', onClick: exportAll }
+			});
+		} finally {
+			exporting = false;
+		}
+	}
 
-  async function backupNow() {
-    if (!online || backingUp) return;
-    backingUp = true;
-    try {
-      const result = await runBackup();
-      toast.success(
-        `Backed up ${result.docCount ?? 0} records${result.attachmentsWritten ? ` and ${result.attachmentsWritten} files` : ''}.`
-      );
-      await loadBackups();
-    } catch {
-      toast.error('Backup failed – is your home server reachable?', {
-        action: { label: 'Retry', onClick: backupNow }
-      });
-    } finally {
-      backingUp = false;
-    }
-  }
+	async function backupNow() {
+		if (!online || backingUp) return;
+		backingUp = true;
+		try {
+			const result = await runBackup();
+			toast.success(
+				`Backed up ${result.docCount ?? 0} records${result.attachmentsWritten ? ` and ${result.attachmentsWritten} files` : ''}.`
+			);
+			await loadBackups();
+		} catch {
+			toast.error('Backup failed – is your home server reachable?', {
+				action: { label: 'Retry', onClick: backupNow }
+			});
+		} finally {
+			backingUp = false;
+		}
+	}
 
-  async function setDefaultTemplate(id: string) {
-    try {
-      await checklist.templates.setDefault(id);
-      await loadTemplates();
-      toast.success('Default template set.');
-    } catch {
-      toast.error('Could not set the default template.');
-    }
-  }
+	async function setDefaultTemplate(id: string) {
+		try {
+			await checklist.templates.setDefault(id);
+			await loadTemplates();
+			toast.success('Default template set.');
+		} catch {
+			toast.error('Could not set the default template.');
+		}
+	}
 
-  function openRename(t: ChecklistTemplate) {
-    renameId = t._id;
-    renameName = t.name ?? '';
-    renameOpen = true;
-  }
+	function openRename(t: ChecklistTemplate) {
+		renameId = t._id;
+		renameName = t.name ?? '';
+		renameOpen = true;
+	}
 
-  async function saveRename() {
-    if (!renameName.trim()) return;
-    renameSaving = true;
-    try {
-      await checklist.templates.update(renameId, { name: renameName.trim() });
-      renameOpen = false;
-      await loadTemplates();
-      toast.success('Template renamed.');
-    } catch {
-      toast.error('Could not rename the template.');
-    } finally {
-      renameSaving = false;
-    }
-  }
+	async function saveRename() {
+		if (!renameName.trim()) return;
+		renameSaving = true;
+		try {
+			await checklist.templates.update(renameId, { name: renameName.trim() });
+			renameOpen = false;
+			await loadTemplates();
+			toast.success('Template renamed.');
+		} catch {
+			toast.error('Could not rename the template.');
+		} finally {
+			renameSaving = false;
+		}
+	}
 
-  async function forceAppUpdate() {
-    try {
-      if (typeof navigator !== 'undefined' && 'serviceWorker' in navigator) {
-        const regs = await navigator.serviceWorker.getRegistrations();
-        for (const reg of regs) {
-          await reg.unregister();
-        }
-      }
-      if (typeof window !== 'undefined' && 'caches' in window) {
-        const keys = await caches.keys();
-        for (const key of keys) {
-          await caches.delete(key);
-        }
-      }
-      toast.success('Cache limpo! Recarregando...');
-      setTimeout(() => {
-        window.location.reload();
-      }, 500);
-    } catch {
-      window.location.reload();
-    }
-  }
+	async function forceAppUpdate() {
+		try {
+			if (typeof navigator !== 'undefined' && 'serviceWorker' in navigator) {
+				const regs = await navigator.serviceWorker.getRegistrations();
+				for (const reg of regs) {
+					await reg.unregister();
+				}
+			}
+			if (typeof window !== 'undefined' && 'caches' in window) {
+				const keys = await caches.keys();
+				for (const key of keys) {
+					await caches.delete(key);
+				}
+			}
+			toast.success('Cache limpo! Recarregando...');
+			setTimeout(() => {
+				window.location.reload();
+			}, 500);
+		} catch {
+			window.location.reload();
+		}
+	}
 
-  async function removeTemplate(t: ChecklistTemplate) {
-    try {
-      await checklist.templates.remove(t._id);
-      await loadTemplates();
-      toast.success('Template deleted.');
-    } catch {
-      toast.error('Could not delete the template.');
-    }
-  }
+	async function removeTemplate(t: ChecklistTemplate) {
+		try {
+			await checklist.templates.remove(t._id);
+			await loadTemplates();
+			toast.success('Template deleted.');
+		} catch {
+			toast.error('Could not delete the template.');
+		}
+	}
 </script>
 
 <header class="sticky top-0 z-30 border-b border-border bg-bg/85 backdrop-blur-md">
-  <div class="mx-auto flex h-16 max-w-3xl items-center justify-between gap-3 px-4 sm:px-6">
-    <div class="flex items-center gap-2">
-      <a
-        href="/"
-        aria-label={t('back_to_trips')}
-        class="grid size-11 sm:size-9 min-h-[44px] min-w-[44px] sm:min-h-0 sm:min-w-0 place-items-center rounded-md text-ink-muted transition-colors hover:bg-surface-sunken hover:text-ink active:scale-95 [&_svg]:size-5"
-      >
-        <ArrowLeft />
-      </a>
-      <h1 class="font-serif text-xl font-semibold">{t('settings_title')}</h1>
-    </div>
-    <SyncStatusPill />
-  </div>
+	<div class="mx-auto flex h-16 max-w-3xl items-center justify-between gap-3 px-4 sm:px-6">
+		<div class="flex items-center gap-2">
+			<a
+				href={resolve('/')}
+				aria-label={t('back_to_trips')}
+				class="grid size-11 min-h-[44px] min-w-[44px] place-items-center rounded-md text-ink-muted transition-colors hover:bg-surface-sunken hover:text-ink active:scale-95 sm:size-9 sm:min-h-0 sm:min-w-0 [&_svg]:size-5"
+			>
+				<ArrowLeft />
+			</a>
+			<h1 class="font-serif text-xl font-semibold">{t('settings_title')}</h1>
+		</div>
+		<SyncStatusPill />
+	</div>
 </header>
 
 <main id="page-content" class="mx-auto w-full max-w-3xl flex-1 px-4 pb-28 pt-6 sm:px-6 lg:pb-12">
-  <section class="rounded-lg border border-border bg-surface p-5">
-    <h2 class="text-base font-semibold">{t('settings_title')}</h2>
-    <p class="mt-1 text-sm text-ink-muted">{t('home_currency_desc')}</p>
+	<section class="rounded-lg border border-border bg-surface p-5">
+		<h2 class="text-base font-semibold">{t('settings_title')}</h2>
+		<p class="mt-1 text-sm text-ink-muted">{t('home_currency_desc')}</p>
 
-    <div class="mt-4 grid gap-4 sm:grid-cols-2">
-      <Field label={t('home_currency')} for="settings-currency">
-        <Select
-          id="settings-currency"
-          value={homeCurrency}
-          onchange={(e) => (homeCurrency = e.currentTarget.value)}
-        >
-          {#each currencyOptions as code (code)}
-            <option value={code}>{code}</option>
-          {/each}
-        </Select>
-      </Field>
+		<div class="mt-4 grid gap-4 sm:grid-cols-2">
+			<Field label={t('home_currency')} for="settings-currency">
+				<Select
+					id="settings-currency"
+					value={homeCurrency}
+					onchange={(e) => (homeCurrency = e.currentTarget.value)}
+				>
+					{#each currencyOptions as code (code)}
+						<option value={code}>{code}</option>
+					{/each}
+				</Select>
+			</Field>
 
-      <Field label={t('first_day')} for="settings-week-start">
-        <Select
-          id="settings-week-start"
-          value={String(firstDayOfWeek)}
-          onchange={(e) => (firstDayOfWeek = Number(e.currentTarget.value))}
-        >
-          {#each WEEK_START as day (day.v)}
-            <option value={String(day.v)}>{day.label}</option>
-          {/each}
-        </Select>
-      </Field>
+			<Field label={t('first_day')} for="settings-week-start">
+				<Select
+					id="settings-week-start"
+					value={String(firstDayOfWeek)}
+					onchange={(e) => (firstDayOfWeek = Number(e.currentTarget.value))}
+				>
+					{#each WEEK_START as day (day.v)}
+						<option value={String(day.v)}>{day.label}</option>
+					{/each}
+				</Select>
+			</Field>
 
-      <Field label={t('language')} for="settings-language" class="sm:col-span-2">
-        <Select
-          id="settings-language"
-          value={language}
-          onchange={async (e) => {
-            language = e.currentTarget.value as Language;
-            setLanguage(language);
-            try {
-              await settings.update({ language });
-            } catch {}
-          }}
-        >
-          <option value="en">English</option>
-          <option value="pt-BR">Português (Brasil)</option>
-        </Select>
-      </Field>
+			<Field label={t('language')} for="settings-language" class="sm:col-span-2">
+				<Select
+					id="settings-language"
+					value={language}
+					onchange={async (e) => {
+						language = e.currentTarget.value as Language;
+						setLanguage(language);
+						try {
+							await settings.update({ language });
+						} catch {
+							/* the language is already applied and persisted locally; the
+                 settings doc syncs when the server is reachable again */
+						}
+					}}
+				>
+					<option value="en">English</option>
+					<option value="pt-BR">Português (Brasil)</option>
+				</Select>
+			</Field>
 
-      <div class="sm:col-span-2 border-t border-border pt-4">
-        <Field label={t('carto_api_key')} for="settings-carto-key">
-          <Input
-            id="settings-carto-key"
-            type="text"
-            placeholder={t('carto_api_key_placeholder')}
-            value={cartoApiKey}
-            oninput={(e) => (cartoApiKey = e.currentTarget.value)}
-          />
-        </Field>
-        <p class="mt-1.5 text-xs text-ink-muted leading-relaxed">
-          {t('carto_api_key_desc')}
-          <a
-            href="https://carto.com/basemaps/apikey"
-            target="_blank"
-            rel="noopener noreferrer"
-            class="text-primary-700 underline font-medium hover:text-primary-800 ml-1 inline-flex items-center"
-          >
-            carto.com/basemaps/apikey ↗
-          </a>
-        </p>
-      </div>
-    </div>
+			<div class="border-t border-border pt-4 sm:col-span-2">
+				<Field label={t('carto_api_key')} for="settings-carto-key">
+					<Input
+						id="settings-carto-key"
+						type="text"
+						placeholder={t('carto_api_key_placeholder')}
+						value={cartoApiKey}
+						oninput={(e) => (cartoApiKey = e.currentTarget.value)}
+					/>
+				</Field>
+				<p class="mt-1.5 text-xs leading-relaxed text-ink-muted">
+					{t('carto_api_key_desc')}
+					<a
+						href="https://carto.com/basemaps/apikey"
+						target="_blank"
+						rel="noopener noreferrer"
+						class="ml-1 inline-flex items-center font-medium text-primary-700 underline hover:text-primary-800"
+					>
+						carto.com/basemaps/apikey ↗
+					</a>
+				</p>
+			</div>
+		</div>
 
-    <div class="mt-5">
-      <Button onclick={save} disabled={saving || !current}>
-        {saving ? t('saving') : t('save')}
-      </Button>
-    </div>
-  </section>
+		<div class="mt-5">
+			<Button onclick={save} disabled={saving || !current}>
+				{saving ? t('saving') : t('save')}
+			</Button>
+		</div>
+	</section>
 
-  <!-- Data & Backups (NFR-5: data ownership). These run on the home server. -->
-  <section class="mt-4 rounded-lg border border-border bg-surface p-5">
-    <div class="flex items-center gap-2">
-      <Database class="size-4 text-primary-700" />
-      <h2 class="text-base font-semibold">{t('data_and_backups')}</h2>
-    </div>
-    <p class="mt-1 text-sm text-ink-muted">
-      {t('data_and_backups_desc')}
-    </p>
+	<!-- Data & Backups (NFR-5: data ownership). These run on the home server. -->
+	<section class="mt-4 rounded-lg border border-border bg-surface p-5">
+		<div class="flex items-center gap-2">
+			<Database class="size-4 text-primary-700" />
+			<h2 class="text-base font-semibold">{t('data_and_backups')}</h2>
+		</div>
+		<p class="mt-1 text-sm text-ink-muted">
+			{t('data_and_backups_desc')}
+		</p>
 
-    {#if online}
-      <div
-        class="mt-4 flex items-start gap-2 rounded-md bg-surface-sunken px-3 py-2.5 text-sm text-ink-muted [&_svg]:mt-0.5 [&_svg]:size-4 [&_svg]:shrink-0"
-      >
-        <WifiOff />
-        <span>{t('online_server_hint')}</span>
-      </div>
-    {/if}
+		{#if online}
+			<div
+				class="mt-4 flex items-start gap-2 rounded-md bg-surface-sunken px-3 py-2.5 text-sm text-ink-muted [&_svg]:mt-0.5 [&_svg]:size-4 [&_svg]:shrink-0"
+			>
+				<WifiOff />
+				<span>{t('online_server_hint')}</span>
+			</div>
+		{/if}
 
-    <div class="mt-4 flex flex-wrap gap-2">
-      <Button variant="secondary" onclick={exportAll} disabled={!online || exporting}>
-        <Download class="size-4" />
-        {exporting ? t('exporting') : t('export_everything')}
-      </Button>
-      <Button variant="secondary" onclick={backupNow} disabled={!online || backingUp}>
-        <Database class="size-4" />
-        {backingUp ? t('backing_up') : t('backup_now')}
-      </Button>
-    </div>
+		<div class="mt-4 flex flex-wrap gap-2">
+			<Button variant="secondary" onclick={exportAll} disabled={!online || exporting}>
+				<Download class="size-4" />
+				{exporting ? t('exporting') : t('export_everything')}
+			</Button>
+			<Button variant="secondary" onclick={backupNow} disabled={!online || backingUp}>
+				<Database class="size-4" />
+				{backingUp ? t('backing_up') : t('backup_now')}
+			</Button>
+		</div>
 
-    <div class="mt-5">
-      <div class="flex items-center justify-between gap-2">
-        <h3 class="text-sm font-semibold text-ink">{t('recent_backups')}</h3>
-        {#if online}
-          <button
-            type="button"
-            onclick={loadBackups}
-            disabled={loadingBackups}
-            class="-m-1 flex items-center gap-1 rounded-md px-2 py-1 text-xs font-medium text-ink-muted transition-colors hover:bg-surface-sunken hover:text-ink disabled:opacity-50 [&_svg]:size-3.5"
-          >
-            <RefreshCw class={loadingBackups ? 'animate-spin' : ''} /> {t('refresh')}
-          </button>
-        {/if}
-      </div>
-      {#if !online}
-        <p class="mt-2 text-sm text-ink-muted">{t('connect_see_backups')}</p>
-      {:else if loadingBackups && !backupsLoaded}
-        <p class="mt-2 text-sm text-ink-muted">{t('syncing')}</p>
-      {:else if backups.length === 0}
-        <p class="mt-2 text-sm text-ink-muted">
-          {t('no_backups_yet')}
-        </p>
-      {:else}
-        <ul class="mt-2 divide-y divide-border rounded-md border border-border">
-          {#each backups as b (b.name)}
-            <li class="flex flex-col sm:flex-row sm:items-center justify-between gap-1 sm:gap-3 px-3 py-2.5">
-              <div class="min-w-0">
-                <p class="truncate text-sm font-medium text-ink">
-                  {b.createdAt ? relativeTime(b.createdAt) : b.name}
-                </p>
-                <p class="truncate text-xs text-ink-muted">
-                  {t('records_count', { n: String(b.docCount ?? 0) })} · {formatBytes(b.sizeBytes ?? null)}
-                </p>
-              </div>
-              <span class="shrink-0 font-mono text-[0.7rem] text-ink-muted max-w-full sm:max-w-[12rem] truncate">{b.name}</span>
-            </li>
-          {/each}
-        </ul>
-      {/if}
-    </div>
-  </section>
+		<div class="mt-5">
+			<div class="flex items-center justify-between gap-2">
+				<h3 class="text-sm font-semibold text-ink">{t('recent_backups')}</h3>
+				{#if online}
+					<button
+						type="button"
+						onclick={loadBackups}
+						disabled={loadingBackups}
+						class="-m-1 flex items-center gap-1 rounded-md px-2 py-1 text-xs font-medium text-ink-muted transition-colors hover:bg-surface-sunken hover:text-ink disabled:opacity-50 [&_svg]:size-3.5"
+					>
+						<RefreshCw class={loadingBackups ? 'animate-spin' : ''} />
+						{t('refresh')}
+					</button>
+				{/if}
+			</div>
+			{#if !online}
+				<p class="mt-2 text-sm text-ink-muted">{t('connect_see_backups')}</p>
+			{:else if loadingBackups && !backupsLoaded}
+				<p class="mt-2 text-sm text-ink-muted">{t('syncing')}</p>
+			{:else if backups.length === 0}
+				<p class="mt-2 text-sm text-ink-muted">
+					{t('no_backups_yet')}
+				</p>
+			{:else}
+				<ul class="mt-2 divide-y divide-border rounded-md border border-border">
+					{#each backups as b (b.name)}
+						<li
+							class="flex flex-col justify-between gap-1 px-3 py-2.5 sm:flex-row sm:items-center sm:gap-3"
+						>
+							<div class="min-w-0">
+								<p class="truncate text-sm font-medium text-ink">
+									{b.createdAt ? relativeTime(b.createdAt) : b.name}
+								</p>
+								<p class="truncate text-xs text-ink-muted">
+									{t('records_count', { n: String(b.docCount ?? 0) })} · {formatBytes(
+										b.sizeBytes ?? null
+									)}
+								</p>
+							</div>
+							<span
+								class="max-w-full shrink-0 break-all font-mono text-[0.7rem] text-ink-muted sm:max-w-[12rem] sm:truncate sm:break-normal"
+								>{b.name}</span
+							>
+						</li>
+					{/each}
+				</ul>
+			{/if}
+		</div>
+	</section>
 
-  <section class="mt-4 rounded-lg border border-border bg-surface p-5">
-    <div class="flex items-center gap-2">
-      <HardDrive class="size-4 text-primary-700" />
-      <h2 class="text-base font-semibold">{t('storage_durability')}</h2>
-    </div>
-    <p class="mt-1 text-sm text-ink-muted">
-      {t('storage_device_desc')}
-    </p>
+	<section class="mt-4 rounded-lg border border-border bg-surface p-5">
+		<div class="flex items-center gap-2">
+			<HardDrive class="size-4 text-primary-700" />
+			<h2 class="text-base font-semibold">{t('storage_durability')}</h2>
+		</div>
+		<p class="mt-1 text-sm text-ink-muted">
+			{t('storage_device_desc')}
+		</p>
 
-    <div class="mt-4">
-      <div class="flex items-center justify-between text-sm">
-        <span class="flex text-ink-muted">{t('on_this_device')}</span>
-        <span class="font-mono text-xs text-ink-muted">
-          {formatBytes(usage)} / {formatBytes(quota)}
-        </span>
-      </div>
-      {#if storagePct != null}
-        <div class="mt-2 h-2 overflow-hidden rounded-full bg-surface-sunken">
-          <div class="h-full rounded-full bg-primary-600" style={`width: ${storagePct}%`}></div>
-        </div>
-      {/if}
-    </div>
+		<div class="mt-4">
+			<div class="flex items-center justify-between text-sm">
+				<span class="flex text-ink-muted">{t('on_this_device')}</span>
+				<span class="font-mono text-xs text-ink-muted">
+					{formatBytes(usage)} / {formatBytes(quota)}
+				</span>
+			</div>
+			{#if storagePct != null}
+				<div class="mt-2 h-2 overflow-hidden rounded-full bg-surface-sunken">
+					<div class="h-full rounded-full bg-primary-600" style={`width: ${storagePct}%`}></div>
+				</div>
+			{/if}
+		</div>
 
-    <div class="mt-4 flex flex-wrap items-center gap-2">
-      {#if persisted}
-        <Badge variant="primary">
-          <ShieldCheck class="size-3" /> {t('persistent_storage_on')}
-        </Badge>
-        <span class="text-xs text-ink-muted">{t('browser_wont_evict')}</span>
-      {:else}
-        <Button variant="secondary" size="sm" onclick={makePersistent} disabled={persisting}>
-          <ShieldCheck class="size-4" />
-          {persisting ? t('requesting') : t('persistent_storage')}
-        </Button>
-      {/if}
+		<div class="mt-4 flex flex-wrap items-center gap-2">
+			{#if persisted}
+				<Badge variant="primary">
+					<ShieldCheck class="size-3" />
+					{t('persistent_storage_on')}
+				</Badge>
+				<span class="text-xs text-ink-muted">{t('browser_wont_evict')}</span>
+			{:else}
+				<Button variant="secondary" size="sm" onclick={makePersistent} disabled={persisting}>
+					<ShieldCheck class="size-4" />
+					{persisting ? t('requesting') : t('persistent_storage')}
+				</Button>
+			{/if}
 
-      <Button variant="ghost" size="sm" onclick={forceAppUpdate} class="text-ink-muted hover:text-ink">
-        <RefreshCw class="size-3.5" />
-        Limpar Cache / Forçar Atualização
-      </Button>
-    </div>
-  </section>
+			<Button
+				variant="ghost"
+				size="sm"
+				onclick={forceAppUpdate}
+				class="text-ink-muted hover:text-ink"
+			>
+				<RefreshCw class="size-3.5" />
+				Limpar Cache / Forçar Atualização
+			</Button>
+		</div>
+	</section>
 
-  <!-- Quick links to the data-ownership screens. -->
-  <section class="mt-4 overflow-hidden rounded-lg border border-border bg-surface">
-    <a
-      href="/settings/conflicts"
-      class="flex items-center gap-3 px-5 py-4 transition-colors hover:bg-surface-sunken [&_svg]:size-5"
-    >
-      <GitMerge class="text-primary-700" />
-      <span class="min-w-0 flex-1">
-        <span class="block font-medium text-ink">{t('review_changes')}</span>
-        <span class="block text-sm text-ink-muted">{t('review_changes_desc')}</span>
-      </span>
-    </a>
-    <a
-      href="/settings/trash"
-      class="flex items-center gap-3 border-t border-border px-5 py-4 transition-colors hover:bg-surface-sunken [&_svg]:size-5"
-    >
-      <Trash2 class="text-ink-muted" />
-      <span class="min-w-0 flex-1">
-        <span class="block font-medium text-ink">{t('trash')}</span>
-        <span class="block text-sm text-ink-muted">{t('trash_desc')}</span>
-      </span>
-    </a>
-  </section>
+	<!-- Quick links to the data-ownership screens. -->
+	<section class="mt-4 overflow-hidden rounded-lg border border-border bg-surface">
+		<a
+			href={resolve('/settings/conflicts')}
+			class="flex items-center gap-3 px-5 py-4 transition-colors hover:bg-surface-sunken [&_svg]:size-5"
+		>
+			<GitMerge class="text-primary-700" />
+			<span class="min-w-0 flex-1">
+				<span class="block font-medium text-ink">{t('review_changes')}</span>
+				<span class="block text-sm text-ink-muted">{t('review_changes_desc')}</span>
+			</span>
+		</a>
+		<a
+			href={resolve('/settings/trash')}
+			class="flex items-center gap-3 border-t border-border px-5 py-4 transition-colors hover:bg-surface-sunken [&_svg]:size-5"
+		>
+			<Trash2 class="text-ink-muted" />
+			<span class="min-w-0 flex-1">
+				<span class="block font-medium text-ink">{t('trash')}</span>
+				<span class="block text-sm text-ink-muted">{t('trash_desc')}</span>
+			</span>
+		</a>
+	</section>
 
-  <section class="mt-4 rounded-lg border border-border bg-surface p-5">
-    <h2 class="text-base font-semibold">{t('checklist_templates')}</h2>
-    <p class="mt-1 text-sm text-ink-muted">
-      {t('checklist_templates_desc')}
-    </p>
+	<section class="mt-4 rounded-lg border border-border bg-surface p-5">
+		<h2 class="text-base font-semibold">{t('checklist_templates')}</h2>
+		<p class="mt-1 text-sm text-ink-muted">
+			{t('checklist_templates_desc')}
+		</p>
 
-    {#if templates.length === 0}
-      <p class="mt-4 text-sm text-ink-muted">
-        {t('no_templates_yet')}
-      </p>
-    {:else}
-      <ul class="mt-4 divide-y divide-border">
-        {#each templates as tItem (tItem._id)}
-          {@const isBuiltin = tItem._id.startsWith('tpl:builtin:')}
-          <li class="flex items-center gap-3 py-2.5">
-            <div class="min-w-0 flex-1">
-              <div class="flex flex-wrap items-center gap-2">
-                <span class="truncate font-medium text-ink">{tItem.name ?? '(untitled)'}</span>
-                {#if isBuiltin}
-                  <Badge variant="primary" class="gap-1 text-[10px]">
-                    <Sparkles class="size-3" /> Built-in
-                  </Badge>
-                {/if}
-                {#if tItem.isDefault}
-                  <Badge variant="warning" class="text-[10px]">{t('default')}</Badge>
-                {/if}
-              </div>
-              <p class="text-xs text-ink-muted">
-                {tItem.items?.length === 1 ? t('items_count', { n: '1' }) : t('items_count_plural', { n: String(tItem.items?.length ?? 0) })}
-              </p>
-            </div>
-            {#if !tItem.isDefault}
-              <Button variant="ghost" size="sm" onclick={() => setDefaultTemplate(tItem._id)}>
-                <Star class="size-3.5" /> {t('set_default')}
-              </Button>
-            {/if}
-            {#if !isBuiltin}
-              <button
-                type="button"
-                onclick={() => openRename(tItem)}
-                aria-label={`${t('rename_template')} ${tItem.name ?? ''}`}
-                class="grid size-9 place-items-center rounded-md text-ink-muted transition-colors hover:bg-surface-sunken hover:text-ink [&_svg]:size-4"
-              >
-                <Pencil />
-              </button>
-              <button
-                type="button"
-                onclick={() => removeTemplate(tItem)}
-                aria-label={`${t('delete')} ${tItem.name ?? ''}`}
-                class="grid size-9 place-items-center rounded-md text-ink-muted transition-colors hover:bg-danger/10 hover:text-danger [&_svg]:size-4"
-              >
-                <Trash2 />
-              </button>
-            {/if}
-          </li>
-        {/each}
-      </ul>
-    {/if}
-  </section>
+		{#if templates.length === 0}
+			<p class="mt-4 text-sm text-ink-muted">
+				{t('no_templates_yet')}
+			</p>
+		{:else}
+			<ul class="mt-4 divide-y divide-border">
+				{#each templates as tItem (tItem._id)}
+					{@const isBuiltin = tItem._id.startsWith('tpl:builtin:')}
+					<li class="flex items-center gap-3 py-2.5">
+						<div class="min-w-0 flex-1">
+							<div class="flex flex-wrap items-center gap-2">
+								<span class="truncate font-medium text-ink">{tItem.name ?? '(untitled)'}</span>
+								{#if isBuiltin}
+									<Badge variant="primary" class="gap-1 text-[10px]">
+										<Sparkles class="size-3" /> Built-in
+									</Badge>
+								{/if}
+								{#if tItem.isDefault}
+									<Badge variant="warning" class="text-[10px]">{t('default')}</Badge>
+								{/if}
+							</div>
+							<p class="text-xs text-ink-muted">
+								{tItem.items?.length === 1
+									? t('items_count', { n: '1' })
+									: t('items_count_plural', { n: String(tItem.items?.length ?? 0) })}
+							</p>
+						</div>
+						{#if !tItem.isDefault}
+							<Button variant="ghost" size="sm" onclick={() => setDefaultTemplate(tItem._id)}>
+								<Star class="size-3.5" />
+								{t('set_default')}
+							</Button>
+						{/if}
+						{#if !isBuiltin}
+							<button
+								type="button"
+								onclick={() => openRename(tItem)}
+								aria-label={`${t('rename_template')} ${tItem.name ?? ''}`}
+								class="grid size-9 place-items-center rounded-md text-ink-muted transition-colors hover:bg-surface-sunken hover:text-ink [&_svg]:size-4"
+							>
+								<Pencil />
+							</button>
+							<button
+								type="button"
+								onclick={() => removeTemplate(tItem)}
+								aria-label={`${t('delete')} ${tItem.name ?? ''}`}
+								class="grid size-9 place-items-center rounded-md text-ink-muted transition-colors hover:bg-danger/10 hover:text-danger [&_svg]:size-4"
+							>
+								<Trash2 />
+							</button>
+						{/if}
+					</li>
+				{/each}
+			</ul>
+		{/if}
+	</section>
 
-  <footer class="mt-8 flex flex-col items-center justify-center gap-2 pb-6 text-center">
-    <ItineraLogo size={28} withText />
-    <p class="text-xs text-ink-muted">A cozy, offline-first personal travel planner.</p>
-  </footer>
+	<footer class="mt-8 flex flex-col items-center justify-center gap-2 pb-6 text-center">
+		<ItineraLogo size={28} withText />
+		<p class="text-xs text-ink-muted">A cozy, offline-first personal travel planner.</p>
+	</footer>
 </main>
 
 <Dialog bind:open={renameOpen} title={t('rename_template')}>
-  <Field label={t('template_name')} for="rename-template">
-    <Input
-      id="rename-template"
-      value={renameName}
-      placeholder="e.g. Beach trip"
-      oninput={(e) => (renameName = e.currentTarget.value)}
-    />
-  </Field>
-  {#snippet footer()}
-    <Button variant="ghost" onclick={() => (renameOpen = false)} disabled={renameSaving}>
-      {t('cancel')}
-    </Button>
-    <Button onclick={saveRename} disabled={renameSaving || !renameName.trim()}>
-      {renameSaving ? t('saving') : t('save')}
-    </Button>
-  {/snippet}
+	<Field label={t('template_name')} for="rename-template">
+		<Input
+			id="rename-template"
+			value={renameName}
+			placeholder="e.g. Beach trip"
+			oninput={(e) => (renameName = e.currentTarget.value)}
+		/>
+	</Field>
+	{#snippet footer()}
+		<Button variant="ghost" onclick={() => (renameOpen = false)} disabled={renameSaving}>
+			{t('cancel')}
+		</Button>
+		<Button onclick={saveRename} disabled={renameSaving || !renameName.trim()}>
+			{renameSaving ? t('saving') : t('save')}
+		</Button>
+	{/snippet}
 </Dialog>

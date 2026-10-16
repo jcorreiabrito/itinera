@@ -18,119 +18,123 @@ const ASSET_SET = new Set(ASSETS);
 const APP_SHELL = '/';
 
 sw.addEventListener('install', (event) => {
-  event.waitUntil(
-    (async () => {
-      const cache = await caches.open(CACHE);
-      await cache.addAll(ASSETS);
-      // Precache the app-shell HTML so offline navigations resolve.
-      try {
-        await cache.add(APP_SHELL);
-      } catch {
-        // Ignore: shell will be cached on first successful navigation.
-      }
-      try {
-        await cache.add('/index.html');
-      } catch {
-        // Ignore: fallback index.html caching
-      }
-      await sw.skipWaiting();
-    })()
-  );
+	event.waitUntil(
+		(async () => {
+			const cache = await caches.open(CACHE);
+			await cache.addAll(ASSETS);
+			// Precache the app-shell HTML so offline navigations resolve.
+			try {
+				await cache.add(APP_SHELL);
+			} catch {
+				// Ignore: shell will be cached on first successful navigation.
+			}
+			try {
+				await cache.add('/index.html');
+			} catch {
+				// Ignore: fallback index.html caching
+			}
+			await sw.skipWaiting();
+		})()
+	);
 });
 
 sw.addEventListener('activate', (event) => {
-  event.waitUntil(
-    (async () => {
-      for (const key of await caches.keys()) {
-        if (key !== CACHE) await caches.delete(key);
-      }
-      await sw.clients.claim();
-    })()
-  );
+	event.waitUntil(
+		(async () => {
+			for (const key of await caches.keys()) {
+				if (key !== CACHE) await caches.delete(key);
+			}
+			await sw.clients.claim();
+		})()
+	);
 });
 
 sw.addEventListener('fetch', (event) => {
-  const request = event.request;
-  if (request.method != 'GET') return;
+	const request = event.request;
+	if (request.method != 'GET') return;
 
-  const url = new URL(request.url);
-  if (!url.protocol.startsWith('http')) return;
-  // Never cache or offline-serve the PouchDB replication channel (/db/) or the
-  // API (/api/): serving stale `_changes`, `_local` checkpoints, docs, or
-  // attachments would hand PouchDB outdated data and break sync convergence
-  // (doc 0%). Bypass the SW entirely so these always hit the network.
-  if (
-    url.origin === location.origin &&
-    (url.pathname.startsWith('/db/') || url.pathname.startsWith('/api/'))
-  ) {
-    return;
-  }
+	const url = new URL(request.url);
+	if (!url.protocol.startsWith('http')) return;
+	// Never cache or offline-serve the PouchDB replication channel (/db/) or the
+	// API (/api/): serving stale `_changes`, `_local` checkpoints, docs, or
+	// attachments would hand PouchDB outdated data and break sync convergence
+	// (doc 0%). Bypass the SW entirely so these always hit the network.
+	if (
+		url.origin === location.origin &&
+		(url.pathname.startsWith('/db/') || url.pathname.startsWith('/api/'))
+	) {
+		return;
+	}
 
-  event.respondWith(
-    (async () => {
-      const cache = await caches.open(CACHE);
+	event.respondWith(
+		(async () => {
+			const cache = await caches.open(CACHE);
 
-      // 1. Navigation requests -> serve cached SPA shell immediately.
-      if (request.mode === 'navigate') {
-        const shell =
-          (await cache.match(APP_SHELL, { ignoreSearch: true })) ||
-          (await cache.match('/index.html', { ignoreSearch: true })) ||
-          (await cache.match(request, { ignoreSearch: true }));
-        if (shell) return shell;
+			// 1. Navigation requests -> serve cached SPA shell immediately.
+			if (request.mode === 'navigate') {
+				const shell =
+					(await cache.match(APP_SHELL, { ignoreSearch: true })) ||
+					(await cache.match('/index.html', { ignoreSearch: true })) ||
+					(await cache.match(request, { ignoreSearch: true }));
+				if (shell) return shell;
 
-        try {
-          const response = await fetch(request);
-          if (response.ok && url.origin === location.origin) {
-            cache.put(APP_SHELL, response.clone());
-            cache.put('/index.html', response.clone());
-            cache.put(request, response.clone());
-          }
-          return response;
-        } catch (error) {
-          // Offline fallback: try to find any cached index.html or root page in cache
-          for (const key of await cache.keys()) {
-            if (key.url.endsWith('/') || key.url.endsWith('/index.html') || key.url.includes('index')) {
-              const anyShell = await cache.match(key);
-              if (anyShell) return anyShell;
-            }
-          }
-          throw error;
-        }
-      }
+				try {
+					const response = await fetch(request);
+					if (response.ok && url.origin === location.origin) {
+						cache.put(APP_SHELL, response.clone());
+						cache.put('/index.html', response.clone());
+						cache.put(request, response.clone());
+					}
+					return response;
+				} catch (error) {
+					// Offline fallback: try to find any cached index.html or root page in cache
+					for (const key of await cache.keys()) {
+						if (
+							key.url.endsWith('/') ||
+							key.url.endsWith('/index.html') ||
+							key.url.includes('index')
+						) {
+							const anyShell = await cache.match(key);
+							if (anyShell) return anyShell;
+						}
+					}
+					throw error;
+				}
+			}
 
-      // 2. Cache-first for our own precached, immutable build assets.
-      let pathname = url.pathname;
-      if (pathname.includes('/_app/')) {
-        pathname = pathname.substring(pathname.indexOf('/_app/'));
-      }
+			// 2. Cache-first for our own precached, immutable build assets.
+			let pathname = url.pathname;
+			if (pathname.includes('/_app/')) {
+				pathname = pathname.substring(pathname.indexOf('/_app/'));
+			}
 
-      if (url.origin === location.origin && ASSET_SET.has(pathname)) {
-        const cached = await cache.match(pathname);
-        if (cached) return cached;
-      }
+			if (url.origin === location.origin && ASSET_SET.has(pathname)) {
+				const cached = await cache.match(pathname);
+				if (cached) return cached;
+			}
 
-      // 3. Network-first for everything else, with an offline fallback to cache.
-      try {
-        const response = await fetch(request);
-        const isCacheableExternal =
-          url.hostname.includes('tile.openstreetmap.org') ||
-          url.hostname.includes('basemaps.cartocdn.com') ||
-          url.hostname.includes('open.er-api.com') ||
-          url.hostname.includes('open-meteo.com');
+			// 3. Network-first for everything else, with an offline fallback to cache.
+			try {
+				const response = await fetch(request);
+				const isCacheableExternal =
+					url.hostname.includes('tile.openstreetmap.org') ||
+					url.hostname.includes('basemaps.cartocdn.com') ||
+					url.hostname.includes('open.er-api.com') ||
+					url.hostname.includes('open-meteo.com');
 
-        if (response.ok && (url.origin === location.origin || isCacheableExternal)) {
-          cache.put(request, response.clone());
-        }
-        return response;
-      } catch (error) {
-        const cached = await cache.match(request);
-        if (cached) return cached;
-        throw error;
-      }
-    })()
-  );
+				if (response.ok && (url.origin === location.origin || isCacheableExternal)) {
+					cache.put(request, response.clone());
+				}
+				return response;
+			} catch (error) {
+				const cached = await cache.match(request);
+				if (cached) return cached;
+				throw error;
+			}
+		})()
+	);
 });
 
 sw.addEventListener('message', (event) => {
-  if (event.data === 'SKIP_WAITING') sw.skipWaiting();
+	if (event.data === 'SKIP_WAITING') sw.skipWaiting();
 });

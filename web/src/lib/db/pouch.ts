@@ -27,14 +27,14 @@ export type PouchStatic = PouchDB.Static;
 
 /** Options accepted by `@link configureDb` (primarily for tests). */
 export interface DbOptions {
-  /** Local database name (default `itinera`). */
-  name?: string;
-  /** Storage adapter, e.g. `"memory"` in tests. Default lets PouchDB choose (IndexedDB). */
-  adapter?: string;
-  /** Swap the PouchDB implementation (e.g. one with the memory adapter registered). */
-  PouchImpl?: PouchStatic;
-  /** Override the remote URL (default `/db/itinera`). */
-  remoteUrl?: string;
+	/** Local database name (default `itinera`). */
+	name?: string;
+	/** Storage adapter, e.g. `"memory"` in tests. Default lets PouchDB choose (IndexedDB). */
+	adapter?: string;
+	/** Swap the PouchDB implementation (e.g. one with the memory adapter registered). */
+	PouchImpl?: PouchStatic;
+	/** Override the remote URL (default `/db/itinera`). */
+	remoteUrl?: string;
 }
 
 let impl: PouchStatic = PouchDBBrowser as unknown as PouchStatic;
@@ -48,32 +48,32 @@ let local: Database | null = null;
  * is first created. Resets any existing handle so the next `@link getDb` rebuilds.
  */
 export function configureDb(options: DbOptions): void {
-  if (options.PouchImpl) {
-    impl = options.PouchImpl;
-    impl.plugin(find);
-  }
-  if (options.name) localName = options.name;
-  if (options.adapter !== undefined) adapter = options.adapter;
-  if (options.remoteUrl) remoteUrl = options.remoteUrl;
-  local = null;
+	if (options.PouchImpl) {
+		impl = options.PouchImpl;
+		impl.plugin(find);
+	}
+	if (options.name) localName = options.name;
+	if (options.adapter !== undefined) adapter = options.adapter;
+	if (options.remoteUrl) remoteUrl = options.remoteUrl;
+	local = null;
 }
 
 /** Create (and remember) the local database handle. */
 export function createLocalDb(): Database {
-  local = new impl(localName, adapter ? { adapter } : undefined);
-  return local;
+	local = new impl(localName, adapter ? { adapter } : undefined);
+	return local;
 }
 
 /** The local database singleton (created on first access). */
 export function getDb(): Database {
-  return local ?? createLocalDb();
+	return local ?? createLocalDb();
 }
 
 function resolveRemoteUrl(url: string): string {
-  if (url.startsWith('http://') || url.startsWith('https://') || typeof window === 'undefined') {
-    return url;
-  }
-  return `${window.location.origin}${url}`;
+	if (url.startsWith('http://') || url.startsWith('https://') || typeof window === 'undefined') {
+		return url;
+	}
+	return `${window.location.origin}${url}`;
 }
 
 /**
@@ -81,12 +81,12 @@ function resolveRemoteUrl(url: string): string {
  * avoids the client attempting to create the database – the server owns that.
  */
 export function createRemoteDb(): Database {
-  return new impl(resolveRemoteUrl(remoteUrl), { skip_setup: true });
+	return new impl(resolveRemoteUrl(remoteUrl), { skip_setup: true });
 }
 
 /** The configured remote URL. */
 export function getRemoteUrl(): string {
-  return resolveRemoteUrl(remoteUrl);
+	return resolveRemoteUrl(remoteUrl);
 }
 
 /**
@@ -95,29 +95,29 @@ export function getRemoteUrl(): string {
  * granted; resolves `false` where the API is unavailable.
  */
 export async function requestPersistentStorage(): Promise<boolean> {
-  if (typeof navigator === 'undefined' || !navigator.storage?.persist) return false;
-  try {
-    if (navigator.storage.persisted && (await navigator.storage.persisted())) return true;
-    return await navigator.storage.persist();
-  } catch {
-    return false;
-  }
+	if (typeof navigator === 'undefined' || !navigator.storage?.persist) return false;
+	try {
+		if (navigator.storage.persisted && (await navigator.storage.persisted())) return true;
+		return await navigator.storage.persist();
+	} catch {
+		return false;
+	}
 }
 
 /** Report current storage usage/quota (for a Settings display). */
 export async function storageEstimate(): Promise<StorageEstimate | null> {
-  if (typeof navigator === 'undefined' || !navigator.storage?.estimate) return null;
-  try {
-    return await navigator.storage.estimate();
-  } catch {
-    return null;
-  }
+	if (typeof navigator === 'undefined' || !navigator.storage?.estimate) return null;
+	try {
+		return await navigator.storage.estimate();
+	} catch {
+		return null;
+	}
 }
 
 /** Destroy and forget the local database – used to reset state between tests. */
 export async function destroyDb(): Promise<void> {
-  if (local) {
-    await local.destroy();
-    local = null;
-  }
+	if (local) {
+		await local.destroy();
+		local = null;
+	}
 }

@@ -1,53 +1,57 @@
 <script lang="ts" module>
-    let widgetCount = 0;
+	let widgetCount = 0;
 </script>
 
 <script lang="ts">
-    import type { Snippet } from 'svelte';
-    import type { IconComponent } from '$lib/types';
-    import { ChevronRight } from 'lucide-svelte';
-    import { cn } from '$lib/utils';
+	import type { Snippet } from 'svelte';
+	import type { ResolvedPathname } from '$app/types';
+	import type { IconComponent } from '$lib/types';
+	import { ChevronRight } from 'lucide-svelte';
+	import { cn } from '$lib/utils';
 
-    interface Props {
-        title: string;
-        icon: IconComponent;
-        /** Links the widget into its full section. */
-        href?: string;
-        linkLabel?: string;
-        class?: string;
-        children: Snippet;
-        /** Optional header-right content (used instead of a link). */
-        action?: Snippet;
-    }
+	interface Props {
+		title: string;
+		icon: IconComponent;
+		/** Links the widget into its full section. */
+		href?: ResolvedPathname;
+		linkLabel?: string;
+		class?: string;
+		children: Snippet;
+		/** Optional header-right content (used instead of a link). */
+		action?: Snippet;
+	}
 
-    let { title, icon, href, linkLabel, class: className, children, action }: Props = $props();
+	let { title, icon, href, linkLabel, class: className, children, action }: Props = $props();
 
-    const headingId = `widget-${++widgetCount}`;
+	const headingId = `widget-${++widgetCount}`;
 </script>
 
 <section
-    aria-labelledby={headingId}
-    class={cn('min-w-0 overflow-hidden rounded-lg border border-border bg-surface p-4 sm:p-5', className)}
+	aria-labelledby={headingId}
+	class={cn(
+		'min-w-0 overflow-hidden rounded-lg border border-border bg-surface p-4 sm:p-5',
+		className
+	)}
 >
-    <div class="mb-3 flex items-center justify-between gap-2">
-        <h2
-            id={headingId}
-            class="flex min-w-0 items-center gap-2 truncate text-sm font-semibold text-ink-muted [&_svg]:size-4"
-        >
-            {#if icon}{@const Icon = icon}<Icon />{/if}
-            <span class="truncate">{title}</span>
-        </h2>
-        {#if href}
-            <a
-                {href}
-                class="inline-flex shrink-0 items-center gap-0.5 text-xs font-medium text-primary-700 hover:underline"
-            >
-                {linkLabel ?? 'Open'}
-                <ChevronRight class="size-3.5" />
-            </a>
-        {:else if action}
-            {@render action()}
-        {/if}
-    </div>
-    {@render children()}
+	<div class="mb-3 flex items-center justify-between gap-2">
+		<h2
+			id={headingId}
+			class="flex min-w-0 items-center gap-2 truncate text-sm font-semibold text-ink-muted [&_svg]:size-4"
+		>
+			{#if icon}{@const Icon = icon}<Icon />{/if}
+			<span class="truncate">{title}</span>
+		</h2>
+		{#if href}
+			<a
+				{href}
+				class="inline-flex shrink-0 items-center gap-0.5 text-xs font-medium text-primary-700 hover:underline"
+			>
+				{linkLabel ?? 'Open'}
+				<ChevronRight class="size-3.5" />
+			</a>
+		{:else if action}
+			{@render action()}
+		{/if}
+	</div>
+	{@render children()}
 </section>

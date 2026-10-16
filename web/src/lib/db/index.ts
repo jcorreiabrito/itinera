@@ -41,29 +41,29 @@ export * from './conflicts';
 
 // --- Constants ------------------------------------------------------------
 export {
-  DB_NAME,
-  REMOTE_URL,
-  SCHEMA_VERSION,
-  SETTINGS_ID,
-  DOC_TYPES,
-  TRIP_CHILD_TYPES,
-  PREFIX_BY_TYPE,
-  TYPE_BY_PREFIX,
-  CHECKLIST_PRESET_GROUPS,
-  RESERVATION_EXPENSE_CATEGORY,
-  FLIGHT_EXPENSE_CATEGORY
+	DB_NAME,
+	REMOTE_URL,
+	SCHEMA_VERSION,
+	SETTINGS_ID,
+	DOC_TYPES,
+	TRIP_CHILD_TYPES,
+	PREFIX_BY_TYPE,
+	TYPE_BY_PREFIX,
+	CHECKLIST_PRESET_GROUPS,
+	RESERVATION_EXPENSE_CATEGORY,
+	FLIGHT_EXPENSE_CATEGORY
 } from './constants';
 export type { DocType, TripChildType } from './constants';
 
 // --- Database lifecycle ---------------------------------------------------
 export {
-  getDb,
-  configureDb,
-  createLocalDb,
-  createRemoteDb,
-  requestPersistentStorage,
-  storageEstimate,
-  destroyDb
+	getDb,
+	configureDb,
+	createLocalDb,
+	createRemoteDb,
+	requestPersistentStorage,
+	storageEstimate,
+	destroyDb
 } from './pouch';
 export type { Database, DbOptions, PouchStatic } from './pouch';
 
@@ -75,44 +75,44 @@ export type { Migration, MigratableDoc, MigrationResult } from './migrations';
 
 // --- Low-level document helpers (for advanced/escape-hatch use) -----------
 export {
-  nowIso,
-  getDoc,
-  putDoc,
-  createDoc,
-  patchDoc,
-  findDocs,
-  prefixScan,
-  rangeScan,
-  listTripDocs,
-  bulkPut,
-  softDeleteDoc,
-  restoreDoc,
-  purgeDoc,
-  runMigrations,
-  subscribeChanges
+	nowIso,
+	getDoc,
+	putDoc,
+	createDoc,
+	patchDoc,
+	findDocs,
+	prefixScan,
+	rangeScan,
+	listTripDocs,
+	bulkPut,
+	softDeleteDoc,
+	restoreDoc,
+	purgeDoc,
+	runMigrations,
+	subscribeChanges
 } from './base';
 export type { ReadOptions } from './base';
 
 // --- Sync + conflict review ------------------------------------------------
 export {
-  syncStatus,
-  startSync,
-  stopSync,
-  syncNow,
-  listConflicts,
-  markConflictReviewed,
-  resolveAllConflicts,
-  resolveDocConflicts,
-  currentSyncStatus
+	syncStatus,
+	startSync,
+	stopSync,
+	syncNow,
+	listConflicts,
+	markConflictReviewed,
+	resolveAllConflicts,
+	resolveDocConflicts,
+	currentSyncStatus
 } from './sync';
 export type { SyncState, SyncStatus } from './sync';
 
 import {
-  configureDb,
-  createLocalDb,
-  requestPersistentStorage,
-  type Database,
-  type DbOptions
+	configureDb,
+	createLocalDb,
+	requestPersistentStorage,
+	type Database,
+	type DbOptions
 } from './pouch';
 import { ensureIndexes } from './indexers';
 import { runMigrations } from './base';
@@ -120,8 +120,8 @@ import { startSync } from './sync';
 
 /** Options for `@link initDb`. */
 export interface InitOptions extends DbOptions {
-  /** Start live replication after bootstrap (default `true`). */
-  sync?: boolean;
+	/** Start live replication after bootstrap (default `true`). */
+	sync?: boolean;
 }
 
 /**
@@ -136,30 +136,30 @@ export interface InitOptions extends DbOptions {
  * Safe to call once at app start. Returns the local database handle.
  */
 export async function initDb(options: InitOptions = {}): Promise<Database> {
-  console.log('initDb: start bootstrap');
-  const { sync, ...dbOptions } = options;
-  if (Object.keys(dbOptions).length > 0) configureDb(dbOptions);
+	console.log('initDb: start bootstrap');
+	const { sync, ...dbOptions } = options;
+	if (Object.keys(dbOptions).length > 0) configureDb(dbOptions);
 
-  console.log('initDb: creating local db');
-  const db = createLocalDb();
-  console.log('initDb: local db created');
-  
-  console.log('initDb: requesting storage persistence');
-  await requestPersistentStorage();
-  console.log('initDb: storage persistence done');
-  
-  console.log('initDb: ensuring indexes');
-  await ensureIndexes(db);
-  console.log('initDb: indexes ensured');
-  
-  console.log('initDb: running migrations');
-  await runMigrations(db);
-  console.log('initDb: migrations done');
-  
-  if (sync !== false) {
-    console.log('initDb: starting sync');
-    startSync(db);
-    console.log('initDb: sync started');
-  }
-  return db;
+	console.log('initDb: creating local db');
+	const db = createLocalDb();
+	console.log('initDb: local db created');
+
+	console.log('initDb: requesting storage persistence');
+	await requestPersistentStorage();
+	console.log('initDb: storage persistence done');
+
+	console.log('initDb: ensuring indexes');
+	await ensureIndexes(db);
+	console.log('initDb: indexes ensured');
+
+	console.log('initDb: running migrations');
+	await runMigrations(db);
+	console.log('initDb: migrations done');
+
+	if (sync !== false) {
+		console.log('initDb: starting sync');
+		startSync(db);
+		console.log('initDb: sync started');
+	}
+	return db;
 }

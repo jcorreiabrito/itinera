@@ -1,244 +1,258 @@
 <script lang="ts">
-    import { onMount } from 'svelte';
-    import { expenses, trips } from '$lib/db';
-    import type { Expense, Trip } from '$lib/db';
-    import { Plus, Wallet } from 'lucide-svelte';
-    import { Button, ErrorState, Skeleton, toast } from '$lib/components/ui';
-    import { getTripShellContext } from '$lib/trip-context';
-    import { startLive } from '$lib/live';
-    import { t } from '$lib/i18n.svelte';
-    import { cn } from '$lib/utils';
-    import SummaryHeader from './SummaryHeader.svelte';
-    import QuickAdd from './QuickAdd.svelte';
-    import ByDayView from './ByDayView.svelte';
-    import ByCategoryView from './ByCategoryView.svelte';
-    import ListView from './ListView.svelte';
-    import ExpenseSheet from './ExpenseSheet.svelte';
-    import BudgetSheet from './BudgetSheet.svelte';
+	import { onMount } from 'svelte';
+	import { expenses, trips } from '$lib/db';
+	import type { Expense, Trip } from '$lib/db';
+	import { Plus, Wallet } from 'lucide-svelte';
+	import { Button, ErrorState, Skeleton, toast } from '$lib/components/ui';
+	import { getTripShellContext } from '$lib/trip-context';
+	import { startLive } from '$lib/live';
+	import { t, type TranslationKey } from '$lib/i18n.svelte';
+	import { cn } from '$lib/utils';
+	import SummaryHeader from './SummaryHeader.svelte';
+	import QuickAdd from './QuickAdd.svelte';
+	import ByDayView from './ByDayView.svelte';
+	import ByCategoryView from './ByCategoryView.svelte';
+	import ListView from './ListView.svelte';
+	import ExpenseSheet from './ExpenseSheet.svelte';
+	import BudgetSheet from './BudgetSheet.svelte';
 
-    interface Props {
-        /** Bare trip ULID. */
-        tripId: string;
-    }
+	interface Props {
+		/** Bare trip ULID. */
+		tripId: string;
+	}
 
-    let { tripId }: Props = $props();
+	let { tripId }: Props = $props();
 
-    const shell = getTripShellContext();
-    const reloadSignal = shell.reloadSignal;
+	const shell = getTripShellContext();
+	const reloadSignal = shell.reloadSignal;
 
-    type View = 'day' | 'category' | 'list';
+	type View = 'day' | 'category' | 'list';
 
-    let loaded = $state(false);
-    let loadError = $state(false);
-    let everLoaded = false;
-    let trip = $state<Trip | null>(null);
-    let summary = $state<expenses.BudgetSummary | null>(null);
-    let byDay = $state<expenses.ByDayBudget | null>(null);
-    let categories = $state<expenses.CategoryBudgetRow[]>([]);
-    let explist = $state<Expense[]>([]);
+	let loaded = $state(false);
+	let loadError = $state(false);
+	let everLoaded = false;
+	let trip = $state<Trip | null>(null);
+	let summary = $state<expenses.BudgetSummary | null>(null);
+	let byDay = $state<expenses.ByDayBudget | null>(null);
+	let categories = $state<expenses.CategoryBudgetRow[]>([]);
+	let explist = $state<Expense[]>([]);
 
-    let view = $state<View>('day');
-    let unpaidOnly = $state(false);
+	let view = $state<View>('day');
+	let unpaidOnly = $state(false);
 
-    let sheetOpen = $state(false);
-    let sheetMode = $state<'create' | 'edit'>('create');
-    let sheetExpense = $state<Expense | null>(null);
-    let sheetDefaultDate = $state<string | undefined>(undefined);
-    let budgetOpen = $state(false);
+	let sheetOpen = $state(false);
+	let sheetMode = $state<'create' | 'edit'>('create');
+	let sheetExpense = $state<Expense | null>(null);
+	let sheetDefaultDate = $state<string | undefined>(undefined);
+	let budgetOpen = $state(false);
 
-    async function loadAll(tid: string) {
-        if (!tid) return;
-        try {
-            const [t, s, d, c, list] = await Promise.all([
-                trips.get(tid),
-                expenses.summary(tid),
-                expenses.byDayRollup(tid),
-                expenses.byCategoryRollup(tid),
-                expenses.byTrip(tid)
-            ]);
-            trip = t;
-            summary = s;
-            byDay = d;
-            categories = c.categories;
-            explist = list;
-            everLoaded = true;
-            loadError = false;
-        } catch {
-            if (!everLoaded) loadError = true;
-        } finally {
-            loaded = true;
-        }
-    }
+	async function loadAll(tid: string) {
+		if (!tid) return;
+		try {
+			const [t, s, d, c, list] = await Promise.all([
+				trips.get(tid),
+				expenses.summary(tid),
+				expenses.byDayRollup(tid),
+				expenses.byCategoryRollup(tid),
+				expenses.byTrip(tid)
+			]);
+			trip = t;
+			summary = s;
+			byDay = d;
+			categories = c.categories;
+			explist = list;
+			everLoaded = true;
+			loadError = false;
+		} catch {
+			if (!everLoaded) loadError = true;
+		} finally {
+			loaded = true;
+		}
+	}
 
-    $effect(() => {
-        const tid = tripId;
-        void reloadSignal;
-        loadAll(tid);
-    });
+	$effect(() => {
+		const tid = tripId;
+		void $reloadSignal;
+		loadAll(tid);
+	});
 
-    onMount(() => startLive(() => loadAll(tripId)));
+	onMount(() => startLive(() => loadAll(tripId)));
 
-    const home = $derived(summary?.homeCurrency ?? trip?.homeCurrency ?? 'EUR');
-    const hasExpenses = $derived(explist.length > 0);
+	const home = $derived(summary?.homeCurrency ?? trip?.homeCurrency ?? 'EUR');
+	const hasExpenses = $derived(explist.length > 0);
 
-    function reload() {
-        loadAll(tripId);
-    }
+	function reload() {
+		loadAll(tripId);
+	}
 
-    function retry() {
-        loadError = false;
-        loaded = false;
-        loadAll(tripId);
-    }
+	function retry() {
+		loadError = false;
+		loaded = false;
+		loadAll(tripId);
+	}
 
-    function openAdd(date?: string) {
-        sheetMode = 'create';
-        sheetExpense = null;
-        sheetDefaultDate = date;
-        sheetOpen = true;
-    }
+	function openAdd(date?: string) {
+		sheetMode = 'create';
+		sheetExpense = null;
+		sheetDefaultDate = date;
+		sheetOpen = true;
+	}
 
-    function openEdit(expense: Expense) {
-        sheetMode = 'edit';
-        sheetExpense = expense;
-        sheetOpen = true;
-    }
+	function openEdit(expense: Expense) {
+		sheetMode = 'edit';
+		sheetExpense = expense;
+		sheetOpen = true;
+	}
 
-    async function togglePaid(expense: Expense) {
-        try {
-            await expenses.togglePaid(expense._id);
-            reload();
-        } catch {
-            toast.error(t('could_not_update_expense'));
-        }
-    }
+	async function togglePaid(expense: Expense) {
+		try {
+			await expenses.togglePaid(expense._id);
+			reload();
+		} catch {
+			toast.error(t('could_not_update_expense'));
+		}
+	}
 
-    const TABS: { value: View; labelKey: string }[] = [
-        { value: 'day', labelKey: 'by_day' },
-        { value: 'category', labelKey: 'by_category' },
-        { value: 'list', labelKey: 'list' }
-    ];
+	const TABS: { value: View; labelKey: TranslationKey }[] = [
+		{ value: 'day', labelKey: 'by_day' },
+		{ value: 'category', labelKey: 'by_category' },
+		{ value: 'list', labelKey: 'list' }
+	];
 
-    function onViewKeydown(e: KeyboardEvent) {
-        const idx = TABS.findIndex((t) => t.value === view);
-        let next = idx;
-        if (e.key === 'ArrowRight' || e.key === 'ArrowDown') next = (idx + 1) % TABS.length;
-        else if (e.key === 'ArrowLeft' || e.key === 'ArrowUp') next = (idx - 1 + TABS.length) % TABS.length;
-        else if (e.key === 'Home') next = 0;
-        else if (e.key === 'End') next = TABS.length - 1;
-        else return;
-        e.preventDefault();
-        view = TABS[next].value;
-        document.getElementById(`costtab-${TABS[next].value}`)?.focus();
-    }
+	function onViewKeydown(e: KeyboardEvent) {
+		const idx = TABS.findIndex((t) => t.value === view);
+		let next = idx;
+		if (e.key === 'ArrowRight' || e.key === 'ArrowDown') next = (idx + 1) % TABS.length;
+		else if (e.key === 'ArrowLeft' || e.key === 'ArrowUp')
+			next = (idx - 1 + TABS.length) % TABS.length;
+		else if (e.key === 'Home') next = 0;
+		else if (e.key === 'End') next = TABS.length - 1;
+		else return;
+		e.preventDefault();
+		view = TABS[next].value;
+		document.getElementById(`costtab-${TABS[next].value}`)?.focus();
+	}
 
-    const segClass = (active: boolean) =>
-        cn(
-            'inline-flex min-h-touch items-center rounded-md px-3 py-1.5 text-sm font-medium transition-colors',
-            active ? 'bg-surface text-ink shadow-soft' : 'text-ink-muted hover:text-ink'
-        );
+	const segClass = (active: boolean) =>
+		cn(
+			'inline-flex min-h-touch items-center rounded-md px-3 py-1.5 text-sm font-medium transition-colors',
+			active ? 'bg-surface text-ink shadow-soft' : 'text-ink-muted hover:text-ink'
+		);
 </script>
 
 {#if !loaded}
-    <div class="space-y-4">
-        <Skeleton class="h-40 w-full rounded-lg" />
-        <Skeleton class="h-12 w-full rounded-lg" />
-        <Skeleton class="h-24 w-full rounded-lg" />
-        <Skeleton class="h-24 w-full rounded-lg" />
-    </div>
+	<div class="space-y-4">
+		<Skeleton class="h-40 w-full rounded-lg" />
+		<Skeleton class="h-12 w-full rounded-lg" />
+		<Skeleton class="h-24 w-full rounded-lg" />
+		<Skeleton class="h-24 w-full rounded-lg" />
+	</div>
 {:else if loadError}
-    <ErrorState title={t('could_not_load_costs')} onretry={retry} />
+	<ErrorState title={t('could_not_load_costs')} onretry={retry} />
 {:else if summary}
-    <div class="space-y-5">
-        <SummaryHeader {summary} onEditBudget={() => (budgetOpen = true)} />
+	<div class="space-y-5">
+		<SummaryHeader {summary} onEditBudget={() => (budgetOpen = true)} />
 
-        <QuickAdd {tripId} homeCurrency={home} onsaved={reload} />
+		<QuickAdd {tripId} homeCurrency={home} onsaved={reload} />
 
-        {#if !hasExpenses}
-            <div class="rounded-lg border border-dashed border-border bg-surface-sunken px-6 py-12 text-center">
-                <Wallet class="mx-auto size-9 text-ink-muted" aria-hidden="true" />
-                <h2 class="mt-3 text-lg font-semibold">{t('no_expenses_yet')}</h2>
-                <p class="mx-auto mt-1 max-w-sm text-sm text-ink-muted">
-                    {t('no_expenses_desc')}
-                </p>
-                <Button class="mt-4" onclick={() => openAdd()}>
-                    <Plus class="size-4" /> {t('add_expense')}
-                </Button>
-            </div>
-        {:else}
-            <!-- View tabs + unpaid-only master toggle -->
-            <div class="flex flex-wrap items-center justify-between gap-3">
-                <div
-                    class="flex w-full sm:inline-flex rounded-lg border border-border bg-surface-sunken p-1"
-                    role="tablist"
-                    aria-label="Cost views"
-                >
-                    {#each TABS as tab (tab.value)}
-                        <button
-                            type="button"
-                            id={`costtab-${tab.value}`}
-                            role="tab"
-                            aria-selected={view === tab.value}
-                            aria-controls="cost-panel"
-                            tabindex={view === tab.value ? 0 : -1}
-                            onclick={() => (view = tab.value)}
-                            onkeydown={onViewKeydown}
-                            class={cn(segClass(view === tab.value), 'flex-1 justify-center text-center px-1 text-xs sm:text-sm')}
-                        >
-                            {t(tab.labelKey)}
-                        </button>
-                    {/each}
-                </div>
+		{#if !hasExpenses}
+			<div
+				class="rounded-lg border border-dashed border-border bg-surface-sunken px-6 py-12 text-center"
+			>
+				<Wallet class="mx-auto size-9 text-ink-muted" aria-hidden="true" />
+				<h2 class="mt-3 text-lg font-semibold">{t('no_expenses_yet')}</h2>
+				<p class="mx-auto mt-1 max-w-sm text-sm text-ink-muted">
+					{t('no_expenses_desc')}
+				</p>
+				<Button class="mt-4" onclick={() => openAdd()}>
+					<Plus class="size-4" />
+					{t('add_expense')}
+				</Button>
+			</div>
+		{:else}
+			<!-- View tabs + unpaid-only master toggle -->
+			<div class="flex flex-wrap items-center justify-between gap-3">
+				<div
+					class="flex w-full rounded-lg border border-border bg-surface-sunken p-1 sm:inline-flex"
+					role="tablist"
+					aria-label="Cost views"
+				>
+					{#each TABS as tab (tab.value)}
+						<button
+							type="button"
+							id={`costtab-${tab.value}`}
+							role="tab"
+							aria-selected={view === tab.value}
+							aria-controls="cost-panel"
+							tabindex={view === tab.value ? 0 : -1}
+							onclick={() => (view = tab.value)}
+							onkeydown={onViewKeydown}
+							class={cn(
+								segClass(view === tab.value),
+								'flex-1 justify-center px-1 text-center text-xs sm:text-sm'
+							)}
+						>
+							{t(tab.labelKey)}
+						</button>
+					{/each}
+				</div>
 
-                <button
-                    type="button"
-                    onclick={() => (unpaidOnly = !unpaidOnly)}
-                    aria-pressed={unpaidOnly}
-                    class={cn(
-                        'inline-flex min-h-touch items-center rounded-full border px-3 py-1.5 text-sm font-medium transition-colors',
-                        unpaidOnly
-                            ? 'border-accent-terracotta bg-accent-terracotta text-white'
-                            : 'border-border bg-surface text-ink-muted hover:text-ink'
-                    )}
-                >
-                    {t('unpaid_only')}
-                </button>
-            </div>
+				<button
+					type="button"
+					onclick={() => (unpaidOnly = !unpaidOnly)}
+					aria-pressed={unpaidOnly}
+					class={cn(
+						'inline-flex min-h-touch items-center rounded-full border px-3 py-1.5 text-sm font-medium transition-colors',
+						unpaidOnly
+							? 'border-accent-terracotta bg-accent-terracotta text-white'
+							: 'border-border bg-surface text-ink-muted hover:text-ink'
+					)}
+				>
+					{t('unpaid_only')}
+				</button>
+			</div>
 
-            <div id="cost-panel" role="tabpanel" aria-labelledby={`costtab-${view}`} tabindex="-1">
-                {#if view === 'day' && byDay}
-                    <ByDayView {byDay} {summary} {unpaidOnly} />
-                {:else if view === 'category'}
-                    <ByCategoryView {categories} homeCurrency={home} {summary} {unpaidOnly} />
-                {:else if view === 'list'}
-                    <ListView expenses={explist} homeCurrency={home} {unpaidOnly} travelerCount={summary.travelerCount} onedit={openEdit} ontogglePaid={togglePaid} />
-                {/if}
-            </div>
-        {/if}
-    </div>
+			<div id="cost-panel" role="tabpanel" aria-labelledby={`costtab-${view}`} tabindex="-1">
+				{#if view === 'day' && byDay}
+					<ByDayView {byDay} {summary} {unpaidOnly} />
+				{:else if view === 'category'}
+					<ByCategoryView {categories} homeCurrency={home} {summary} {unpaidOnly} />
+				{:else if view === 'list'}
+					<ListView
+						expenses={explist}
+						homeCurrency={home}
+						{unpaidOnly}
+						travelerCount={summary.travelerCount}
+						onedit={openEdit}
+						ontogglePaid={togglePaid}
+					/>
+				{/if}
+			</div>
+		{/if}
+	</div>
 {/if}
 
 <!-- Floating add button -->
 {#if hasExpenses}
-    <button
-        type="button"
-        onclick={() => openAdd()}
-        aria-label={t('add_expense')}
-        class="fixed bottom-[calc(4.5rem+env(safe-area-inset-bottom,0px))] right-4 z-40 inline-flex h-14 items-center gap-2 rounded-full bg-primary-600 px-5 text-base font-medium text-white shadow-lg hover:bg-primary-700 active:scale-95 lg:bottom-8"
-    >
-        <Plus />
-        <span class="hidden sm:inline">{t('add_expense')}</span>
-    </button>
+	<button
+		type="button"
+		onclick={() => openAdd()}
+		aria-label={t('add_expense')}
+		class="fixed bottom-[calc(4.5rem+env(safe-area-inset-bottom,0px))] right-4 z-40 inline-flex h-14 items-center gap-2 rounded-full bg-primary-600 px-5 text-base font-medium text-white shadow-lg hover:bg-primary-700 active:scale-95 lg:bottom-8"
+	>
+		<Plus />
+		<span class="hidden sm:inline">{t('add_expense')}</span>
+	</button>
 {/if}
 
 <ExpenseSheet
-    bind:open={sheetOpen}
-    mode={sheetMode}
-    {tripId}
-    expense={sheetExpense}
-    homeCurrency={home}
-    defaultDate={sheetDefaultDate}
-    onsaved={reload}
+	bind:open={sheetOpen}
+	mode={sheetMode}
+	{tripId}
+	expense={sheetExpense}
+	homeCurrency={home}
+	defaultDate={sheetDefaultDate}
+	onsaved={reload}
 />
 
 <BudgetSheet bind:open={budgetOpen} {tripId} {trip} onsaved={reload} />

@@ -12,42 +12,42 @@ import type { Settings, ThemePref } from '../schemas';
 
 /** Settings fields a caller may change. */
 export interface SettingsPatch {
-  homeCurrencyDefault?: string;
-  defaultChecklistTemplateId?: string | null;
-  theme?: ThemePref;
-  firstDayOfWeek?: number;
-  language?: string;
-  cartoApiKey?: string;
+	homeCurrencyDefault?: string;
+	defaultChecklistTemplateId?: string | null;
+	theme?: ThemePref;
+	firstDayOfWeek?: number;
+	language?: string;
+	cartoApiKey?: string;
 }
 
 const DEFAULTS = {
-  homeCurrencyDefault: 'EUR',
-  defaultChecklistTemplateId: null,
-  theme: 'system' as ThemePref,
-  firstDayOfWeek: 1,
-  cartoApiKey: '',
-  get language() {
-    if (typeof navigator !== 'undefined' && navigator.language?.toLowerCase().startsWith('pt')) {
-      return 'pt-BR';
-    }
-    return 'en';
-  }
+	homeCurrencyDefault: 'EUR',
+	defaultChecklistTemplateId: null,
+	theme: 'system' as ThemePref,
+	firstDayOfWeek: 1,
+	cartoApiKey: '',
+	get language() {
+		if (typeof navigator !== 'undefined' && navigator.language?.toLowerCase().startsWith('pt')) {
+			return 'pt-BR';
+		}
+		return 'en';
+	}
 };
 
 /** Get the settings document, creating it with defaults on first access. */
 export async function get(): Promise<Settings> {
-  const existing = await getDoc<Settings>(SETTINGS_ID);
-  if (existing) return existing;
-  return createDoc<Settings>({
-    _id: SETTINGS_ID,
-    type: 'settings',
-    ...DEFAULTS,
-    language: DEFAULTS.language
-  });
+	const existing = await getDoc<Settings>(SETTINGS_ID);
+	if (existing) return existing;
+	return createDoc<Settings>({
+		_id: SETTINGS_ID,
+		type: 'settings',
+		...DEFAULTS,
+		language: DEFAULTS.language
+	});
 }
 
 /** Update settings (ensuring the singleton exists first). */
 export async function update(patch: SettingsPatch): Promise<Settings> {
-  await get();
-  return patchDoc<Settings>(SETTINGS_ID, patch as Partial<Settings>);
+	await get();
+	return patchDoc<Settings>(SETTINGS_ID, patch as Partial<Settings>);
 }

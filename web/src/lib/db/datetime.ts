@@ -21,7 +21,7 @@ export type TripDateStatus = 'Upcoming' | 'Active' | 'Past';
 
 /** Today's ISO date (`YYYY-MM-DD`) in the given zone (default: system zone). */
 export function todayIso(zone?: string): string {
-  return (zone ? DateTime.now().setZone(zone) : DateTime.now()).toISODate() ?? '';
+	return (zone ? DateTime.now().setZone(zone) : DateTime.now()).toISODate() ?? '';
 }
 
 /**
@@ -29,15 +29,15 @@ export function todayIso(zone?: string): string {
  * Computed in UTC to avoid DST artefacts. Negative spans clamp to 0.
  */
 export function nightsBetween(startDate: string, endDate: string): number {
-  const start = DateTime.fromISO(startDate, { zone: 'utc' });
-  const end = DateTime.fromISO(endDate, { zone: 'utc' });
-  if (!start.isValid || !end.isValid) return 0;
-  return Math.max(0, Math.round(end.diff(start, 'days').days));
+	const start = DateTime.fromISO(startDate, { zone: 'utc' });
+	const end = DateTime.fromISO(endDate, { zone: 'utc' });
+	if (!start.isValid || !end.isValid) return 0;
+	return Math.max(0, Math.round(end.diff(start, 'days').days));
 }
 
 /** Inclusive day count for a trip span (nights + 1). */
 export function tripDayCount(startDate: string, endDate: string): number {
-  return nightsBetween(startDate, endDate) + 1;
+	return nightsBetween(startDate, endDate) + 1;
 }
 
 /**
@@ -45,34 +45,34 @@ export function tripDayCount(startDate: string, endDate: string): number {
  * Pure string comparison on ISO dates.
  */
 export function tripDateStatus(
-  startDate: string,
-  endDate: string,
-  today: string = todayIso()
+	startDate: string,
+	endDate: string,
+	today: string = todayIso()
 ): TripDateStatus {
-  if (today < startDate) return 'Upcoming';
-  if (today > endDate) return 'Past';
-  return 'Active';
+	if (today < startDate) return 'Upcoming';
+	if (today > endDate) return 'Past';
+	return 'Active';
 }
 
 /** Every ISO date from `startDate` to `endDate` inclusive (the itinerary day list). */
 export function eachDateInRange(startDate: string, endDate: string): string[] {
-  const start = DateTime.fromISO(startDate, { zone: 'utc' });
-  const end = DateTime.fromISO(endDate, { zone: 'utc' });
-  if (!start.isValid || !end.isValid || end < start) return [];
-  const dates: string[] = [];
-  for (let d = start; d <= end; d = d.plus({ days: 1 })) {
-    const iso = d.toISODate();
-    if (iso) dates.push(iso);
-  }
-  return dates;
+	const start = DateTime.fromISO(startDate, { zone: 'utc' });
+	const end = DateTime.fromISO(endDate, { zone: 'utc' });
+	if (!start.isValid || !end.isValid || end < start) return [];
+	const dates: string[] = [];
+	for (let d = start; d <= end; d = d.plus({ days: 1 })) {
+		const iso = d.toISODate();
+		if (iso) dates.push(iso);
+	}
+	return dates;
 }
 
 /** Whole-day difference `b - a` (can be negative). */
 export function dayDelta(a: string, b: string): number {
-  const da = DateTime.fromISO(a, { zone: 'utc' });
-  const db = DateTime.fromISO(b, { zone: 'utc' });
-  if (!da.isValid || !db.isValid) return 0;
-  return Math.round(db.diff(da, 'days').days);
+	const da = DateTime.fromISO(a, { zone: 'utc' });
+	const db = DateTime.fromISO(b, { zone: 'utc' });
+	if (!da.isValid || !db.isValid) return 0;
+	return Math.round(db.diff(da, 'days').days);
 }
 
 /**
@@ -81,10 +81,10 @@ export function dayDelta(a: string, b: string): number {
  * input unchanged if it is not a valid date.
  */
 export function shiftIsoDate(date: string | null | undefined, days: number): string | null {
-  if (!date) return date ?? null;
-  const d = DateTime.fromISO(date, { zone: 'utc' });
-  if (!d.isValid) return date;
-  return d.plus({ days }).toISODate();
+	if (!date) return date ?? null;
+	const d = DateTime.fromISO(date, { zone: 'utc' });
+	if (!d.isValid) return date;
+	return d.plus({ days }).toISODate();
 }
 
 /**
@@ -93,10 +93,10 @@ export function shiftIsoDate(date: string | null | undefined, days: number): str
  * is duplicated.
  */
 export function shiftIsoDateTime(datetime: string | null | undefined, days: number): string | null {
-  if (!datetime) return datetime ?? null;
-  const d = DateTime.fromISO(datetime, { setZone: true });
-  if (!d.isValid) return datetime;
-  return d.plus({ days }).toISO();
+	if (!datetime) return datetime ?? null;
+	const d = DateTime.fromISO(datetime, { setZone: true });
+	if (!d.isValid) return datetime;
+	return d.plus({ days }).toISO();
 }
 
 /**
@@ -104,22 +104,22 @@ export function shiftIsoDateTime(datetime: string | null | undefined, days: numb
  * `"in 12 days"` · `"Day 3 of 8"` (active) · `"ended 2 weeks ago"`.
  */
 export function countdownText(
-  startDate: string,
-  endDate: string,
-  today: string = todayIso()
+	startDate: string,
+	endDate: string,
+	today: string = todayIso()
 ): string {
-  const status = tripDateStatus(startDate, endDate, today);
-  if (status === 'Active') {
-    const dayNo = dayDelta(startDate, today) + 1;
-    const total = tripDayCount(startDate, endDate);
-    return t('day_of', { dayNo: String(dayNo), total: String(total) });
-  }
-  if (status === 'Upcoming') {
-    const days = humanizeDays(dayDelta(today, startDate));
-    return t('in_days', { days });
-  }
-  const days = humanizeDays(dayDelta(endDate, today));
-  return t('ended_ago', { days });
+	const status = tripDateStatus(startDate, endDate, today);
+	if (status === 'Active') {
+		const dayNo = dayDelta(startDate, today) + 1;
+		const total = tripDayCount(startDate, endDate);
+		return t('day_of', { dayNo: String(dayNo), total: String(total) });
+	}
+	if (status === 'Upcoming') {
+		const days = humanizeDays(dayDelta(today, startDate));
+		return t('in_days', { days });
+	}
+	const days = humanizeDays(dayDelta(endDate, today));
+	return t('ended_ago', { days });
 }
 
 /**
@@ -128,19 +128,19 @@ export function countdownText(
  * Intended to be embedded (`"in {...}"`, `"{...} ago"`).
  */
 export function humanizeDays(days: number): string {
-  const n = Math.abs(Math.round(days));
-  if (n === 0) return t('today');
-  if (n === 1) return t('day');
-  if (n < 14) return t('days_plural', { n: String(n) });
-  if (n < 60) return t('weeks_plural', { n: String(Math.round(n / 7)) });
-  if (n < 365) return t('months_plural', { n: String(Math.round(n / 30)) });
-  const years = Math.round((n / 365) * 10) / 10;
-  return years === 1 ? t('year_plural') : t('years_plural', { n: String(years) });
+	const n = Math.abs(Math.round(days));
+	if (n === 0) return t('today');
+	if (n === 1) return t('day');
+	if (n < 14) return t('days_plural', { n: String(n) });
+	if (n < 60) return t('weeks_plural', { n: String(Math.round(n / 7)) });
+	if (n < 365) return t('months_plural', { n: String(Math.round(n / 30)) });
+	const years = Math.round((n / 365) * 10) / 10;
+	return years === 1 ? t('year_plural') : t('years_plural', { n: String(years) });
 }
 
 /** Resolve a stored local ISO datetime in its endpoint zone to an absolute instant. */
 function zoned(localIso: string, zone?: string): DateTime {
-  return DateTime.fromISO(localIso, zone ? { zone, setZone: true } : undefined);
+	return DateTime.fromISO(localIso, zone ? { zone, setZone: true } : undefined);
 }
 
 /**
@@ -153,15 +153,15 @@ function zoned(localIso: string, zone?: string): DateTime {
  * @returns whole minutes, or `null` if either timestamp is invalid
  */
 export function legDurationMinutes(
-  departLocal: string,
-  departZone: string | undefined,
-  arriveLocal: string,
-  arriveZone: string | undefined
+	departLocal: string,
+	departZone: string | undefined,
+	arriveLocal: string,
+	arriveZone: string | undefined
 ): number | null {
-  const d = zoned(departLocal, departZone);
-  const a = zoned(arriveLocal, arriveZone);
-  if (!d.isValid || !a.isValid) return null;
-  return Math.round(a.diff(d, 'minutes').minutes);
+	const d = zoned(departLocal, departZone);
+	const a = zoned(arriveLocal, arriveZone);
+	if (!d.isValid || !a.isValid) return null;
+	return Math.round(a.diff(d, 'minutes').minutes);
 }
 
 /**
@@ -170,15 +170,15 @@ export function legDurationMinutes(
  * is inconsistent – callers can flag that.
  */
 export function layoverMinutes(
-  prevArriveLocal: string,
-  prevArriveZone: string | undefined,
-  nextDepartLocal: string,
-  nextDepartZone: string | undefined
+	prevArriveLocal: string,
+	prevArriveZone: string | undefined,
+	nextDepartLocal: string,
+	nextDepartZone: string | undefined
 ): number | null {
-  const arrive = zoned(prevArriveLocal, prevArriveZone);
-  const depart = zoned(nextDepartLocal, nextDepartZone);
-  if (!arrive.isValid || !depart.isValid) return null;
-  return Math.round(depart.diff(arrive, 'minutes').minutes);
+	const arrive = zoned(prevArriveLocal, prevArriveZone);
+	const depart = zoned(nextDepartLocal, nextDepartZone);
+	if (!arrive.isValid || !depart.isValid) return null;
+	return Math.round(depart.diff(arrive, 'minutes').minutes);
 }
 
 /**
@@ -187,36 +187,36 @@ export function layoverMinutes(
  * timestamps, which is exactly what the UI displays.
  */
 export function arrivalDayOffset(departLocal: string, arriveLocal: string): number {
-  const departDate = departLocal.slice(0, 10);
-  const arriveDate = arriveLocal.slice(0, 10);
-  if (!departDate || !arriveDate) return 0;
-  return dayDelta(departDate, arriveDate);
+	const departDate = departLocal.slice(0, 10);
+	const arriveDate = arriveLocal.slice(0, 10);
+	if (!departDate || !arriveDate) return 0;
+	return dayDelta(departDate, arriveDate);
 }
 
 /** Format a minute count as `"2h 55m"` / `"45m"` / `"3h"`. */
 export function formatDuration(minutes: number | null | undefined): string {
-  if (minutes == null || Number.isNaN(minutes)) return '';
-  const sign = minutes < 0 ? '-' : '';
-  const total = Math.abs(Math.round(minutes));
-  const h = Math.floor(total / 60);
-  const m = total % 60;
-  if (h && m) return `${sign}${h}h ${m}m`;
-  if (h) return `${sign}${h}h`;
-  return `${sign}${m}m`;
+	if (minutes == null || Number.isNaN(minutes)) return '';
+	const sign = minutes < 0 ? '-' : '';
+	const total = Math.abs(Math.round(minutes));
+	const h = Math.floor(total / 60);
+	const m = total % 60;
+	if (h && m) return `${sign}${h}h ${m}m`;
+	if (h) return `${sign}${h}h`;
+	return `${sign}${m}m`;
 }
 
 /** The local date portion (`YYYY-MM-DD`) of an ISO datetime, for day-bucketing. */
 export function dateOf(iso: string | null | undefined): string | null {
-  if (!iso) return null;
-  return iso.slice(0, 10) || null;
+	if (!iso) return null;
+	return iso.slice(0, 10) || null;
 }
 
 /** Minutes-since-midnight of a `HH:mm`/ISO time, for stable timed-item sorting. */
 export function minutesOfDay(time: string | null | undefined): number | null {
-  if (!time) return null;
-  // Accept `HH:mm`, `HH:mm:ss` or a full ISO datetime.
-  const timePart = time.includes('T') ? time.split('T')[1] : time;
-  const match = /^(\d{2}):(\d{2})/.exec(timePart);
-  if (!match) return null;
-  return Number(match[1]) * 60 + Number(match[2]);
+	if (!time) return null;
+	// Accept `HH:mm`, `HH:mm:ss` or a full ISO datetime.
+	const timePart = time.includes('T') ? time.split('T')[1] : time;
+	const match = /^(\d{2}):(\d{2})/.exec(timePart);
+	if (!match) return null;
+	return Number(match[1]) * 60 + Number(match[2]);
 }

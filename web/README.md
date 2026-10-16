@@ -46,9 +46,13 @@ PouchDB was written for Node.js and requires two compatibility shims to work in 
 ### 1. `global` → `globalThis`
 
 `vite.config.ts` injects:
+
 ```ts
-define: { global: 'globalThis' }
+define: {
+	global: 'globalThis';
+}
 ```
+
 This makes PouchDB's Node-style `global` references resolve correctly in the browser.
 
 ### 2. `events` module polyfill (`polyfillEvents` plugin)
@@ -56,6 +60,7 @@ This makes PouchDB's Node-style `global` references resolve correctly in the bro
 Vite's bundler cannot resolve Node's built-in `events` module for the browser. Without a shim, PouchDB throws `TypeError: EventEmitter is not a constructor` (or `r.prototype is not an object or null`) at startup.
 
 `vite.config.ts` contains a custom Vite plugin that:
+
 1. Intercepts every `import ... from 'events'` (and `require('events')`) that PouchDB emits.
 2. Reads `node_modules/events/events.js` directly (the `events` npm package — a browser-compatible EventEmitter).
 3. Wraps it as a native ES module (`export default EventEmitter; export { EventEmitter };`).
@@ -63,15 +68,17 @@ Vite's bundler cannot resolve Node's built-in `events` module for the browser. W
 ```ts
 // vite.config.ts (simplified)
 function polyfillEvents() {
-  return {
-    name: 'polyfill-events',
-    resolveId(id) { if (id === 'events') return '\0events'; },
-    load(id) {
-      if (id === '\0events') {
-        // reads node_modules/events/events.js and re-exports as ES module
-      }
-    }
-  };
+	return {
+		name: 'polyfill-events',
+		resolveId(id) {
+			if (id === 'events') return '\0events';
+		},
+		load(id) {
+			if (id === '\0events') {
+				// reads node_modules/events/events.js and re-exports as ES module
+			}
+		}
+	};
 }
 ```
 
@@ -83,8 +90,8 @@ PouchDB requires an **absolute URL** (e.g. `http://localhost:8090/db/itinera`) t
 
 ```ts
 function resolveRemoteUrl(url: string): string {
-  if (url.startsWith('http://') || url.startsWith('https://')) return url;
-  return `${window.location.origin}${url}`;
+	if (url.startsWith('http://') || url.startsWith('https://')) return url;
+	return `${window.location.origin}${url}`;
 }
 ```
 
@@ -94,20 +101,21 @@ This means sync works automatically on any origin — `localhost`, a LAN IP, a T
 
 ## Design System
 
-| Token | Value |
-|---|---|
-| **Theme** | Light only, warm paper |
-| **Primary accent** | Forest green (`#2F684F`) |
-| **Fonts** | Fraunces (headings, serif) / Inter (body, sans) |
+| Token                   | Value                                            |
+| ----------------------- | ------------------------------------------------ |
+| **Theme**               | Light only, warm paper                           |
+| **Primary accent**      | Forest green (`#2F684F`)                         |
+| **Fonts**               | Fraunces (headings, serif) / Inter (body, sans)  |
 | **Border radius scale** | `sm` 8 px · `md` 12 px · `lg` 16 px · `xl` 24 px |
-| **Contrast** | AA compliant, visible 2px focus rings |
-| **Tap targets** | 44px minimum |
+| **Contrast**            | AA compliant, visible 2px focus rings            |
+| **Tap targets**         | 44px minimum                                     |
 
 Implemented in `tailwind.config.ts` + `src/app.css`.
 
 ### Glass & Animated Background
 
 `src/app.css` also includes:
+
 - `.glass-panel`, `.glass-header`, `.glass-input` — frosted glass utilities (backdrop-blur + semi-transparent background) applied to the homepage header, search input, and trip cards.
 - `.mesh-container`, `.mesh-orb`, `.mesh-orb-1/2/3` — three slow-drifting radial gradient orbs (forest green, terracotta, amber) fixed behind all content to create a dynamic animated background mesh.
 - Full `@media (prefers-reduced-motion: reduce)` support — all animation durations collapse to `0.01ms` when the user prefers reduced motion.

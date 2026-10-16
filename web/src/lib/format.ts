@@ -11,58 +11,58 @@ import { getLanguage, t } from './i18n.svelte';
 
 /** "12-19 Sep 2026" / "28 Sep – 3 Oct 2026" / "12 Sep 2026". */
 export function formatDateRange(start?: string | null, end?: string | null): string {
-  const lang = (typeof getLanguage === 'function' && getLanguage()) || 'en';
-  const s = start ? DateTime.fromISO(start, { locale: lang }) : null;
-  const e = end ? DateTime.fromISO(end, { locale: lang }) : null;
+	const lang = (typeof getLanguage === 'function' && getLanguage()) || 'en';
+	const s = start ? DateTime.fromISO(start, { locale: lang }) : null;
+	const e = end ? DateTime.fromISO(end, { locale: lang }) : null;
 
-  if (s?.isValid && e?.isValid) {
-    if (s.hasSame(e, 'day')) return s.toFormat('d LLL yyyy');
-    const sameYear = s.year === e.year;
-    const sameMonth = sameYear && s.month === e.month;
-    if (sameMonth) return `${s.toFormat('d')} – ${e.toFormat('d LLL yyyy')}`;
-    if (sameYear) return `${s.toFormat('d LLL')} – ${e.toFormat('d LLL yyyy')}`;
-    return `${s.toFormat('d LLL yyyy')} – ${e.toFormat('d LLL yyyy')}`;
-  }
-  const one = s?.isValid ? s : e?.isValid ? e : null;
-  return one ? one.toFormat('d LLL yyyy') : '';
+	if (s?.isValid && e?.isValid) {
+		if (s.hasSame(e, 'day')) return s.toFormat('d LLL yyyy');
+		const sameYear = s.year === e.year;
+		const sameMonth = sameYear && s.month === e.month;
+		if (sameMonth) return `${s.toFormat('d')} – ${e.toFormat('d LLL yyyy')}`;
+		if (sameYear) return `${s.toFormat('d LLL')} – ${e.toFormat('d LLL yyyy')}`;
+		return `${s.toFormat('d LLL yyyy')} – ${e.toFormat('d LLL yyyy')}`;
+	}
+	const one = s?.isValid ? s : e?.isValid ? e : null;
+	return one ? one.toFormat('d LLL yyyy') : '';
 }
 
 /** "Sat 12 Sep" – a compact weekday + date label. */
 export function formatWeekdayDate(iso?: string | null): string {
-  if (!iso) return '';
-  const lang = (typeof getLanguage === 'function' && getLanguage()) || 'en';
-  const dt = DateTime.fromISO(iso, { locale: lang });
-  return dt.isValid ? dt.toFormat('ccc d LLL') : '';
+	if (!iso) return '';
+	const lang = (typeof getLanguage === 'function' && getLanguage()) || 'en';
+	const dt = DateTime.fromISO(iso, { locale: lang });
+	return dt.isValid ? dt.toFormat('ccc d LLL') : '';
 }
 
 /** "12 Sep 2026". */
 export function formatDate(iso?: string | null): string {
-  if (!iso) return '';
-  const lang = (typeof getLanguage === 'function' && getLanguage()) || 'en';
-  const dt = DateTime.fromISO(iso, { locale: lang });
-  return dt.isValid ? dt.toFormat('d LLL yyyy') : '';
+	if (!iso) return '';
+	const lang = (typeof getLanguage === 'function' && getLanguage()) || 'en';
+	const dt = DateTime.fromISO(iso, { locale: lang });
+	return dt.isValid ? dt.toFormat('d LLL yyyy') : '';
 }
 
 /** "08:40" from an ISO datetime or a bare `HH:mm`. */
 export function formatTime(value?: string | null): string {
-  if (!value) return '';
-  const timePart = value.includes('T') ? value.split('T')[1] : value;
-  const m = /^(\d{2}):(\d{2})/.exec(timePart);
-  return m ? `${m[1]}:${m[2]}` : '';
+	if (!value) return '';
+	const timePart = value.includes('T') ? value.split('T')[1] : value;
+	const m = /^(\d{2}):(\d{2})/.exec(timePart);
+	return m ? `${m[1]}:${m[2]}` : '';
 }
 
 /** Relative phrase like "in 3 days" / "2 hours ago" (locale-aware). */
 export function relativeTime(iso: string | null): string {
-  if (!iso) return '';
-  const lang = (typeof getLanguage === 'function' && getLanguage()) || 'en';
-  const dt = DateTime.fromISO(iso, { setZone: true, locale: lang });
-  return dt.isValid ? (dt.toRelative() ?? '') : '';
+	if (!iso) return '';
+	const lang = (typeof getLanguage === 'function' && getLanguage()) || 'en';
+	const dt = DateTime.fromISO(iso, { setZone: true, locale: lang });
+	return dt.isValid ? (dt.toRelative() ?? '') : '';
 }
 
 /** "7 nights" / "1 night". */
 export function formatNights(nights: number): string {
-  const label = nights === 1 ? t('night') : t('nights');
-  return `${nights} ${label}`;
+	const label = nights === 1 ? t('night') : t('nights');
+	return `${nights} ${label}`;
 }
 
 /**
@@ -71,26 +71,26 @@ export function formatNights(nights: number): string {
  * cents in summaries).
  */
 export function formatMoney(
-  amount: number,
-  currency = 'EUR',
-  opts: { compact?: boolean; decimals?: boolean } = {}
+	amount: number,
+	currency = 'EUR',
+	opts: { compact?: boolean; decimals?: boolean } = {}
 ): string {
-  const safeAmount = Number.isFinite(amount) ? amount : 0;
-  const lang = (typeof getLanguage === 'function' && getLanguage()) || 'en';
-  const locale = lang === 'pt-BR' ? 'pt-BR' : 'en-US';
-  try {
-    const hasCents = Math.abs(safeAmount % 1) > 0.001;
-    const useDecimals = opts.decimals ?? hasCents;
-    return new Intl.NumberFormat(locale, {
-      style: 'currency',
-      currency,
-      notation: opts.compact ? 'compact' : 'standard',
-      minimumFractionDigits: useDecimals ? 2 : 0,
-      maximumFractionDigits: opts.compact ? 1 : useDecimals ? 2 : 0
-    }).format(safeAmount);
-  } catch {
-    return `${currency} ${safeAmount.toFixed(2)}`;
-  }
+	const safeAmount = Number.isFinite(amount) ? amount : 0;
+	const lang = (typeof getLanguage === 'function' && getLanguage()) || 'en';
+	const locale = lang === 'pt-BR' ? 'pt-BR' : 'en-US';
+	try {
+		const hasCents = Math.abs(safeAmount % 1) > 0.001;
+		const useDecimals = opts.decimals ?? hasCents;
+		return new Intl.NumberFormat(locale, {
+			style: 'currency',
+			currency,
+			notation: opts.compact ? 'compact' : 'standard',
+			minimumFractionDigits: useDecimals ? 2 : 0,
+			maximumFractionDigits: opts.compact ? 1 : useDecimals ? 2 : 0
+		}).format(safeAmount);
+	} catch {
+		return `${currency} ${safeAmount.toFixed(2)}`;
+	}
 }
 
 /**
@@ -99,64 +99,64 @@ export function formatMoney(
  * directly; anything unknown simply renders without a flag.
  */
 const COUNTRY_CODE: Record<string, string> = {
-  'united states': 'US',
-  usa: 'US',
-  'united kingdom': 'GB',
-  uk: 'GB',
-  england: 'GB',
-  scotland: 'GB',
-  ireland: 'IE',
-  france: 'FR',
-  spain: 'ES',
-  portugal: 'PT',
-  italy: 'IT',
-  germany: 'DE',
-  netherlands: 'NL',
-  belgium: 'BE',
-  switzerland: 'CH',
-  austria: 'AT',
-  greece: 'GR',
-  croatia: 'HR',
-  'czech republic': 'CZ',
-  czechia: 'CZ',
-  poland: 'PL',
-  hungary: 'HU',
-  sweden: 'SE',
-  norway: 'NO',
-  denmark: 'DK',
-  finland: 'FI',
-  iceland: 'IS',
-  morocco: 'MA',
-  egypt: 'EG',
-  turkey: 'TR',
-  'united arab emirates': 'AE',
-  uae: 'AE',
-  japan: 'JP',
-  china: 'CN',
-  thailand: 'TH',
-  vietnam: 'VN',
-  india: 'IN',
-  indonesia: 'ID',
-  singapore: 'SG',
-  australia: 'AU',
-  'new zealand': 'NZ',
-  canada: 'CA',
-  mexico: 'MX',
-  brazil: 'BR',
-  argentina: 'AR',
-  peru: 'PE',
-  chile: 'CL'
+	'united states': 'US',
+	usa: 'US',
+	'united kingdom': 'GB',
+	uk: 'GB',
+	england: 'GB',
+	scotland: 'GB',
+	ireland: 'IE',
+	france: 'FR',
+	spain: 'ES',
+	portugal: 'PT',
+	italy: 'IT',
+	germany: 'DE',
+	netherlands: 'NL',
+	belgium: 'BE',
+	switzerland: 'CH',
+	austria: 'AT',
+	greece: 'GR',
+	croatia: 'HR',
+	'czech republic': 'CZ',
+	czechia: 'CZ',
+	poland: 'PL',
+	hungary: 'HU',
+	sweden: 'SE',
+	norway: 'NO',
+	denmark: 'DK',
+	finland: 'FI',
+	iceland: 'IS',
+	morocco: 'MA',
+	egypt: 'EG',
+	turkey: 'TR',
+	'united arab emirates': 'AE',
+	uae: 'AE',
+	japan: 'JP',
+	china: 'CN',
+	thailand: 'TH',
+	vietnam: 'VN',
+	india: 'IN',
+	indonesia: 'ID',
+	singapore: 'SG',
+	australia: 'AU',
+	'new zealand': 'NZ',
+	canada: 'CA',
+	mexico: 'MX',
+	brazil: 'BR',
+	argentina: 'AR',
+	peru: 'PE',
+	chile: 'CL'
 };
 
 /** Flag emoji from an ISO-2 code or a known country name (`` when unknown). */
 export function flagEmoji(country?: string | null): string {
-  if (!country) return '';
-  const raw = country.trim();
-  const code = /^[a-z]{2}$/i.test(raw)
-    ? raw.toUpperCase()
-    : (COUNTRY_CODE[raw.toLowerCase()] ?? '');
-  if (!code) return '';
-  return String.fromCodePoint(...[...code].map((ch) => 0x1f1e6 + ch.charCodeAt(0) - 65));
+	if (!country) return '';
+	const raw = country.trim();
+	const code = /^[a-z]{2}$/i.test(raw)
+		? raw.toUpperCase()
+		: (COUNTRY_CODE[raw.toLowerCase()] ?? '');
+	if (!code) return '';
+	return String.fromCodePoint(...[...code].map((ch) => 0x1f1e6 + ch.charCodeAt(0) - 65));
 }
 
 /**
@@ -165,9 +165,9 @@ export function flagEmoji(country?: string | null): string {
  * Returns a CSS `linear-gradient(...)` value for an inline `background-image`.
  */
 export function gradientFromString(seed: string): string {
-  let hash = 0;
-  for (let i = 0; i < seed.length; i++) hash = (hash * 31 + seed.charCodeAt(i)) % 360;
-  const h1 = hash;
-  const h2 = (hash + 40) % 360;
-  return `linear-gradient(135deg, hsl(${h1} 44% 52%), hsl(${h2} 40% 38%))`;
+	let hash = 0;
+	for (let i = 0; i < seed.length; i++) hash = (hash * 31 + seed.charCodeAt(i)) % 360;
+	const h1 = hash;
+	const h2 = (hash + 40) % 360;
+	return `linear-gradient(135deg, hsl(${h1} 44% 52%), hsl(${h2} 40% 38%))`;
 }

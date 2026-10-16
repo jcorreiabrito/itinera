@@ -36,16 +36,16 @@ export const HIGH_KEY = '\ufff0';
 
 /** Every document `type` we know about, in a stable order. */
 export const DOC_TYPES = [
-  'trip',
-  'tripDay',
-  'itineraryItem',
-  'checklistItem',
-  'flight',
-  'reservation',
-  'expense',
-  'attachment',
-  'checklistTemplate',
-  'settings'
+	'trip',
+	'tripDay',
+	'itineraryItem',
+	'checklistItem',
+	'flight',
+	'reservation',
+	'expense',
+	'attachment',
+	'checklistTemplate',
+	'settings'
 ] as const;
 
 export type DocType = (typeof DOC_TYPES)[number];
@@ -57,47 +57,47 @@ export type DocType = (typeof DOC_TYPES)[number];
  * identically on both sides.
  */
 export const PREFIX_BY_TYPE: Record<DocType, string> = {
-  trip: 'trip',
-  tripDay: 'day',
-  itineraryItem: 'itin',
-  checklistItem: 'chk',
-  flight: 'flt',
-  reservation: 'res',
-  expense: 'exp',
-  attachment: 'att',
-  checklistTemplate: 'tpl',
-  settings: 'settings'
+	trip: 'trip',
+	tripDay: 'day',
+	itineraryItem: 'itin',
+	checklistItem: 'chk',
+	flight: 'flt',
+	reservation: 'res',
+	expense: 'exp',
+	attachment: 'att',
+	checklistTemplate: 'tpl',
+	settings: 'settings'
 };
 
 /** Inverse of `@link PREFIX_BY_TYPE`: id prefix → document type. */
 export const TYPE_BY_PREFIX: Record<string, DocType> = Object.fromEntries(
-  Object.entries(PREFIX_BY_TYPE).map(([type, prefix]) => [prefix, type as DocType])
+	Object.entries(PREFIX_BY_TYPE).map(([type, prefix]) => [prefix, type as DocType])
 ) as Record<string, DocType>;
 
 /** Document types that belong to a trip (carry a `tripid` and a `{prefix}:{tripUid}:` id). */
 export const TRIP_CHILD_TYPES = [
-  'tripDay',
-  'itineraryItem',
-  'checklistItem',
-  'flight',
-  'reservation',
-  'expense',
-  'attachment'
+	'tripDay',
+	'itineraryItem',
+	'checklistItem',
+	'flight',
+	'reservation',
+	'expense',
+	'attachment'
 ] as const;
 
 export type TripChildType = (typeof TRIP_CHILD_TYPES)[number];
 
 /** Preset checklist groups (custom groups are also allowed). */
 export const CHECKLIST_PRESET_GROUPS = [
-  'Documents',
-  'Pre-trip',
-  'Packing',
-  'Clothes & Gear',
-  'Health & Toiletries',
-  'Electronics & Cables',
-  'Money',
-  'Entertainment',
-  'To buy'
+	'Documents',
+	'Pre-trip',
+	'Packing',
+	'Clothes & Gear',
+	'Health & Toiletries',
+	'Electronics & Cables',
+	'Money',
+	'Entertainment',
+	'To buy'
 ] as const;
 
 /**
@@ -106,12 +106,12 @@ export const CHECKLIST_PRESET_GROUPS = [
  * (see `docs/11-page-reservations.md`).
  */
 export const RESERVATION_EXPENSE_CATEGORY: Record<string, string> = {
-  lodging: 'lodging',
-  car: 'transport',
-  restaurant: 'food',
-  activity: 'activities',
-  transport: 'transport',
-  other: 'other'
+	lodging: 'lodging',
+	car: 'transport',
+	restaurant: 'food',
+	activity: 'activities',
+	transport: 'transport',
+	other: 'other'
 };
 
 /** Expense category used for the expense linked to a flight's cost. */

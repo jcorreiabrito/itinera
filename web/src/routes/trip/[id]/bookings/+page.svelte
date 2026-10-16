@@ -1,57 +1,56 @@
 <script lang="ts">
-  import { page } from '$app/state';
-  import { FlightsPane } from '$lib/components/flights';
-  import { ReservationsPane } from '$lib/components/reservations';
-  import { t } from '$lib/i18n.svelte';
-  import { cn } from '$lib/utils';
+	import { page } from '$app/state';
+	import { resolve } from '$app/paths';
+	import { FlightsPane } from '$lib/components/flights';
+	import { ReservationsPane } from '$lib/components/reservations';
+	import { t } from '$lib/i18n.svelte';
+	import { cn } from '$lib/utils';
 
-  const id = $derived(page.params.id ?? '');
+	const id = $derived(page.params.id ?? '');
 
-  const tab = $derived(
-    page.url.searchParams.get('tab') === 'flights' ? 'flights' : 'reservations'
-  );
+	const tab = $derived(page.url.searchParams.get('tab') === 'flights' ? 'flights' : 'reservations');
 
-  const segClass = (active: boolean) =>
-    cn(
-      'inline-flex min-h-touch items-center rounded-md px-3 py-1.5 font-medium transition-colors',
-      active ? 'bg-surface text-ink shadow-soft' : 'text-ink-muted hover:text-ink'
-    );
+	const segClass = (active: boolean) =>
+		cn(
+			'inline-flex min-h-touch items-center rounded-md px-3 py-1.5 font-medium transition-colors',
+			active ? 'bg-surface text-ink shadow-soft' : 'text-ink-muted hover:text-ink'
+		);
 </script>
 
 <svelte:head>
-  <title>{t('bookings')} – Itinera</title>
+	<title>{t('bookings')} – Itinera</title>
 </svelte:head>
 
 <section aria-labelledby="bookings-heading">
-  <h1 id="bookings-heading" class="sr-only">{t('bookings')}</h1>
+	<h1 id="bookings-heading" class="sr-only">{t('bookings')}</h1>
 
-  <nav
-    class="mt-4 flex w-full sm:inline-flex rounded-lg border border-border bg-surface-sunken p-1 text-sm"
-    aria-label="Bookings type"
-  >
-    <a
-      href={`/trip/${id}/bookings?tab=flights`}
-      aria-current={tab === 'flights' ? 'page' : undefined}
-      class={cn(segClass(tab === 'flights'), 'flex-1 justify-center text-center')}
-    >
-      {t('flights')}
-    </a>
-    <a
-      href={`/trip/${id}/bookings?tab=reservations`}
-      aria-current={tab === 'reservations' ? 'page' : undefined}
-      class={cn(segClass(tab === 'reservations'), 'flex-1 justify-center text-center')}
-    >
-      {t('reservations')}
-    </a>
-  </nav>
+	<nav
+		class="mt-4 flex w-full rounded-lg border border-border bg-surface-sunken p-1 text-sm sm:inline-flex"
+		aria-label="Bookings type"
+	>
+		<a
+			href={resolve(`/trip/${id}/bookings?tab=flights`)}
+			aria-current={tab === 'flights' ? 'page' : undefined}
+			class={cn(segClass(tab === 'flights'), 'flex-1 justify-center text-center')}
+		>
+			{t('flights')}
+		</a>
+		<a
+			href={resolve(`/trip/${id}/bookings?tab=reservations`)}
+			aria-current={tab === 'reservations' ? 'page' : undefined}
+			class={cn(segClass(tab === 'reservations'), 'flex-1 justify-center text-center')}
+		>
+			{t('reservations')}
+		</a>
+	</nav>
 
-  {#if tab === 'flights'}
-    {#key id}
-      <FlightsPane tripId={id} />
-    {/key}
-  {:else}
-    {#key id}
-      <ReservationsPane tripId={id} />
-    {/key}
-  {/if}
+	{#if tab === 'flights'}
+		{#key id}
+			<FlightsPane tripId={id} />
+		{/key}
+	{:else}
+		{#key id}
+			<ReservationsPane tripId={id} />
+		{/key}
+	{/if}
 </section>

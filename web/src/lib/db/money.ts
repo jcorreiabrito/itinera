@@ -12,28 +12,28 @@
 
 /** Minimal expense shape needed for money maths (structurally compatible with `Expense`). */
 export interface ExpenseLike {
-  amountEstimate?: number | null;
-  amountActual?: number | null;
-  currency?: string | null;
-  fxRate?: number | null;
-  paid?: boolean;
-  date?: string | null;
-  category?: string | null;
-  costType?: 'total' | 'per_person' | null;
+	amountEstimate?: number | null;
+	amountActual?: number | null;
+	currency?: string | null;
+	fxRate?: number | null;
+	paid?: boolean;
+	date?: string | null;
+	category?: string | null;
+	costType?: 'total' | 'per_person' | null;
 }
 
 /** Aggregated money figures, always expressed in the home currency. */
 export interface MoneyTotals {
-  /** Σ estimate (home currency). */
-  estimate: number;
-  /** Σ actual (home currency). */
-  actual: number;
-  /** Σ spent = actual ?? estimate (home currency). */
-  spent: number;
-  /** Σ spent for unpaid items (home currency). */
-  unpaid: number;
-  /** How many contributing amounts were excluded for a missing FX rate. */
-  missingRateCount: number;
+	/** Σ estimate (home currency). */
+	estimate: number;
+	/** Σ actual (home currency). */
+	actual: number;
+	/** Σ spent = actual ?? estimate (home currency). */
+	spent: number;
+	/** Σ spent for unpaid items (home currency). */
+	unpaid: number;
+	/** How many contributing amounts were excluded for a missing FX rate. */
+	missingRateCount: number;
 }
 
 /**
@@ -43,122 +43,135 @@ export interface MoneyTotals {
  * - foreign + **no rate** → `null` (excluded from totals, surfaced as a prompt)
  */
 export function convertToHome(
-  amount: number | null | undefined,
-  currency: string | null | undefined,
-  homeCurrency: string,
-  fxRate?: number | null
+	amount: number | null | undefined,
+	currency: string | null | undefined,
+	homeCurrency: string,
+	fxRate?: number | null
 ): number | null {
-  if (amount == null) return null;
-  if (!currency || currency === homeCurrency) return amount;
-  if (fxRate == null) return null;
-  return amount * fxRate;
+	if (amount == null) return null;
+	if (!currency || currency === homeCurrency) return amount;
+	if (fxRate == null) return null;
+	return amount * fxRate;
 }
 
 /** The home-currency estimate/actual/spent for one expense, flagging a missing rate. */
 export interface ExpenseAmounts {
-  estimate: number | null;
-  actual: number | null;
-  /** actual ?? estimate */
-  spent: number | null;
-  /** True when a foreign amount exists but no `fxRate` was provided. */
-  missingRate: boolean;
+	estimate: number | null;
+	actual: number | null;
+	/** actual ?? estimate */
+	spent: number | null;
+	/** True when a foreign amount exists but no `fxRate` was provided. */
+	missingRate: boolean;
 }
 
 /** Resolve one expense's home-currency figures. */
 export function expenseAmounts(exp: ExpenseLike, homeCurrency: string): ExpenseAmounts {
-  const estimate = convertToHome(exp.amountEstimate, exp.currency, homeCurrency, exp.fxRate);
-  const actual = convertToHome(exp.amountActual, exp.currency, homeCurrency, exp.fxRate);
-  const spent = actual ?? estimate;
-  const foreign = !!exp.currency && exp.currency !== homeCurrency;
-  const hasAmount = exp.amountEstimate != null || exp.amountActual != null;
-  const missingRate = foreign && exp.fxRate == null && hasAmount;
-  return { estimate, actual, spent, missingRate };
+	const estimate = convertToHome(exp.amountEstimate, exp.currency, homeCurrency, exp.fxRate);
+	const actual = convertToHome(exp.amountActual, exp.currency, homeCurrency, exp.fxRate);
+	const spent = actual ?? estimate;
+	const foreign = !!exp.currency && exp.currency !== homeCurrency;
+	const hasAmount = exp.amountEstimate != null || exp.amountActual != null;
+	const missingRate = foreign && exp.fxRate == null && hasAmount;
+	return { estimate, actual, spent, missingRate };
 }
 
 function emptyTotals(): MoneyTotals {
-  return { estimate: 0, actual: 0, spent: 0, unpaid: 0, missingRateCount: 0 };
+	return { estimate: 0, actual: 0, spent: 0, unpaid: 0, missingRateCount: 0 };
 }
 
-function addExpense(totals: MoneyTotals, exp: ExpenseLike, homeCurrency: string, travelerCount: number = 1): void {
-  const { estimate, actual, spent, missingRate } = expenseAmounts(exp, homeCurrency);
-  const factor = exp.costType === 'per_person' ? travelerCount : 1;
-  if (estimate != null) totals.estimate += estimate * factor;
-  if (actual != null) totals.actual += actual * factor;
-  if (spent != null) {
-    totals.spent += spent * factor;
-    if (!exp.paid) totals.unpaid += spent * factor;
-  }
-  if (missingRate) totals.missingRateCount += 1;
+function addExpense(
+	totals: MoneyTotals,
+	exp: ExpenseLike,
+	homeCurrency: string,
+	travelerCount: number = 1
+): void {
+	const { estimate, actual, spent, missingRate } = expenseAmounts(exp, homeCurrency);
+	const factor = exp.costType === 'per_person' ? travelerCount : 1;
+	if (estimate != null) totals.estimate += estimate * factor;
+	if (actual != null) totals.actual += actual * factor;
+	if (spent != null) {
+		totals.spent += spent * factor;
+		if (!exp.paid) totals.unpaid += spent * factor;
+	}
+	if (missingRate) totals.missingRateCount += 1;
 }
 
 /** Sum a list of expenses into home-currency totals. */
-export function sumExpenses(expenses: ExpenseLike[], homeCurrency: string, travelerCount: number = 1): MoneyTotals {
-  const totals = emptyTotals();
-  for (const exp of expenses) addExpense(totals, exp, homeCurrency, travelerCount);
-  return totals;
+export function sumExpenses(
+	expenses: ExpenseLike[],
+	homeCurrency: string,
+	travelerCount: number = 1
+): MoneyTotals {
+	const totals = emptyTotals();
+	for (const exp of expenses) addExpense(totals, exp, homeCurrency, travelerCount);
+	return totals;
 }
 
 /** One day's roll-up (or the undated/"whole-trip" bucket when `date` is `null`). */
 export interface DayRollup {
-  date: string | null;
-  totals: MoneyTotals;
+	date: string | null;
+	totals: MoneyTotals;
 }
 
 /** Per-day roll-up plus a dedicated undated ("whole-trip costs") bucket. */
 export interface ByDayRollup {
-  /** Dated buckets, ascending by date. */
-  days: DayRollup[];
-  /** Costs with no date (flights, insurance, ...). */
-  undated: MoneyTotals;
+	/** Dated buckets, ascending by date. */
+	days: DayRollup[];
+	/** Costs with no date (flights, insurance, ...). */
+	undated: MoneyTotals;
 }
 
 /** Roll expenses up by day. Undated expenses collect in their own bucket. */
-export function rollupByDay(expenses: ExpenseLike[], homeCurrency: string, travelerCount: number = 1): ByDayRollup {
-  const byDate = new Map<string, MoneyTotals>();
-  const undated = emptyTotals();
-  for (const exp of expenses) {
-    if (exp.date) {
-      let t = byDate.get(exp.date);
-      if (!t) byDate.set(exp.date, (t = emptyTotals()));
-      addExpense(t, exp, homeCurrency, travelerCount);
-    } else {
-      addExpense(undated, exp, homeCurrency, travelerCount);
-    }
-  }
-  const days = [...byDate.entries()]
-    .sort(([a], [b]) => (a < b ? -1 : a > b ? 1 : 0))
-    .map(([date, totals]) => ({ date, totals }));
-  return { days, undated };
+export function rollupByDay(
+	expenses: ExpenseLike[],
+	homeCurrency: string,
+	travelerCount: number = 1
+): ByDayRollup {
+	const byDate = new Map<string, MoneyTotals>();
+	const undated = emptyTotals();
+	for (const exp of expenses) {
+		if (exp.date) {
+			let t = byDate.get(exp.date);
+			if (!t) byDate.set(exp.date, (t = emptyTotals()));
+			addExpense(t, exp, homeCurrency, travelerCount);
+		} else {
+			addExpense(undated, exp, homeCurrency, travelerCount);
+		}
+	}
+	const days = [...byDate.entries()]
+		.sort(([a], [b]) => (a < b ? -1 : a > b ? 1 : 0))
+		.map(([date, totals]) => ({ date, totals }));
+	return { days, undated };
 }
 
 /** Roll expenses up by category (home currency). */
 export function rollupByCategory(
-  expenses: ExpenseLike[],
-  homeCurrency: string,
-  travelerCount: number = 1
+	expenses: ExpenseLike[],
+	homeCurrency: string,
+	travelerCount: number = 1
 ): Record<string, MoneyTotals> {
-  const out: Record<string, MoneyTotals> = {};
-  for (const exp of expenses) {
-    const cat = exp.category ?? 'other';
-    const t = out[cat] ??= emptyTotals();
-    addExpense(t, exp, homeCurrency, travelerCount);
-  }
-  return out;
+	const out: Record<string, MoneyTotals> = {};
+	for (const exp of expenses) {
+		const cat = exp.category ?? 'other';
+		const t = (out[cat] ??= emptyTotals());
+		addExpense(t, exp, homeCurrency, travelerCount);
+	}
+	return out;
 }
 
 /** Remaining budget = `total - spent` (may be negative when over budget). */
 export function budgetRemaining(spent: number, total: number | null | undefined): number | null {
-  if (total == null) return null;
-  return total - spent;
+	if (total == null) return null;
+	return total - spent;
 }
 
 /** Fraction of a budget used (`spent / total`), `null` when no budget is set. */
 export function budgetUsedFraction(spent: number, total: number | null | undefined): number | null {
-  if (total == null || total === 0) return null;
-  return spent / total;
+	if (total == null || total === 0) return null;
+	return spent / total;
 }
 
 /** Round to 2 decimals for stable display/equality of money values. */
 export function roundMoney(value: number): number {
-  return Math.round((value + Number.EPSILON) * 100) / 100;
+	return Math.round((value + Number.EPSILON) * 100) / 100;
 }

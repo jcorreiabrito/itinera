@@ -29,5 +29,4 @@
 		invalid ? 'border-danger' : 'border-border',
 		className
 	)}
-	{...rest}
-></textarea>
+	{...rest}></textarea>

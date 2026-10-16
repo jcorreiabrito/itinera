@@ -24,67 +24,67 @@ import type { DocType } from './constants';
 
 /** Generate a fresh ULID (sortable-by-creation unique id). */
 export function newUid(): string {
-  return ulid();
+	return ulid();
 }
 
 /** Strip a leading `trip:` so we have the bare UID used inside child ids. */
 export function bareTripUid(tripid: string): string {
-  return tripid.startsWith('trip:') ? tripid.slice('trip:'.length) : tripid;
+	return tripid.startsWith('trip:') ? tripid.slice('trip:'.length) : tripid;
 }
 export const bareTripUlid = bareTripUid;
 
 /** Return the full `trip:{uid}` form, accepting either a bare ULID or full id. */
 export function fullTripid(tripid: string): string {
-  return tripid.startsWith('trip:') ? tripid : `trip:${tripid}`;
+	return tripid.startsWith('trip:') ? tripid : `trip:${tripid}`;
 }
 
 /** Build a trip id, optionally from an existing ULID. */
 export function tripid(id: string = newUid()): string {
-  return `trip:${id}`;
+	return `trip:${id}`;
 }
 
 /** Build a `tripDay` id: `day:{tripUid}:{date}` (one per annotated date). */
 export function dayId(trip: string, date: string): string {
-  return `day:${bareTripUid(trip)}:${date}`;
+	return `day:${bareTripUid(trip)}:${date}`;
 }
 
 function childId(type: DocType, trip: string, id: string = newUid()): string {
-  return `${PREFIX_BY_TYPE[type]}:${bareTripUid(trip)}:${id}`;
+	return `${PREFIX_BY_TYPE[type]}:${bareTripUid(trip)}:${id}`;
 }
 
 /** Build an `itineraryItem` id: `itin:{tripUid}:{uid}`. */
 export function itineraryItemId(trip: string, id?: string): string {
-  return childId('itineraryItem', trip, id);
+	return childId('itineraryItem', trip, id);
 }
 
 /** Build a `checklistItem` id: `chk:{tripUid}:{uid}`. */
 export function checklistItemId(trip: string, id?: string): string {
-  return childId('checklistItem', trip, id);
+	return childId('checklistItem', trip, id);
 }
 
 /** Build a `flight` id: `flt:{tripUid}:{uid}`. */
 export function flightId(trip: string, id?: string): string {
-  return childId('flight', trip, id);
+	return childId('flight', trip, id);
 }
 
 /** Build a `reservation` id: `res:{tripUid}:{uid}`. */
 export function reservationId(trip: string, id?: string): string {
-  return childId('reservation', trip, id);
+	return childId('reservation', trip, id);
 }
 
 /** Build an `expense` id: `exp:{tripUid}:{uid}`. */
 export function expenseId(trip: string, id?: string): string {
-  return childId('expense', trip, id);
+	return childId('expense', trip, id);
 }
 
 /** Build an `attachment` id: `att:{tripUid}:{uid}`. */
 export function attachmentId(trip: string, id?: string): string {
-  return childId('attachment', trip, id);
+	return childId('attachment', trip, id);
 }
 
 /** Build a `checklistTemplate` id: `tpl:{uid}` (trip-independent). */
 export function templateId(id: string = newUid()): string {
-  return `tpl:${id}`;
+	return `tpl:${id}`;
 }
 
 /** The singleton settings id. */
@@ -92,16 +92,16 @@ export const settingsId = SETTINGS_ID;
 
 /** Parsed components of a document id. */
 export interface ParsedId {
-  /** The id prefix (e.g. `exp`). */
-  prefix: string;
-  /** The resolved document type, when the prefix is known. */
-  type?: DocType;
-  /** Bare trip ULID for trip-scoped ids (absent for `tpl:`/`settings:`). */
-  tripUid?: string;
-  /** Full `trip:{uid}` for trip-scoped ids. */
-  tripid?: string;
-  /** Trailing segment: the entity ULID, or the date for `day:` ids. */
-  id: string;
+	/** The id prefix (e.g. `exp`). */
+	prefix: string;
+	/** The resolved document type, when the prefix is known. */
+	type?: DocType;
+	/** Bare trip ULID for trip-scoped ids (absent for `tpl:`/`settings:`). */
+	tripUid?: string;
+	/** Full `trip:{uid}` for trip-scoped ids. */
+	tripid?: string;
+	/** Trailing segment: the entity ULID, or the date for `day:` ids. */
+	id: string;
 }
 
 /**
@@ -109,40 +109,40 @@ export interface ParsedId {
  * (returns `type: undefined`).
  */
 export function parseId(id: string): ParsedId {
-  const [prefix, ...rest] = id.split(':');
-  const type = TYPE_BY_PREFIX[prefix];
+	const [prefix, ...rest] = id.split(':');
+	const type = TYPE_BY_PREFIX[prefix];
 
-  if (prefix === 'trip') {
-    return { prefix, type, tripUid: rest[0], tripid: id, id: rest[0] };
-  }
-  if (prefix === 'tpl' || prefix === 'settings') {
-    return { prefix, type, id: rest.join(':') };
-  }
-  // Trip-scoped child: `{prefix}:{tripUid}:{rest...}`.
-  const [tripUid, ...tail] = rest;
-  return {
-    prefix,
-    type,
-    tripUid,
-    tripid: tripUid ? `trip:${tripUid}` : undefined,
-    id: tail.join(':')
-  };
+	if (prefix === 'trip') {
+		return { prefix, type, tripUid: rest[0], tripid: id, id: rest[0] };
+	}
+	if (prefix === 'tpl' || prefix === 'settings') {
+		return { prefix, type, id: rest.join(':') };
+	}
+	// Trip-scoped child: `{prefix}:{tripUid}:{rest...}`.
+	const [tripUid, ...tail] = rest;
+	return {
+		prefix,
+		type,
+		tripUid,
+		tripid: tripUid ? `trip:${tripUid}` : undefined,
+		id: tail.join(':')
+	};
 }
 
 /** True when an id belongs to the given trip (either trip-id form accepted). */
 export function belongsToTrip(id: string, trip: string): boolean {
-  return parseId(id).tripUid === bareTripUid(trip);
+	return parseId(id).tripUid === bareTripUid(trip);
 }
 
 /** Inclusive `startkey`/`endkey` pair for an `allDocs` prefix range scan. */
 export interface KeyRange {
-  startkey: string;
-  endkey: string;
+	startkey: string;
+	endkey: string;
 }
 
 /** Range covering every id with the given literal prefix. */
 export function prefixRange(prefix: string): KeyRange {
-  return { startkey: prefix, endkey: prefix + HIGH_KEY };
+	return { startkey: prefix, endkey: prefix + HIGH_KEY };
 }
 
 /**
@@ -150,10 +150,10 @@ export function prefixRange(prefix: string): KeyRange {
  * `expensePrefix + exp:{tripUid}:` … `exp:{tripUid}:\ufff0`.
  */
 export function tripTypeRange(type: DocType, trip: string): KeyRange {
-  return prefixRange(`${PREFIX_BY_TYPE[type]}:${bareTripUid(trip)}:`);
+	return prefixRange(`${PREFIX_BY_TYPE[type]}:${bareTripUid(trip)}:`);
 }
 
 /** Range covering every `trip:` document. */
 export function allTripsRange(): KeyRange {
-  return prefixRange('trip:');
+	return prefixRange('trip:');
 }

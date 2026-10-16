@@ -13,7 +13,6 @@ import { initDb } from '$lib/db';
 // storage, ensures Mango indexes, runs migrations, and starts live sync.
 await initDb();
 // Tests: initDb({ PouchImpl, adapter: 'memory', name: 'test', sync: false })
-
 ```
 
 All reads/writes then go through the repositories below – every one hits local PouchDB first.
@@ -25,33 +24,32 @@ import { syncStatus, syncNow, listConflicts } from '$lib/db';
 
 // syncStatus is a Svelte readable store with this exact shape:
 interface SyncStatus {
-    state: 'synced' | 'syncing' | 'offline' | 'pending' | 'error';
-    lastSyncedAt: string | null;  // ISO; persisted across reloads (localStorage)
-    pendingChanges: boolean;      // local edits not yet pushed (dot badge)
-    error: string | null;         // message when state === 'error'
+	state: 'synced' | 'syncing' | 'offline' | 'pending' | 'error';
+	lastSyncedAt: string | null; // ISO; persisted across reloads (localStorage)
+	pendingChanges: boolean; // local edits not yet pushed (dot badge)
+	error: string | null; // message when state === 'error'
 }
-
 ```
 
 ```svelte
 <script>
-    import { syncStatus, syncNow } from '$lib/db';
+	import { syncStatus, syncNow } from '$lib/db';
 </script>
+
 {#if $syncStatus.state === 'offline'}Showing saved data{/if}
 <button on:click={() => syncNow()}>Sync now</button>
-
 ```
 
-| state | Meaning | Pill |
-| --- | --- | --- |
-| `synced` | Caught up | check + `Synced {lastSyncedAt}` |
-| `syncing` | Transferring | spinner |
-| `offline` | No connection | cloud-off |
-| `pending` | Local changes queued | dot badge |
-| `error` | Replication error | warning + "Retry now" → `syncNow()` |
+| state     | Meaning              | Pill                                |
+| --------- | -------------------- | ----------------------------------- |
+| `synced`  | Caught up            | check + `Synced {lastSyncedAt}`     |
+| `syncing` | Transferring         | spinner                             |
+| `offline` | No connection        | cloud-off                           |
+| `pending` | Local changes queued | dot badge                           |
+| `error`   | Replication error    | warning + "Retry now" → `syncNow()` |
 
-* `syncNow(): Promise<void>` – manual one-shot sync.
-* `listConflicts(): Promise<ConflictReport[]>` – for a future "Review changes" screen; returns the LwW winner + the **retained** losing revisions for conflicted doc.
+- `syncNow(): Promise<void>` – manual one-shot sync.
+- `listConflicts(): Promise<ConflictReport[]>` – for a future "Review changes" screen; returns the LwW winner + the **retained** losing revisions for conflicted doc.
 
 ## Repositories (the page API)
 
@@ -63,7 +61,7 @@ Each is a namespace import: `import { trips, itinerary, ... } from '$lib/db'`.
 
 ### `itinerary`
 
-`byTrip` · `byDay` · `unscheduled` · `dayList` · `create` · `update` · `softDelete` / `restore` · `moveToDay` · `reorderWithinDay` · `link(id, {flightId})` · `addAsExpense(itemId)` · `getDay` / `setDayMeta` (TripDay title/notes) · `dayTimeline(tripId, date)`  /  `tripTimeline(tripId)`  → merged `DayTimeline` (all-day + timed entries combining items, flight legs, reservation placements; daily to-dos; per-day cost `subtotal`).
+`byTrip` · `byDay` · `unscheduled` · `dayList` · `create` · `update` · `softDelete` / `restore` · `moveToDay` · `reorderWithinDay` · `link(id, {flightId})` · `addAsExpense(itemId)` · `getDay` / `setDayMeta` (TripDay title/notes) · `dayTimeline(tripId, date)` / `tripTimeline(tripId)` → merged `DayTimeline` (all-day + timed entries combining items, flight legs, reservation placements; daily to-dos; per-day cost `subtotal`).
 
 ### `checklist`
 
@@ -71,7 +69,7 @@ Each is a namespace import: `import { trips, itinerary, ... } from '$lib/db'`.
 
 ### `flights`
 
-`byTrip` (sorted by first depart) · `get` · `create` / `update` / `softDelete` / `restore` · `reorder` · `computeFlight(flight)`  → durations, layovers, "+1 day", route, stops (tz-aware) · `listAttachments` · `linkAttachment` / `unlinkAttachment`. Setting `cost` upserts one linked `expense` (`category: transport`); clearing it removes that expense.
+`byTrip` (sorted by first depart) · `get` · `create` / `update` / `softDelete` / `restore` · `reorder` · `computeFlight(flight)` → durations, layovers, "+1 day", route, stops (tz-aware) · `listAttachments` · `linkAttachment` / `unlinkAttachment`. Setting `cost` upserts one linked `expense` (`category: transport`); clearing it removes that expense.
 
 ### `reservations`
 
@@ -83,7 +81,7 @@ Each is a namespace import: `import { trips, itinerary, ... } from '$lib/db'`.
 
 ### `attachments`
 
-`create(tripId, ownerType, ownerId, file, resizeImages?)`  → large images are **client-resized** into `full` (~1600px) + `thumb` (~480px) blobs, others stored as a single `file` blob, all inline in `_attachments`; records the original `mime` **and** a derived `safeMime` · `get` · `byTrip` · `forOwner` ·  `pickBlobName(id, prefer?)`  → the blob name to display: returns `prefer` (`thumb` | `full` | `file`, default `file`) when that blob exists, else `file`, else the first blob, else `null` when the doc has no blobs. The UI uses it to choose a cover/thumbnail blob. ·  `objectUrl(id, name?)`  (offline viewing; pair with `revokeObjectUrl`) – when `name` is omitted it auto-picks via `pickBlobName(id, 'file')`, i.e. **falls back to the `file` blob** (then the first available) when no named blob exists · `setOwner` · `remove` (soft) / `purge` (hard) · `computeResizeDimensions(pure)` · `isInlineRenderable(mime)` / `safeViewMime(mime)` (pure: see **Attachment view safety** below).
+`create(tripId, ownerType, ownerId, file, resizeImages?)` → large images are **client-resized** into `full` (~1600px) + `thumb` (~480px) blobs, others stored as a single `file` blob, all inline in `_attachments`; records the original `mime` **and** a derived `safeMime` · `get` · `byTrip` · `forOwner` · `pickBlobName(id, prefer?)` → the blob name to display: returns `prefer` (`thumb` | `full` | `file`, default `file`) when that blob exists, else `file`, else the first blob, else `null` when the doc has no blobs. The UI uses it to choose a cover/thumbnail blob. · `objectUrl(id, name?)` (offline viewing; pair with `revokeObjectUrl`) – when `name` is omitted it auto-picks via `pickBlobName(id, 'file')`, i.e. **falls back to the `file` blob** (then the first available) when no named blob exists · `setOwner` · `remove` (soft) / `purge` (hard) · `computeResizeDimensions(pure)` · `isInlineRenderable(mime)` / `safeViewMime(mime)` (pure: see **Attachment view safety** below).
 
 ### `settings`
 
@@ -95,24 +93,24 @@ Each is a namespace import: `import { trips, itinerary, ... } from '$lib/db'`.
 
 ## IDs (meaningful, prefix-sortable – matches the server)
 
-| Doc | Id |
-| --- | --- |
-| trip | `trip:{ulid}` |
-| TripDay | `day:{tripUlid}:{date}` |
+| Doc                                                                     | Id                                                                       |
+| ----------------------------------------------------------------------- | ------------------------------------------------------------------------ |
+| trip                                                                    | `trip:{ulid}`                                                            |
+| TripDay                                                                 | `day:{tripUlid}:{date}`                                                  |
 | itinerary / checklistItem / flight / reservation / expense / attachment | `itin:` / `chk:` / `flt:` / `res:` / `exp:` / `att:` `{tripUlid}:{ulid}` |
-| checklistTemplate | `tpl:{ulid}` |
-| settings | `settings:app` |
+| checklistTemplate                                                       | `tpl:{ulid}`                                                             |
+| settings                                                                | `settings:app`                                                           |
 
-* **Child ids embed the bare trip ULID** (the server's `_normalise_trip_id` strips `trip:`); the `tripId` field stores the full `trip:{ulid}` so it points at the trip document.
-* Per-trip data is fetched with **prefix range scans** (`startkey`/`endkey` + `\ufff0`) – no index needed. Builders/parsers: `tripId()`, `expenseId()`, ..., `parseId()`, `tripTypeRange()`.
+- **Child ids embed the bare trip ULID** (the server's `_normalise_trip_id` strips `trip:`); the `tripId` field stores the full `trip:{ulid}` so it points at the trip document.
+- Per-trip data is fetched with **prefix range scans** (`startkey`/`endkey` + `\ufff0`) – no index needed. Builders/parsers: `tripId()`, `expenseId()`, ..., `parseId()`, `tripTypeRange()`.
 
 ## Indexes (aligned 1:1 with FastAPI)
 
 `ensureIndexes()` creates exactly the server's six Mango indexes (`api/app/couch.py` `INDEX_SPECS`), same names/ddocs/fields:
 
-* `idx-type` `['type']` · `idx-type-tripid` `['type', 'tripId']` · `idx-type-startDate` `['type', 'startDate']`
-* `idx-type-date` `['type', 'date']` · `idx-type-category` `['type', 'category']`
-* `idx-type-deletedAt` `['type', 'deletedAt']`.
+- `idx-type` `['type']` · `idx-type-tripid` `['type', 'tripId']` · `idx-type-startDate` `['type', 'startDate']`
+- `idx-type-date` `['type', 'date']` · `idx-type-category` `['type', 'category']`
+- `idx-type-deletedAt` `['type', 'deletedAt']`.
 
 ## Attachment view safety
 
@@ -122,11 +120,11 @@ A `blob:` object URL **inherits the app origin**, so an `image/svg+xml`, `text/h
 
 **The Phase 3 viewer MUST follow**:
 
-* Gate **all** inline display on `isInlineRenderable(att.mime)` (or check `att.safeMime`).
-* Render allowlisted **raster** types only via `<img src={objectUrl(...)}>`.
-* Render **PDFs** via a download link, or a `<iframe sandbox>` with **no** `allow-scripts`.
-* **Never** point an `<iframe>` / `<object>` / `window.open` at an arbitrary attachment's object URL.
-* Non-allowlisted types (svg/html/xhtml/unknown) are download-only – offer a download link (the `octet-stream` view type already forces download).
+- Gate **all** inline display on `isInlineRenderable(att.mime)` (or check `att.safeMime`).
+- Render allowlisted **raster** types only via `<img src={objectUrl(...)}>`.
+- Render **PDFs** via a download link, or a `<iframe sandbox>` with **no** `allow-scripts`.
+- **Never** point an `<iframe>` / `<object>` / `window.open` at an arbitrary attachment's object URL.
+- Non-allowlisted types (svg/html/xhtml/unknown) are download-only – offer a download link (the `octet-stream` view type already forces download).
 
 ## Conflict policy
 
@@ -144,16 +142,16 @@ Every doc carries `schemaVersion` (current = `1`). `runMigrations()` migrates an
 
 ## Module map
 
-| File | Role |
-| --- | --- |
-| `index.ts` | Public barrel + `initDb()` |
-| `constants.ts` · `ids.ts` · `schemas.ts` | Names/prefixes · id builders · Zod schemas + types |
-| `datetime.ts` · `money.ts` | Pure date/tz + FX/budget maths |
-| `conflicts.ts` · `migrations.ts` | Pure LwW + pure migrations |
+| File                                              | Role                                                                            |
+| ------------------------------------------------- | ------------------------------------------------------------------------------- |
+| `index.ts`                                        | Public barrel + `initDb()`                                                      |
+| `constants.ts` · `ids.ts` · `schemas.ts`          | Names/prefixes · id builders · Zod schemas + types                              |
+| `datetime.ts` · `money.ts`                        | Pure date/tz + FX/budget maths                                                  |
+| `conflicts.ts` · `migrations.ts`                  | Pure LwW + pure migrations                                                      |
 | `pouch.ts` · `indexes.ts` · `base.ts` · `sync.ts` | PouchDB setup · Mango indexes · CRUD helpers · replication + status + conflicts |
-| `airports.ts` · `airports.data.ts` | Offline airport lookup + dataset |
-| `repositories/*.ts` | The typed page API (`repositories/attachment-mime.ts` = pure MIME allowlist) |
-| `*.test.ts` | Vitest unit tests for the pure logic |
+| `airports.ts` · `airports.data.ts`                | Offline airport lookup + dataset                                                |
+| `repositories/*.ts`                               | The typed page API (`repositories/attachment-mime.ts` = pure MIME allowlist)    |
+| `*.test.ts`                                       | Vitest unit tests for the pure logic                                            |
 
 ## Testing note
 

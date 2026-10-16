@@ -15,9 +15,9 @@ import { getDb, type Database } from './pouch';
 
 /** A single index definition (fields + stable name/ddoc). */
 export interface IndexSpec {
-  fields: string[];
-  name: string;
-  ddoc: string;
+	fields: string[];
+	name: string;
+	ddoc: string;
 }
 
 /**
@@ -25,12 +25,12 @@ export interface IndexSpec {
  * `api/app/couch.py` in lock-step (flag the orchestrator).
  */
 export const INDEX_SPECS: readonly IndexSpec[] = [
-  { fields: ['type'], name: 'idx-type', ddoc: 'idx-type' },
-  { fields: ['type', 'tripid'], name: 'idx-type-tripid', ddoc: 'idx-type-tripid' },
-  { fields: ['type', 'startDate'], name: 'idx-type-startDate', ddoc: 'idx-type-startDate' },
-  { fields: ['type', 'date'], name: 'idx-type-date', ddoc: 'idx-type-date' },
-  { fields: ['type', 'category'], name: 'idx-type-category', ddoc: 'idx-type-category' },
-  { fields: ['type', 'deletedAt'], name: 'idx-type-deletedAt', ddoc: 'idx-type-deletedAt' },
+	{ fields: ['type'], name: 'idx-type', ddoc: 'idx-type' },
+	{ fields: ['type', 'tripid'], name: 'idx-type-tripid', ddoc: 'idx-type-tripid' },
+	{ fields: ['type', 'startDate'], name: 'idx-type-startDate', ddoc: 'idx-type-startDate' },
+	{ fields: ['type', 'date'], name: 'idx-type-date', ddoc: 'idx-type-date' },
+	{ fields: ['type', 'category'], name: 'idx-type-category', ddoc: 'idx-type-category' },
+	{ fields: ['type', 'deletedAt'], name: 'idx-type-deletedAt', ddoc: 'idx-type-deletedAt' }
 ];
 
 /**
@@ -38,13 +38,13 @@ export const INDEX_SPECS: readonly IndexSpec[] = [
  * `createIndex` is a no-op when the design document already matches.
  */
 export async function ensureIndexes(db: Database = getDb()): Promise<void> {
-  for (const spec of INDEX_SPECS) {
-    await db.createIndex({
-      index: {
-        fields: spec.fields,
-        name: spec.name,
-        ddoc: spec.ddoc
-      }
-    });
-  }
+	for (const spec of INDEX_SPECS) {
+		await db.createIndex({
+			index: {
+				fields: spec.fields,
+				name: spec.name,
+				ddoc: spec.ddoc
+			}
+		});
+	}
 }

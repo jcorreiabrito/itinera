@@ -1,55 +1,63 @@
 <script lang="ts" module>
-    export type ButtonVariant = 'primary' | 'secondary' | 'ghost' | 'destructive';
-    export type ButtonSize = 'sm' | 'md' | 'lg';
+	export type ButtonVariant = 'primary' | 'secondary' | 'ghost' | 'destructive';
+	export type ButtonSize = 'sm' | 'md' | 'lg';
 </script>
 
 <script lang="ts">
-    import type { Snippet } from 'svelte';
-    import { cn } from '$lib/utils';
+	import type { Snippet } from 'svelte';
+	import { cn } from '$lib/utils';
 
-    interface Props {
-        variant?: ButtonVariant;
-        size?: ButtonSize;
-        href?: string;
-        type?: 'button' | 'submit' | 'reset';
-        class?: string;
-        children: Snippet;
-        [key: string]: unknown;
-    }
+	interface Props {
+		variant?: ButtonVariant;
+		size?: ButtonSize;
+		href?: string;
+		type?: 'button' | 'submit' | 'reset';
+		class?: string;
+		children: Snippet;
+		[key: string]: unknown;
+	}
 
-    let {
-        variant = 'primary',
-        size = 'md',
-        href,
-        type = 'button',
-        class: className,
-        children,
-        ...rest
-    }: Props = $props();
+	let {
+		variant = 'primary',
+		size = 'md',
+		href,
+		type = 'button',
+		class: className,
+		children,
+		...rest
+	}: Props = $props();
 
-    const base = 'inline-flex select-none items-center justify-center gap-2 whitespace-nowrap rounded-md font-medium transition-[background-color,color,transform,box-shadow] duration-150 ease-out focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary-600 focus-visible:ring-offset-2 focus-visible:ring-offset-bg active:scale-[0.97] disabled:pointer-events-none disabled:opacity-50';
-    const variants: Record<ButtonVariant, string> = {
-        primary: 'bg-primary-600 text-white shadow-sm hover:bg-primary-700 hover:shadow-[0_0_0_3px_rgba(47,104,79,0.18)] active:bg-primary-700',
-        secondary: 'bg-surface-sunken hover:bg-border/60 text-ink border border-border/80',
-        ghost: 'bg-transparent text-ink hover:bg-surface-sunken',
-        destructive: 'bg-danger text-white shadow-sm hover:brightness-110 active:brightness-90',
-    };
+	const base =
+		'inline-flex select-none items-center justify-center gap-2 whitespace-nowrap rounded-md font-medium transition-[background-color,color,transform,box-shadow] duration-150 ease-out focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary-600 focus-visible:ring-offset-2 focus-visible:ring-offset-bg active:scale-[0.97] disabled:pointer-events-none disabled:opacity-50';
+	const variants: Record<ButtonVariant, string> = {
+		primary:
+			'bg-primary-600 text-white shadow-sm hover:bg-primary-700 hover:shadow-[0_0_0_3px_rgba(47,104,79,0.18)] active:bg-primary-700',
+		secondary: 'bg-surface-sunken hover:bg-border/60 text-ink border border-border/80',
+		ghost: 'bg-transparent text-ink hover:bg-surface-sunken',
+		destructive: 'bg-danger text-white shadow-sm hover:brightness-110 active:brightness-90'
+	};
 
-    const sizes: Record<ButtonSize, string> = {
-        sm: 'min-h-[44px] h-10 px-3.5 sm:min-h-0 sm:h-8 sm:px-3 text-sm',
-        md: 'min-h-touch h-10 px-4 text-sm',
-        lg: 'min-h-touch h-12 px-6 text-lg',
-    };
+	const sizes: Record<ButtonSize, string> = {
+		sm: 'min-h-[44px] h-10 px-3.5 sm:min-h-0 sm:h-8 sm:px-3 text-sm',
+		md: 'min-h-touch h-10 px-4 text-sm',
+		lg: 'min-h-touch h-12 px-6 text-lg'
+	};
 
-    const classes = $derived(cn(base, variants[variant], sizes[size], className));
+	const classes = $derived(cn(base, variants[variant], sizes[size], className));
 </script>
 
 {#if href}
-    <a href={href} class={classes} {...rest}>
-        {@render children()}
-    </a>
+	<!--
+        `href` is deliberately an unconstrained string: Button renders download
+        links to `blob:` object URLs (AttachmentViewer) as well as external
+        destinations, so it is not an in-app route and has nothing to resolve.
+    -->
+	<!-- eslint-disable-next-line svelte/no-navigation-without-resolve -->
+	<a {href} class={classes} {...rest}>
+		{@render children()}
+	</a>
 {:else}
-    <button type={type} class={classes} {...rest}>
-        {@render children()}
-    </button>
+	<button {type} class={classes} {...rest}>
+		{@render children()}
+	</button>
 {/if}

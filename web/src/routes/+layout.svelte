@@ -1,65 +1,67 @@
 <script lang="ts" module>
-  // Bootstrap the data layer exactly once for the app's lifetime.
-  let booted = false;
+	// Bootstrap the data layer exactly once for the app's lifetime.
+	let booted = false;
 </script>
 
 <script lang="ts">
-  import '../app.css';
-  import type { Snippet } from 'svelte';
-  import { onMount } from 'svelte';
-  import { initDb } from '$lib/db';
-  import { initLanguage } from '$lib/i18n.svelte';
-  import { Toaster, toast } from '$lib/components/ui';
-  import ReloadPrompt from '$lib/components/ReloadPrompt.svelte';
-  import OfflineBanner from '$lib/components/OfflineBanner.svelte';
+	import '../app.css';
+	import type { Snippet } from 'svelte';
+	import { onMount } from 'svelte';
+	import { initDb } from '$lib/db';
+	import { initLanguage } from '$lib/i18n.svelte';
+	import { Toaster, toast } from '$lib/components/ui';
+	import ReloadPrompt from '$lib/components/ReloadPrompt.svelte';
+	import OfflineBanner from '$lib/components/OfflineBanner.svelte';
 
-  import { theme } from '$lib/stores/theme.svelte';
-  import { viewport } from '$lib/stores/viewport.svelte';
+	import { theme } from '$lib/stores/theme.svelte';
+	import { viewport } from '$lib/stores/viewport.svelte';
 
-  import * as dbRepo from '$lib/db';
+	import * as dbRepo from '$lib/db';
 
-  let { children }: { children: Snippet } = $props();
+	let { children }: { children: Snippet } = $props();
 
-  onMount(() => {
-    theme.init();
-    viewport.init();
-    if (booted) return;
-    booted = true;
-    // Load language preference from settings
-    initLanguage();
-    // Creates the local db, requests persistent storage, ensures indexes, runs
-    // migrations, and starts live sync. The UI reads/writes local data only.
-    initDb().then((db) => {
-      if (typeof window !== 'undefined') {
-        (window as any).db = db;
-        if (import.meta.env.DEV) {
-          (window as any).dbRepo = dbRepo;
-        }
-      }
-    }).catch((error) => {
-      console.error('initDb failed', error);
-      toast.error('Could not open local storage. Some features may be unavailable.');
-    });
-  });
+	onMount(() => {
+		theme.init();
+		viewport.init();
+		if (booted) return;
+		booted = true;
+		// Load language preference from settings
+		initLanguage();
+		// Creates the local db, requests persistent storage, ensures indexes, runs
+		// migrations, and starts live sync. The UI reads/writes local data only.
+		initDb()
+			.then((db) => {
+				if (typeof window !== 'undefined') {
+					(window as unknown as { db: typeof db }).db = db;
+					if (import.meta.env.DEV) {
+						(window as unknown as { dbRepo: typeof dbRepo }).dbRepo = dbRepo;
+					}
+				}
+			})
+			.catch((error) => {
+				console.error('initDb failed', error);
+				toast.error('Could not open local storage. Some features may be unavailable.');
+			});
+	});
 </script>
 
 <a
-  href="#page-content"
-  class="sr-only focus:not-sr-only focus:absolute focus:z-50 focus:p-4 focus:bg-surface focus:text-ink focus:border focus:border-border focus:shadow-md"
+	href="#page-content"
+	class="sr-only focus:not-sr-only focus:absolute focus:z-50 focus:border focus:border-border focus:bg-surface focus:p-4 focus:text-ink focus:shadow-md"
 >
-  Skip to main content
+	Skip to main content
 </a>
 
 <div class="flex min-h-dvh flex-col" id="main-content">
-  <!-- Dynamic Gradient Mesh Background -->
-  <div class="mesh-container" aria-hidden="true">
-    <div class="mesh-orb mesh-orb-1"></div>
-    <div class="mesh-orb mesh-orb-2"></div>
-    <div class="mesh-orb mesh-orb-3"></div>
-  </div>
+	<!-- Dynamic Gradient Mesh Background -->
+	<div class="mesh-container" aria-hidden="true">
+		<div class="mesh-orb mesh-orb-1"></div>
+		<div class="mesh-orb mesh-orb-2"></div>
+		<div class="mesh-orb mesh-orb-3"></div>
+	</div>
 
-  <OfflineBanner />
-  {@render children()}
+	<OfflineBanner />
+	{@render children()}
 </div>
 
 <Toaster />

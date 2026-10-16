@@ -23,386 +23,619 @@
 @tailwind utilities;
 
 @layer base {
-  /* Design tokens (docs/13-ui-ux.md) exposed as CSS variables for ad-hoc use. */
-  :root {
-    --color-primary-100-rgb: 230 240 234;
-    --color-primary-600-rgb: 47 104 79;
-    --color-primary-700-rgb: 36 85 57;
-    --color-accent-terracotta-rgb: 201 107 74;
-    --color-accent-amber-rgb: 224 164 88;
-    --color-bg-rgb: 251 247 241;
-    --color-surface-rgb: 255 253 249;
-    --color-surface-sunken-rgb: 244 238 228;
-    --color-border-rgb: 234 225 212;
-    --color-ink-rgb: 42 38 32;
-    --color-ink-muted-rgb: 111 101 87;
+	/*
+   * Design tokens — the SINGLE source of truth for colour in the app.
+   *
+   * Every Tailwind colour in tailwind.config.ts resolves to one of these
+   * `--*-rgb` triples, which is what makes dark mode work: `html.dark` below
+   * redefines the same names and every utility follows automatically.
+   *
+   * Do NOT add a raw hex colour to tailwind.config.ts. A literal there cannot
+   * respond to the dark override, which is exactly how `text-danger` ended up
+   * rendering the light-theme value at 2.98:1 in dark mode.
+   *
+   * The `-rgb` triple and the hex alias must agree; both are kept because a few
+   * inline styles and the print layer use the hex form.
+   */
+	:root {
+		/* Forest-green accent — full ramp so no `primary-N` class is ever undefined. */
+		--color-primary-50-rgb: 242 248 244;
+		--color-primary-100-rgb: 230 240 234;
+		--color-primary-200-rgb: 201 223 211;
+		--color-primary-300-rgb: 163 200 178;
+		--color-primary-400-rgb: 110 169 138;
+		--color-primary-500-rgb: 70 138 103;
+		--color-primary-600-rgb: 47 104 79;
+		--color-primary-700-rgb: 36 85 57;
+		--color-primary-800-rgb: 29 68 48;
+		--color-primary-900-rgb: 23 53 38;
+		--color-primary-950-rgb: 13 32 23;
+		--color-accent-terracotta-rgb: 201 107 74;
+		--color-accent-amber-rgb: 224 164 88;
+		--color-bg-rgb: 251 247 241;
+		--color-surface-rgb: 255 253 249;
+		--color-surface-sunken-rgb: 244 238 228;
+		--color-border-rgb: 234 225 212;
+		--color-ink-rgb: 42 38 32;
+		--color-ink-muted-rgb: 111 101 87;
 
-    --color-primary-100: #e6f0ea;
-    --color-primary-600: #2f6b4f;
-    --color-primary-700: #245539;
-    --color-accent-terracotta: #c96b4a;
-    --color-accent-amber: #e0a458;
-    --color-bg: #fbf7f1;
-    --color-surface: #fffdf9;
-    --color-surface-sunken: #f4eee4;
-    --color-border: #eae1d4;
-    --color-border-strong: #cfc2ad;
-    --color-ink: #2a2620;
-    --color-ink-muted: #6f6557;
-    --color-success: #3e8e5a;
-    --color-warning: #c98a2b;
-    --color-danger: #b4452f;
-    --color-info: #3e6e8e;
+		/* Status — WCAG AA (>=4.5:1) as text on --color-surface. */
+		--color-success-rgb: 53 122 76;
+		--color-warning-rgb: 138 90 16;
+		--color-danger-rgb: 180 69 47;
+		--color-info-rgb: 62 110 142;
 
-    --radius-sm: 8px;
-    --radius-md: 12px;
-    --radius-lg: 16px;
-    --radius-xl: 24px;
+		--color-primary-50: #f2f8f4;
+		--color-primary-100: #e6f0ea;
+		--color-primary-200: #c9dfd3;
+		--color-primary-300: #a3c8b2;
+		--color-primary-400: #6ea98a;
+		--color-primary-500: #468a67;
+		--color-primary-600: #2f684f;
+		--color-primary-700: #245539;
+		--color-primary-800: #1d4430;
+		--color-primary-900: #173526;
+		--color-primary-950: #0d2017;
+		--color-accent-terracotta: #c96b4a;
+		--color-accent-amber: #e0a458;
+		--color-bg: #fbf7f1;
+		--color-surface: #fffdf9;
+		--color-surface-sunken: #f4eee4;
+		--color-border: #eae1d4;
+		--color-border-strong: #cfc2ad;
+		--color-ink: #2a2620;
+		--color-ink-muted: #6f6557;
+		--color-success: #357a4c;
+		--color-warning: #8a5a10;
+		--color-danger: #b4452f;
+		--color-info: #3e6e8e;
 
-    --font-serif: Fraunces, ui-serif, Georgia, Cambria, 'Times New Roman', serif;
-    --font-sans: Inter, ui-sans-serif, system-ui, sans-serif;
+		--radius-sm: 8px;
+		--radius-md: 12px;
+		--radius-lg: 16px;
+		--radius-xl: 24px;
 
-    color-scheme: light;
-  }
+		--font-serif: Fraunces, ui-serif, Georgia, Cambria, 'Times New Roman', serif;
+		--font-sans: Inter, ui-sans-serif, system-ui, sans-serif;
 
-  html.dark {
-    --color-bg-rgb: 17 22 19;
-    --color-surface-rgb: 25 34 28;
-    --color-surface-sunken-rgb: 14 18 15;
-    --color-border-rgb: 37 51 42;
-    --color-ink-rgb: 240 244 241;
-    --color-ink-muted-rgb: 155 176 163;
-    --color-primary-100-rgb: 29 54 41;
-    --color-primary-600-rgb: 59 138 101;
-    --color-primary-700-rgb: 77 165 123;
+		color-scheme: light;
+	}
 
-    --color-bg: #111613;
-    --color-surface: #19221c;
-    --color-surface-sunken: #0e120f;
-    --color-border: #25332a;
-    --color-border-strong: #475f50;
-    --color-ink: #f0f4f1;
-    --color-ink-muted: #9bb0a3;
-    --color-primary-100: #1d3629;
-    --color-primary-600: #3b8a65;
-    --color-primary-700: #4da57b;
-    --color-success: #4da57b;
-    --color-warning: #e0a458;
-    --color-danger: #e26d5c;
-    --color-info: #5b92b6;
-    color-scheme: dark;
-  }
+	/*
+   * Dark theme. Note this is a ROLE-mapped override, not a lightness inversion:
+   * steps 50–200 stay dark tints (surfaces), 300–400 become light text, 600–700
+   * stay the button/accent pair they were hand-tuned to be. Keeping every step
+   * in use defined here is what stops `dark:` styles silently generating nothing.
+   */
+	html.dark {
+		--color-bg-rgb: 17 22 19;
+		--color-surface-rgb: 25 34 28;
+		--color-surface-sunken-rgb: 14 18 15;
+		--color-border-rgb: 37 51 42;
+		--color-ink-rgb: 240 244 241;
+		--color-ink-muted-rgb: 155 176 163;
+		--color-primary-50-rgb: 19 31 24;
+		--color-primary-100-rgb: 29 54 41;
+		--color-primary-200-rgb: 36 67 47;
+		--color-primary-300-rgb: 143 202 169;
+		--color-primary-400-rgb: 107 185 141;
+		--color-primary-500-rgb: 87 177 131;
+		--color-primary-600-rgb: 59 138 101;
+		--color-primary-700-rgb: 77 165 123;
+		--color-primary-800-rgb: 42 95 71;
+		--color-primary-900-rgb: 31 71 53;
+		--color-primary-950-rgb: 20 46 34;
 
-  html {
-    -webkit-text-size-adjust: 100%;
-    text-size-adjust: 100%;
-  }
+		/* Status — every value >=4.5:1 on --color-surface (#19221c). */
+		--color-success-rgb: 77 165 123;
+		--color-warning-rgb: 224 164 88;
+		--color-danger-rgb: 226 109 92;
+		--color-info-rgb: 91 146 182;
 
-  body {
-    background-color: var(--color-bg);
-    color: var(--color-ink);
-    font-family: var(--font-sans);
-    line-height: 1.6;
-    -webkit-font-smoothing: antialiased;
-    text-rendering: optimizeLegibility;
-  }
+		--color-bg: #111613;
+		--color-surface: #19221c;
+		--color-surface-sunken: #0e120f;
+		--color-border: #25332a;
+		--color-border-strong: #475f50;
+		--color-ink: #f0f4f1;
+		--color-ink-muted: #9bb0a3;
+		--color-primary-50: #131f18;
+		--color-primary-100: #1d3629;
+		--color-primary-200: #24432f;
+		--color-primary-300: #8fcaa9;
+		--color-primary-400: #6bb98d;
+		--color-primary-500: #57b183;
+		--color-primary-600: #3b8a65;
+		--color-primary-700: #4da57b;
+		--color-primary-800: #2a5f47;
+		--color-primary-900: #1f4735;
+		--color-primary-950: #142e22;
+		--color-success: #4da57b;
+		--color-warning: #e0a458;
+		--color-danger: #e26d5c;
+		--color-info: #5b92b6;
+		color-scheme: dark;
+	}
 
-  html, body {
-    overscroll-behavior-y: none;
-    -webkit-tap-highlight-color: transparent;
-  }
+	html {
+		-webkit-text-size-adjust: 100%;
+		text-size-adjust: 100%;
+	}
 
-  button, a, input, select, textarea {
-    touch-action: manipulation;
-  }
+	body {
+		background-color: var(--color-bg);
+		color: var(--color-ink);
+		font-family: var(--font-sans);
+		line-height: 1.6;
+		-webkit-font-smoothing: antialiased;
+		text-rendering: optimizeLegibility;
+	}
 
-  h1,
-  h2,
-  h3,
-  h4,
-  h5,
-  h6 {
-    font-family: var(--font-serif);
-    font-weight: 600;
-    line-height: 1.2;
-    color: var(--color-ink);
-    letter-spacing: -0.01em;
-  }
+	html,
+	body {
+		overscroll-behavior-y: none;
+		-webkit-tap-highlight-color: transparent;
+	}
 
-  /* Aligned budget figures / numerals. */
-  .tabular-nums,
-  .font-numeric {
-    font-variant-numeric: tabular-nums;
-    font-feature-settings: 'tnum';
-  }
+	button,
+	a,
+	input,
+	select,
+	textarea {
+		touch-action: manipulation;
+	}
 
-  /* Visible 2px focus rings (primary-600) – WCAG AA. */
-  :where(a, button, input, select, textarea, summary, [tabindex]):focus-visible {
-    outline: 2px solid var(--color-primary-600);
-    outline-offset: 2px;
-    border-radius: 6px;
-  }
+	h1,
+	h2,
+	h3,
+	h4,
+	h5,
+	h6 {
+		font-family: var(--font-serif);
+		font-weight: 600;
+		line-height: 1.2;
+		color: var(--color-ink);
+		letter-spacing: -0.01em;
+	}
 
-  ::selection {
-    background: var(--color-primary-100);
-    color: var(--color-primary-700);
-  }
+	/* Aligned budget figures / numerals. */
+	.tabular-nums,
+	.font-numeric {
+		font-variant-numeric: tabular-nums;
+		font-feature-settings: 'tnum';
+	}
 
-  @layer utilities {
-    .text-balance {
-      text-wrap: balance;
-    }
+	/* Visible 2px focus rings (primary-600) – WCAG AA. */
+	:where(a, button, input, select, textarea, summary, [tabindex]):focus-visible {
+		outline: 2px solid var(--color-primary-600);
+		outline-offset: 2px;
+		border-radius: 6px;
+	}
 
-    .text-pretty {
-      text-wrap: pretty;
-    }
+	::selection {
+		background: var(--color-primary-100);
+		color: var(--color-primary-700);
+	}
 
-    /* Honor the iOS/Android safe areas for the device notch and bottom bar. */
-    .pb-safe { padding-bottom: env(safe-area-inset-bottom); }
-    .pt-safe { padding-top: env(safe-area-inset-top); }
-    .pl-safe { padding-left: env(safe-area-inset-left); }
-    .pr-safe { padding-right: env(safe-area-inset-right); }
-    .safe-area-bottom { padding-bottom: calc(1rem + env(safe-area-inset-bottom, 0px)); }
-    .safe-area-top { padding-top: calc(0.5rem + env(safe-area-inset-top, 0px)); }
+	@layer utilities {
+		.text-balance {
+			text-wrap: balance;
+		}
 
-    .glass-panel {
-      background-color: rgba(255, 253, 249, 0.65);
-      backdrop-filter: blur(16px) saturate(120%);
-      -webkit-backdrop-filter: blur(16px) saturate(120%);
-      border: 1px solid rgba(234, 225, 212, 0.5);
-    }
-    .dark .glass-panel {
-      background-color: rgba(25, 34, 28, 0.75);
-      border-color: rgba(37, 51, 42, 0.6);
-    }
+		.text-pretty {
+			text-wrap: pretty;
+		}
 
-    .glass-header {
-      background-color: rgba(251, 247, 241, 0.85);
-      backdrop-filter: blur(20px) saturate(120%);
-      -webkit-backdrop-filter: blur(20px) saturate(120%);
-      border-bottom: 1px solid rgba(234, 225, 212, 0.6);
-    }
-    .dark .glass-header {
-      background-color: rgba(17, 22, 19, 0.85);
-      border-bottom-color: rgba(37, 51, 42, 0.6);
-    }
+		/* Honor the iOS/Android safe areas for the device notch and bottom bar. */
+		.pb-safe {
+			padding-bottom: env(safe-area-inset-bottom);
+		}
+		.pt-safe {
+			padding-top: env(safe-area-inset-top);
+		}
+		.pl-safe {
+			padding-left: env(safe-area-inset-left);
+		}
+		.pr-safe {
+			padding-right: env(safe-area-inset-right);
+		}
+		.safe-area-bottom {
+			padding-bottom: calc(1rem + env(safe-area-inset-bottom, 0px));
+		}
+		.safe-area-top {
+			padding-top: calc(0.5rem + env(safe-area-inset-top, 0px));
+		}
 
-    .glass-input {
-      background-color: rgba(255, 253, 249, 0.5);
-      backdrop-filter: blur(8px);
-      -webkit-backdrop-filter: blur(8px);
-      border: 1px solid rgba(234, 225, 212, 0.6);
-    }
-    .dark .glass-input {
-      background-color: rgba(25, 34, 28, 0.6);
-      border-color: rgba(37, 51, 42, 0.6);
-      color: var(--color-ink);
-    }
-    .glass-input:focus {
-      background-color: rgba(255, 253, 249, 0.95);
-    }
-    .dark .glass-input:focus {
-      background-color: rgba(25, 34, 28, 0.95);
-    }
+		.glass-panel {
+			background-color: rgba(255, 253, 249, 0.65);
+			backdrop-filter: blur(16px) saturate(120%);
+			-webkit-backdrop-filter: blur(16px) saturate(120%);
+			border: 1px solid rgba(234, 225, 212, 0.5);
+		}
+		.dark .glass-panel {
+			background-color: rgba(25, 34, 28, 0.75);
+			border-color: rgba(37, 51, 42, 0.6);
+		}
 
-    /* Hover-lift: card pops up slightly on hover */
-    .hover-lift {
-      transition: transform 200ms cubic-bezier(0.16,1,0.3,1),
-                  box-shadow 200ms cubic-bezier(0.16,1,0.3,1);
-    }
-    .hover-lift:hover {
-      transform: translateY(-3px);
-      box-shadow: 0 4px 12px rgba(42,38,32,0.08), 0 16px 40px rgba(42,38,32,0.10);
-    }
+		.glass-header {
+			background-color: rgba(251, 247, 241, 0.85);
+			backdrop-filter: blur(20px) saturate(120%);
+			-webkit-backdrop-filter: blur(20px) saturate(120%);
+			border-bottom: 1px solid rgba(234, 225, 212, 0.6);
+		}
+		.dark .glass-header {
+			background-color: rgba(17, 22, 19, 0.85);
+			border-bottom-color: rgba(37, 51, 42, 0.6);
+		}
 
-    /* Stagger delays for nth-child entrance animations */
-    .stagger-children > *:nth-child(1) { animation-delay: 0ms; }
-    .stagger-children > *:nth-child(2) { animation-delay: 60ms; }
-    .stagger-children > *:nth-child(3) { animation-delay: 120ms; }
-    .stagger-children > *:nth-child(4) { animation-delay: 180ms; }
-    .stagger-children > *:nth-child(5) { animation-delay: 240ms; }
-    .stagger-children > *:nth-child(6) { animation-delay: 300ms; }
-    .stagger-children > *:nth-child(7) { animation-delay: 360ms; }
-    .stagger-children > *:nth-child(8) { animation-delay: 420ms; }
+		.glass-input {
+			background-color: rgba(255, 253, 249, 0.5);
+			backdrop-filter: blur(8px);
+			-webkit-backdrop-filter: blur(8px);
+			border: 1px solid rgba(234, 225, 212, 0.6);
+		}
+		.dark .glass-input {
+			background-color: rgba(25, 34, 28, 0.6);
+			border-color: rgba(37, 51, 42, 0.6);
+			color: var(--color-ink);
+		}
+		.glass-input:focus {
+			background-color: rgba(255, 253, 249, 0.95);
+		}
+		.dark .glass-input:focus {
+			background-color: rgba(25, 34, 28, 0.95);
+		}
 
-    /* Thin, warm-toned scrollbars (Webkit) */
-    .overflow-y-auto::-webkit-scrollbar,
-    .overflow-y-scroll::-webkit-scrollbar {
-      width: 4px;
-    }
-    .overflow-y-auto::-webkit-scrollbar-track,
-    .overflow-y-scroll::-webkit-scrollbar-track {
-      background: transparent;
-    }
-    .overflow-y-auto::-webkit-scrollbar-thumb,
-    .overflow-y-scroll::-webkit-scrollbar-thumb {
-      background-color: rgba(111, 101, 87, 0.25);
-      border-radius: 9999px;
-    }
-    .overflow-y-auto::-webkit-scrollbar-thumb:hover,
-    .overflow-y-scroll::-webkit-scrollbar-thumb:hover {
-      background-color: rgba(111, 101, 87, 0.45);
-    }
-  }
+		/* Hover-lift: card pops up slightly on hover */
+		.hover-lift {
+			transition:
+				transform 200ms cubic-bezier(0.16, 1, 0.3, 1),
+				box-shadow 200ms cubic-bezier(0.16, 1, 0.3, 1);
+		}
+		.hover-lift:hover {
+			transform: translateY(-3px);
+			box-shadow:
+				0 4px 12px rgba(42, 38, 32, 0.08),
+				0 16px 40px rgba(42, 38, 32, 0.1);
+		}
 
-  /* Animated Gradient Mesh Orbs */
-  .mesh-container {
-    position: fixed;
-    top: 0;
-    left: 0;
-    width: 100vw;
-    height: 100vh;
-    overflow: hidden;
-    z-index: -10;
-    background-color: var(--color-bg);
-    pointer-events: none;
-    contain: strict;
-  }
+		/* Stagger delays for nth-child entrance animations */
+		.stagger-children > *:nth-child(1) {
+			animation-delay: 0ms;
+		}
+		.stagger-children > *:nth-child(2) {
+			animation-delay: 60ms;
+		}
+		.stagger-children > *:nth-child(3) {
+			animation-delay: 120ms;
+		}
+		.stagger-children > *:nth-child(4) {
+			animation-delay: 180ms;
+		}
+		.stagger-children > *:nth-child(5) {
+			animation-delay: 240ms;
+		}
+		.stagger-children > *:nth-child(6) {
+			animation-delay: 300ms;
+		}
+		.stagger-children > *:nth-child(7) {
+			animation-delay: 360ms;
+		}
+		.stagger-children > *:nth-child(8) {
+			animation-delay: 420ms;
+		}
 
-  .mesh-orb {
-    position: absolute;
-    border-radius: 9999px;
-    filter: blur(120px);
-    opacity: 0.22;
-    mix-blend-mode: multiply;
-    will-change: transform;
-  }
+		/* Thin, warm-toned scrollbars (Webkit) */
+		.overflow-y-auto::-webkit-scrollbar,
+		.overflow-y-scroll::-webkit-scrollbar {
+			width: 4px;
+		}
+		.overflow-y-auto::-webkit-scrollbar-track,
+		.overflow-y-scroll::-webkit-scrollbar-track {
+			background: transparent;
+		}
+		.overflow-y-auto::-webkit-scrollbar-thumb,
+		.overflow-y-scroll::-webkit-scrollbar-thumb {
+			background-color: rgba(111, 101, 87, 0.25);
+			border-radius: 9999px;
+		}
+		.overflow-y-auto::-webkit-scrollbar-thumb:hover,
+		.overflow-y-scroll::-webkit-scrollbar-thumb:hover {
+			background-color: rgba(111, 101, 87, 0.45);
+		}
 
-  @media (max-width: 640px) {
-    .mesh-orb {
-      animation: none !important;
-      filter: blur(60px);
-    }
-  }
+		/*
+     * Horizontal chip strips (map filters, tab rows) scroll but should not
+     * advertise a scrollbar. Used to be written as `scrollbar-none`, which is
+     * not a Tailwind 3 utility and so generated nothing at all.
+     */
+		.scrollbar-none {
+			scrollbar-width: none;
+			-ms-overflow-style: none;
+		}
+		.scrollbar-none::-webkit-scrollbar {
+			display: none;
+		}
 
-  .dark .mesh-orb {
-    mix-blend-mode: soft-light;
-    opacity: 0.35;
-  }
+		/*
+     * A hairline that inherits the current text colour. Tailwind 3 cannot apply
+     * an alpha modifier to `currentColor` (`border-current/10` compiles to
+     * nothing), so the softened version needs its own utility. The plain
+     * declaration is the fallback for browsers without `color-mix()`.
+     */
+		.border-current-soft {
+			border-color: rgba(0, 0, 0, 0.1);
+			border-color: color-mix(in srgb, currentColor 12%, transparent);
+		}
+	}
 
-  .mesh-orb-1 {
-    top: -10%;
-    left: -10%;
-    width: 55vw;
-    height: 55vw;
-    background-color: var(--color-primary-600);
-    animation: mesh-drift-1 25s infinite ease-in-out;
-  }
+	/* Animated Gradient Mesh Orbs */
+	.mesh-container {
+		position: fixed;
+		top: 0;
+		left: 0;
+		width: 100vw;
+		height: 100vh;
+		overflow: hidden;
+		z-index: -10;
+		background-color: var(--color-bg);
+		pointer-events: none;
+		contain: strict;
+	}
 
-  .mesh-orb-2 {
-    bottom: -15%;
-    right: -10%;
-    width: 60vw;
-    height: 60vw;
-    background-color: var(--color-accent-terracotta);
-    animation: mesh-drift-2 30s infinite ease-in-out;
-  }
+	.mesh-orb {
+		position: absolute;
+		border-radius: 9999px;
+		filter: blur(120px);
+		opacity: 0.22;
+		mix-blend-mode: multiply;
+		will-change: transform;
+	}
 
-  .mesh-orb-3 {
-    top: 30%;
-    right: 15%;
-    width: 45vw;
-    height: 45vw;
-    background-color: var(--color-accent-amber);
-    animation: mesh-drift-3 28s infinite ease-in-out;
-  }
+	@media (max-width: 640px) {
+		.mesh-orb {
+			animation: none !important;
+			filter: blur(60px);
+		}
+	}
 
-  @keyframes mesh-drift-1 {
-    0% { transform: translate(0px, 0px) scale(1); }
-    33% { transform: translate(80px, -60px) scale(1.15); }
-    66% { transform: translate(-50px, 40px) scale(0.9); }
-    100% { transform: translate(0px, 0px) scale(1); }
-  }
+	.dark .mesh-orb {
+		mix-blend-mode: soft-light;
+		opacity: 0.35;
+	}
 
-  @keyframes mesh-drift-2 {
-    0% { transform: translate(0px, 0px) scale(1); }
-    50% { transform: translate(-90px, 70px) scale(1.2); }
-    100% { transform: translate(0px, 0px) scale(1); }
-  }
+	.mesh-orb-1 {
+		top: -10%;
+		left: -10%;
+		width: 55vw;
+		height: 55vw;
+		background-color: var(--color-primary-600);
+		animation: mesh-drift-1 25s infinite ease-in-out;
+	}
 
-  @keyframes mesh-drift-3 {
-    0% { transform: translate(0px, 0px) scale(1); }
-    33% { transform: translate(60px, 50px) scale(0.85); }
-    66% { transform: translate(-70px, -40px) scale(1.1); }
-    100% { transform: translate(0px, 0px) scale(1); }
-  }
+	.mesh-orb-2 {
+		bottom: -15%;
+		right: -10%;
+		width: 60vw;
+		height: 60vw;
+		background-color: var(--color-accent-terracotta);
+		animation: mesh-drift-2 30s infinite ease-in-out;
+	}
 
-  /* Motion is subtle and honors reduced-motion. */
-  @media (prefers-reduced-motion: reduce) {
-    *,
-    *::before,
-    *::after {
-      animation-duration: 0.01ms !important;
-      animation-iteration-count: 1 !important;
-      transition-duration: 0.01ms !important;
-      scroll-behavior: auto !important;
-    }
-  }
+	.mesh-orb-3 {
+		top: 30%;
+		right: 15%;
+		width: 45vw;
+		height: 45vw;
+		background-color: var(--color-accent-amber);
+		animation: mesh-drift-3 28s infinite ease-in-out;
+	}
 
-  /* Dark mode adaptation for standard OpenStreetMap tiles when no CARTO key is configured */
-  html.dark .leaflet-tile-pane .osm-dark-tiles {
-    filter: brightness(0.65) invert(1) contrast(1.6) hue-rotate(200deg) saturate(0.4);
-  }
+	@keyframes mesh-drift-1 {
+		0% {
+			transform: translate(0px, 0px) scale(1);
+		}
+		33% {
+			transform: translate(80px, -60px) scale(1.15);
+		}
+		66% {
+			transform: translate(-50px, 40px) scale(0.9);
+		}
+		100% {
+			transform: translate(0px, 0px) scale(1);
+		}
+	}
 
-  /* Clean offline print styles */
-  @media print {
-    header,
-    nav,
-    aside,
-    button:not(.print-keep),
-    .bottom-nav,
-    .pb-safe,
-    .mesh-container,
-    .no-print,
-    [role="status"],
-    .sr-only,
-    .toast,
-    [aria-label="Add"],
-    [aria-label="New"] {
-      display: none !important;
-    }
+	@keyframes mesh-drift-2 {
+		0% {
+			transform: translate(0px, 0px) scale(1);
+		}
+		50% {
+			transform: translate(-90px, 70px) scale(1.2);
+		}
+		100% {
+			transform: translate(0px, 0px) scale(1);
+		}
+	}
 
-    body,
-    html {
-      background: #ffffff !important;
-      color: #111111 !important;
-      font-size: 11pt !important;
-    }
+	@keyframes mesh-drift-3 {
+		0% {
+			transform: translate(0px, 0px) scale(1);
+		}
+		33% {
+			transform: translate(60px, 50px) scale(0.85);
+		}
+		66% {
+			transform: translate(-70px, -40px) scale(1.1);
+		}
+		100% {
+			transform: translate(0px, 0px) scale(1);
+		}
+	}
 
-    #main-content {
-      padding: 0 !important;
-      margin: 0 !important;
-      max-width: 100% !important;
-      min-height: auto !important;
-    }
+	/* Motion is subtle and honors reduced-motion. */
+	@media (prefers-reduced-motion: reduce) {
+		*,
+		*::before,
+		*::after {
+			animation-duration: 0.01ms !important;
+			animation-iteration-count: 1 !important;
+			transition-duration: 0.01ms !important;
+			scroll-behavior: auto !important;
+		}
+	}
 
-    .shadow-soft,
-    .shadow-card,
-    .shadow-sheet {
-      box-shadow: none !important;
-      border: 1px solid #e0e0e0 !important;
-    }
+	/* Dark mode adaptation for standard OpenStreetMap tiles when no CARTO key is configured */
+	html.dark .leaflet-tile-pane .osm-dark-tiles {
+		filter: brightness(0.65) invert(1) contrast(1.6) hue-rotate(200deg) saturate(0.4);
+	}
 
-    .glass-panel,
-    .glass-header {
-      background: #ffffff !important;
-      backdrop-filter: none !important;
-      -webkit-backdrop-filter: none !important;
-      border: 1px solid #e0e0e0 !important;
-    }
+	/*
+   * Print stylesheet.
+   *
+   * RULE OF THUMB: only hide things explicitly marked `.no-print`, plus the two
+   * landmark elements that are always chrome (`nav`, `aside`). Never hide a bare
+   * `header` or `button` — those wrap real content. The trip title is an `<h1>`
+   * inside the shell `<header>`, each day heading is an `<h2>` inside
+   * `<header>`, each flight route line is inside `<header>`, and checklist item
+   * text is the child of a `<button>`. Hiding those by tag deleted the document.
+   */
+	@media print {
+		@page {
+			size: A4;
+			margin: 14mm;
+		}
 
-    article,
-    .card,
-    li,
-    tr {
-      break-inside: avoid;
-      page-break-inside: avoid;
-    }
+		nav,
+		aside,
+		.bottom-nav,
+		.no-print,
+		.mesh-container,
+		[role='status'],
+		.toast {
+			display: none !important;
+		}
 
-    a {
-      text-decoration: none !important;
-      color: inherit !important;
-    }
-  }
+		/*
+     * Screen-reader-only headings are the page's real titles in several routes
+     * (e.g. the itinerary `<h1>`). Reveal them on paper instead of dropping them.
+     */
+		.sr-only {
+			position: static !important;
+			width: auto !important;
+			height: auto !important;
+			padding: inherit !important;
+			margin: inherit !important;
+			overflow: visible !important;
+			clip: auto !important;
+			clip-path: none !important;
+			white-space: normal !important;
+			border: 0 !important;
+		}
+
+		/*
+     * Dark mode must not reach paper. Without this the sheet is either flooded
+     * with #111613 or printed as near-invisible #f0f4f1 text on white, because
+     * ~522 `text-ink` utilities do not follow the body colour reset below.
+     */
+		html.dark {
+			--color-bg-rgb: 255 255 255;
+			--color-surface-rgb: 255 255 255;
+			--color-surface-sunken-rgb: 255 255 255;
+			--color-border-rgb: 224 224 224;
+			--color-ink-rgb: 17 17 17;
+			--color-ink-muted-rgb: 68 68 68;
+			--color-primary-100-rgb: 230 240 234;
+			--color-primary-600-rgb: 47 104 79;
+			--color-primary-700-rgb: 36 85 57;
+			color-scheme: light !important;
+		}
+		html.dark * {
+			box-shadow: none !important;
+		}
+
+		body,
+		html {
+			background: #ffffff !important;
+			color: #111111 !important;
+			font-size: 11pt !important;
+			overflow: visible !important;
+			height: auto !important;
+		}
+
+		/*
+     * The app wrapper is #main-content; the content column is #page-content
+     * (routes/trip/[id]/+layout.svelte). Both carry screen padding that must go.
+     */
+		#main-content,
+		#page-content {
+			padding: 0 !important;
+			margin: 0 !important;
+			max-width: 100% !important;
+			min-height: auto !important;
+			overflow: visible !important;
+		}
+
+		/* A sheet/dialog open at print time leaves the document unscrollable. */
+		.app-printing,
+		.app-printing body {
+			overflow: visible !important;
+		}
+
+		.shadow-soft,
+		.shadow-card,
+		.shadow-sheet,
+		[class*='shadow-'] {
+			box-shadow: none !important;
+		}
+
+		.glass-panel,
+		.glass-header,
+		.glass-input {
+			background: #ffffff !important;
+			backdrop-filter: none !important;
+			-webkit-backdrop-filter: none !important;
+			border: 1px solid #e0e0e0 !important;
+		}
+
+		/* Interactive-only affordances. */
+		.leaflet-container,
+		.leaflet-control-container {
+			display: none !important;
+		}
+
+		article,
+		.card,
+		li,
+		tr,
+		.day {
+			break-inside: avoid;
+			page-break-inside: avoid;
+		}
+
+		h1,
+		h2,
+		h3 {
+			break-after: avoid;
+			page-break-after: avoid;
+		}
+
+		.page-break {
+			break-before: page;
+			page-break-before: always;
+		}
+
+		a {
+			text-decoration: none !important;
+			color: inherit !important;
+		}
+
+		/* Print destinations for links — a paper booking link is useless without it. */
+		a[href^='http']::after {
+			content: ' (' attr(href) ')';
+			font-size: 0.8em;
+			color: #555555;
+			word-break: break-all;
+		}
+	}
 }
-

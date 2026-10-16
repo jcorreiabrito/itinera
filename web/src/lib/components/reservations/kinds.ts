@@ -15,82 +15,116 @@ import type { IconComponent } from '$lib/types';
 import { t } from '$lib/i18n.svelte';
 
 export interface KindMeta {
-    label: string;
-    icon: IconComponent;
-    /** Label for the `start` field in the sheet. */
-    startLabel: string;
-    /** Label for the `end` field, or `null` when the kind has no end. */
-    endLabel: string | null;
+	label: string;
+	icon: IconComponent;
+	/** Label for the `start` field in the sheet. */
+	startLabel: string;
+	/** Label for the `end` field, or `null` when the kind has no end. */
+	endLabel: string | null;
 }
 
-export const KIND_META: Record<ReservationKind, KindMeta> = new Proxy({} as any, {
-    get(_target, prop: string) {
-        const k = prop as ReservationKind;
-        switch (k) {
-            case 'lodging':
-                return { label: t('cat_lodging'), icon: BedDouble, startLabel: t('check_in'), endLabel: t('check_out') };
-            case 'car':
-                return { label: t('kind_car'), icon: Car, startLabel: t('pick_up'), endLabel: t('drop_off') };
-            case 'restaurant':
-                return { label: t('kind_restaurant'), icon: Utensils, startLabel: t('reservation_time'), endLabel: null };
-            case 'activity':
-                return { label: t('cat_activity'), icon: Ticket, startLabel: t('departure'), endLabel: t('end') };
-            case 'transport':
-                return { label: t('cat_transport'), icon: Bus, startLabel: t('departure'), endLabel: t('arrival') };
-            default:
-                return { label: t('cat_other'), icon: MapPin, startLabel: t('start'), endLabel: t('end') };
-        }
-    }
-});
+export const KIND_META: Record<ReservationKind, KindMeta> = new Proxy(
+	{} as Record<ReservationKind, KindMeta>,
+	{
+		get(_target, prop: string) {
+			const k = prop as ReservationKind;
+			switch (k) {
+				case 'lodging':
+					return {
+						label: t('cat_lodging'),
+						icon: BedDouble,
+						startLabel: t('check_in'),
+						endLabel: t('check_out')
+					};
+				case 'car':
+					return {
+						label: t('kind_car'),
+						icon: Car,
+						startLabel: t('pick_up'),
+						endLabel: t('drop_off')
+					};
+				case 'restaurant':
+					return {
+						label: t('kind_restaurant'),
+						icon: Utensils,
+						startLabel: t('reservation_time'),
+						endLabel: null
+					};
+				case 'activity':
+					return {
+						label: t('cat_activity'),
+						icon: Ticket,
+						startLabel: t('departure'),
+						endLabel: t('end')
+					};
+				case 'transport':
+					return {
+						label: t('cat_transport'),
+						icon: Bus,
+						startLabel: t('departure'),
+						endLabel: t('arrival')
+					};
+				default:
+					return {
+						label: t('cat_other'),
+						icon: MapPin,
+						startLabel: t('start'),
+						endLabel: t('end')
+					};
+			}
+		}
+	}
+);
 
 export const KIND_ORDER: ReservationKind[] = [
-    'lodging',
-    'car',
-    'restaurant',
-    'activity',
-    'transport',
-    'other'
+	'lodging',
+	'car',
+	'restaurant',
+	'activity',
+	'transport',
+	'other'
 ];
 
 export function kindMeta(kind: string): KindMeta {
-    return KIND_META[kind as ReservationKind] ?? KIND_META.other;
+	return KIND_META[kind as ReservationKind] ?? KIND_META.other;
 }
 
 /** A compact secondary-line summary of a reservation's kind-specific details. */
 export function detailSummary(res: Reservation): string {
-    const d = (res.details ?? {}) as Record<string, unknown>;
-    const s = (k: string) => (typeof d[k] === 'string' ? (d[k] as string) : '');
-    switch (res.kind) {
-        case 'lodging':
-            return s('roomType');
-        case 'car':
-            return [s('company'), s('carClass')].filter(Boolean).join(' · ');
-        case 'restaurant':
-            return s('partySize') ? t('party_of', { n: s('partySize') }) : '';
-        case 'activity':
-            return [s('provider'), s('meetingPoint')].filter(Boolean).join(' · ');
-        case 'transport':
-            const fromTo = [s('from'), s('to')].filter(Boolean).join(' → ');
-            return [s('mode'), fromTo, s('carrier')].filter(Boolean).join(' · ');
-        default:
-            return '';
-    }
+	const d = (res.details ?? {}) as Record<string, unknown>;
+	const s = (k: string) => (typeof d[k] === 'string' ? (d[k] as string) : '');
+	switch (res.kind) {
+		case 'lodging':
+			return s('roomType');
+		case 'car':
+			return [s('company'), s('carClass')].filter(Boolean).join(' · ');
+		case 'restaurant':
+			return s('partySize') ? t('party_of', { n: s('partySize') }) : '';
+		case 'activity':
+			return [s('provider'), s('meetingPoint')].filter(Boolean).join(' · ');
+		case 'transport': {
+			const fromTo = [s('from'), s('to')].filter(Boolean).join(' → ');
+			return [s('mode'), fromTo, s('carrier')].filter(Boolean).join(' · ');
+		}
+		default:
+			return '';
+	}
 }
 
 export type ReservationRowKind = 'checkin' | 'checkout' | 'point';
 
 export interface ReservationEntry {
-    reservation: Reservation;
-    rowKind: ReservationRowKind;
-    /** ISO date (`YYYY-MM-DD`) the row belongs to, or `null` when undated. */
-    date: string | null;
-    /** ISO datetime / time used for intra-day ordering, if any. */
-    time: string | null;
+	reservation: Reservation;
+	rowKind: ReservationRowKind;
+	/** ISO date (`YYYY-MM-DD`) the row belongs to, or `null` when undated. */
+	date: string | null;
+	/** ISO datetime / time used for intra-day ordering, if any. */
+	time: string | null;
 }
 
 export interface ReservationDateGroup {
-    date: string | null;
-    entries: ReservationEntry[];
+	date: string | null;
+	entries: ReservationEntry[];
 }
 
 /**
@@ -99,45 +133,53 @@ export interface ReservationDateGroup {
  * grouped last.
  */
 export function buildTimeline(
-    reservations: Reservation[],
-    filter?: ReservationKind | null
+	reservations: Reservation[],
+	filter?: ReservationKind | null
 ): ReservationDateGroup[] {
-    const entries: ReservationEntry[] = [];
+	const entries: ReservationEntry[] = [];
 
-    for (const res of reservations) {
-        if (filter && res.kind !== filter) continue;
-        const startDate = dateOf(res.start);
-        const endDate = dateOf(res.end);
-        const startTime = res.start ?? null;
-        const endTime = res.end ?? null;
+	for (const res of reservations) {
+		if (filter && res.kind !== filter) continue;
+		const startDate = dateOf(res.start);
+		const endDate = dateOf(res.end);
 
-        if (res.kind === 'lodging' && startDate && endDate) {
-            entries.push({ reservation: res, rowKind: 'checkin', date: startDate, time: res.start ?? null });
-            entries.push({ reservation: res, rowKind: 'checkout', date: endDate, time: res.end ?? null });
-        } else {
-            entries.push({ reservation: res, rowKind: 'point', date: startDate, time: res.start ?? null });
-        }
-    }
+		if (res.kind === 'lodging' && startDate && endDate) {
+			entries.push({
+				reservation: res,
+				rowKind: 'checkin',
+				date: startDate,
+				time: res.start ?? null
+			});
+			entries.push({ reservation: res, rowKind: 'checkout', date: endDate, time: res.end ?? null });
+		} else {
+			entries.push({
+				reservation: res,
+				rowKind: 'point',
+				date: startDate,
+				time: res.start ?? null
+			});
+		}
+	}
 
-    const UNDATED = '\uffff';
-    const groups = new Map<string, ReservationEntry[]>();
-    for (const entry of entries) {
-        const key = entry.date ?? UNDATED;
-        const bucket = groups.get(key);
-        if (bucket) bucket.push(entry);
-        else groups.set(key, [entry]);
-    }
+	const UNDATED = '\uffff';
+	const groups = new Map<string, ReservationEntry[]>();
+	for (const entry of entries) {
+		const key = entry.date ?? UNDATED;
+		const bucket = groups.get(key);
+		if (bucket) bucket.push(entry);
+		else groups.set(key, [entry]);
+	}
 
-    return [...groups.keys()]
-        .sort((a, b) => a.localeCompare(b))
-        .map((key) => ({
-            date: key === UNDATED ? null : key,
-            entries: groups
-                .get(key)!
-                .sort(
-                    (a, b) =>
-                        (minutesOfDay(a.time) ?? 1e9) - (minutesOfDay(b.time) ?? 1e9) ||
-                        (a.reservation.name ?? '').localeCompare(b.reservation.name ?? '')
-                )
-        }));
+	return [...groups.keys()]
+		.sort((a, b) => a.localeCompare(b))
+		.map((key) => ({
+			date: key === UNDATED ? null : key,
+			entries: groups
+				.get(key)!
+				.sort(
+					(a, b) =>
+						(minutesOfDay(a.time) ?? 1e9) - (minutesOfDay(b.time) ?? 1e9) ||
+						(a.reservation.name ?? '').localeCompare(b.reservation.name ?? '')
+				)
+		}));
 }

@@ -15,60 +15,62 @@ let reloading = false;
  * svelte.config.js so we can drive this UX ourselves.
  */
 export function registerServiceWorker(): void {
-  if (typeof navigator === 'undefined' || !('serviceWorker' in navigator)) {
-    if (typeof window !== 'undefined' && !window.isSecureContext) {
-      console.warn('Service Worker cannot register on insecure HTTP LAN connections. Access via HTTPS or localhost for offline caching support.');
-    }
-    return;
-  }
-  if (!import.meta.env.PROD) {
-    console.log('Service Worker auto-registration skipped in development mode.');
-    return;
-  }
+	if (typeof navigator === 'undefined' || !('serviceWorker' in navigator)) {
+		if (typeof window !== 'undefined' && !window.isSecureContext) {
+			console.warn(
+				'Service Worker cannot register on insecure HTTP LAN connections. Access via HTTPS or localhost for offline caching support.'
+			);
+		}
+		return;
+	}
+	if (!import.meta.env.PROD) {
+		console.log('Service Worker auto-registration skipped in development mode.');
+		return;
+	}
 
-  navigator.serviceWorker.addEventListener('controllerchange', () => {
-    if (updateApplied || reloading) return;
-    reloading = true;
-    location.reload();
-  });
+	navigator.serviceWorker.addEventListener('controllerchange', () => {
+		if (updateApplied || reloading) return;
+		reloading = true;
+		location.reload();
+	});
 
-  navigator.serviceWorker
-    .register('/service-worker.js')
-    .then((registration) => {
-      // A worker is already waiting (update found on a previous load).
-      if (registration.waiting && navigator.serviceWorker.controller) {
-        waitingWorker = registration.waiting;
-        needRefresh.set(true);
-      }
+	navigator.serviceWorker
+		.register('/service-worker.js')
+		.then((registration) => {
+			// A worker is already waiting (update found on a previous load).
+			if (registration.waiting && navigator.serviceWorker.controller) {
+				waitingWorker = registration.waiting;
+				needRefresh.set(true);
+			}
 
-      registration.addEventListener('updatefound', () => {
-        const installing = registration.installing;
-        if (!installing) return;
+			registration.addEventListener('updatefound', () => {
+				const installing = registration.installing;
+				if (!installing) return;
 
-        installing.addEventListener('statechange', () => {
-          if (installing.state !== 'installed') return;
-          if (navigator.serviceWorker.controller) {
-            // Update available for an already-installed app.
-            waitingWorker = registration.waiting ?? installing;
-            needRefresh.set(true);
-          } else {
-            // First install – the app is now ready to work offline.
-            offlineReady.set(true);
-          }
-        });
-      });
-    })
-    .catch((error) => {
-      console.error('Service worker registration failed:', error);
-    });
+				installing.addEventListener('statechange', () => {
+					if (installing.state !== 'installed') return;
+					if (navigator.serviceWorker.controller) {
+						// Update available for an already-installed app.
+						waitingWorker = registration.waiting ?? installing;
+						needRefresh.set(true);
+					} else {
+						// First install – the app is now ready to work offline.
+						offlineReady.set(true);
+					}
+				});
+			});
+		})
+		.catch((error) => {
+			console.error('Service worker registration failed:', error);
+		});
 }
 
 /** Apply a waiting update and reload once it takes control. */
 export function applyUpdate(): void {
-  updateApplied = true;
-  if (waitingWorker) {
-    waitingWorker.postMessage('SKIP_WAITING');
-  } else {
-    location.reload();
-  }
+	updateApplied = true;
+	if (waitingWorker) {
+		waitingWorker.postMessage('SKIP_WAITING');
+	} else {
+		location.reload();
+	}
 }

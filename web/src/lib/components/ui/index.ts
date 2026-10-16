@@ -1,5 +1,4 @@
 export { default as Badge } from './Badge.svelte';
-export { default as BottomTabBar } from './BottomTabBar.svelte';
 export { default as Button } from './Button.svelte';
 export { default as Card } from './Card.svelte';
 export { default as Checkbox } from './Checkbox.svelte';
@@ -13,14 +12,12 @@ export { default as Popover } from './Popover.svelte';
 export { default as ProgressBar } from './ProgressBar.svelte';
 export { default as Select } from './Select.svelte';
 export { default as Sheet } from './Sheet.svelte';
-export { default as Sidebar } from './Sidebar.svelte';
 export { default as Skeleton } from './Skeleton.svelte';
 export { default as SyncStatusPill } from './SyncStatusPill.svelte';
 export { default as Textarea } from './Textarea.svelte';
 export { default as Toaster } from './Toaster.svelte';
 export { default as ThemeToggle } from './ThemeToggle.svelte';
 export { default as ErrorBoundary } from './ErrorBoundary.svelte';
-
 
 export { toast, toasts } from './toast';
 

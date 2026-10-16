@@ -1,36 +1,52 @@
 <!doctype html>
 <html lang="en" class="h-full">
-  <head>
-    <meta charset="utf-8" />
-    <link rel="icon" href="%sveltekit.assets%/favicon.svg" type="image/svg+xml" />
-    <link rel="apple-touch-icon" href="%sveltekit.assets%/icons/icon-192.png" />
-    <link rel="manifest" href="%sveltekit.assets%/manifest.webmanifest" />
-    <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover, interactive-widget=resizes-content" />
-    <meta name="theme-color" media="(prefers-color-scheme: light)" content="#fbf7f1" />
-    <meta name="theme-color" media="(prefers-color-scheme: dark)" content="#111613" />
-    <meta
-      name="description"
-      content="Itinera – your cozy, offline-first travel planner."
-    />
-    <meta name="mobile-web-app-capable" content="yes" />
-    <meta name="apple-mobile-web-app-capable" content="yes" />
-    <meta name="apple-mobile-web-app-status-bar-style" content="default" />
-    <meta name="apple-mobile-web-app-title" content="Itinera" />
-    <script>
-      (function() {
-        try {
-          var theme = localStorage.getItem('itinera_theme');
-          var isDark = theme === 'dark' || (!theme || theme === 'system') && window.matchMedia('(prefers-color-scheme: dark)').matches;
-          if (isDark) document.documentElement.classList.add('dark');
-        } catch (e) {}
-      })();
-    </script>
-    %sveltekit.head%
-  </head>
-  <body
-    data-sveltekit-preload-data="hover"
-    class="min-h-dvh bg-bg text-ink antialiased overscroll-none"
-  >
-    <div class="flex min-h-dvh flex-col">%sveltekit.body%</div>
-  </body>
+	<head>
+		<meta charset="utf-8" />
+		<link rel="icon" href="%sveltekit.assets%/favicon.svg" type="image/svg+xml" />
+		<link rel="apple-touch-icon" href="%sveltekit.assets%/icons/icon-192.png" />
+		<link rel="manifest" href="%sveltekit.assets%/manifest.webmanifest" />
+		<meta
+			name="viewport"
+			content="width=device-width, initial-scale=1, viewport-fit=cover, interactive-widget=resizes-content"
+		/>
+		<meta name="theme-color" media="(prefers-color-scheme: light)" content="#fbf7f1" />
+		<meta name="theme-color" media="(prefers-color-scheme: dark)" content="#111613" />
+		<meta name="description" content="Itinera – your cozy, offline-first travel planner." />
+		<meta name="mobile-web-app-capable" content="yes" />
+		<meta name="apple-mobile-web-app-capable" content="yes" />
+		<meta name="apple-mobile-web-app-status-bar-style" content="default" />
+		<meta name="apple-mobile-web-app-title" content="Itinera" />
+		<script>
+			(function () {
+				try {
+					var theme = localStorage.getItem('itinera_theme');
+					var isDark =
+						theme === 'dark' ||
+						((!theme || theme === 'system') &&
+							window.matchMedia('(prefers-color-scheme: dark)').matches);
+					if (isDark) document.documentElement.classList.add('dark');
+					/*
+					 * Seed the language before first paint. Without this the app renders
+					 * every string in English and then flips once the async settings read
+					 * resolves — a visible flash, and the wrong `lang` for screen readers
+					 * until it does. Must stay in sync with LANG_STORAGE_KEY in
+					 * src/lib/i18n.svelte.ts.
+					 */
+					var lang = localStorage.getItem('itinera_lang');
+					if (lang === 'pt-BR' || lang === 'en') {
+						document.documentElement.lang = lang;
+					} else if ((navigator.language || '').toLowerCase().indexOf('pt') === 0) {
+						document.documentElement.lang = 'pt-BR';
+					}
+				} catch (e) {}
+			})();
+		</script>
+		%sveltekit.head%
+	</head>
+	<body
+		data-sveltekit-preload-data="hover"
+		class="min-h-dvh overscroll-none bg-bg text-ink antialiased"
+	>
+		<div class="flex min-h-dvh flex-col">%sveltekit.body%</div>
+	</body>
 </html>
