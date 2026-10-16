@@ -110,6 +110,12 @@
 		reservations: resolve(`/trip/${id}/bookings?tab=reservations`)
 	});
 
+	/*
+	 * The calendar export's payload, deliberately the whole trip rather than the
+	 * day on screen. The export button sits next to the day strip, so passing
+	 * the visible day's items made "download the calendar" quietly hand back one
+	 * day of a two-week trip.
+	 */
 	const allTripItems = $derived.by(() => {
 		if (!timeline) return [];
 		const itemsList: ItineraryItem[] = [];
@@ -166,21 +172,6 @@
 			}
 			return Boolean(titleMatch || notesMatch || locMatch);
 		});
-	});
-
-	/*
-	 * `allTripItems` (below) is the calendar export's payload, deliberately the
-	 * whole trip rather than the day on screen. The export button sits next to
-	 * the day strip, so passing the visible day's items made "download the
-	 * calendar" quietly hand back one day of a two-week trip.
-	 */
-	const currentDayItems = $derived.by(() => {
-		if (!currentDay) return [];
-		const itemsList: ItineraryItem[] = [...currentDay.allDay];
-		for (const entry of currentDay.timed) {
-			if (entry.kind === 'item' && entry.item) itemsList.push(entry.item);
-		}
-		return itemsList;
 	});
 
 	const hasDays = $derived(dates.length > 0);

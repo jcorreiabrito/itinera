@@ -2,6 +2,8 @@
 
 from __future__ import annotations
 
+import json
+
 from app.models import DOC_TYPES
 from app.services.exports import (
     EXPORT_VERSION,
@@ -146,3 +148,73 @@ class TestShapeFullExport:
         docs = [{"_id": "trip:01", "type": "trip"}, {"_id": "exp:01:A", "type": "expense"}]
         payload = shape_full_export(docs, "itinera")
         assert payload["documents"] == docs
+
+
+def attachment_docs() -> list[dict]:
+    """A trip plus one attachment doc carrying a CouchDB stub, never the bytes."""
+    return [
+        {"_id": "trip:1", "type": "trip", "title": "T"},
+        {
+            "_id": "att:1",
+            "type": "attachment",
+            "filename": "boarding.pdf",
+            "mime": "application/pdf",
+            "size": 184320,
+            "ownerType": "flight",
+            "ownerId": "flt:1",
+            "_attachments": {
+                "boarding.pdf": {
+                    "content_type": "application/pdf",
+                    "length": 184320,
+                    "digest": "md5-x",
+                }
+            },
+        },
+    ]
+
+
+class TestAttachmentHonesty:
+    """
+    The JSON carries attachment *metadata* and never the bytes. Nothing in the
+    payload used to say so, so restoring the file on a new device produced a
+    trip that looked complete with every receipt unopenable.
+    """
+
+    def test_trip_export_declares_that_bytes_are_absent(self):
+        payload = shape_trip_export("1", attachment_docs(), "itinera")
+        assert payload["attachmentsIncluded"] is False
+        assert payload["attachmentCount"] == 1
+        assert payload["attachmentBytes"] == 184320
+        assert payload["attachmentBytesUnknownCount"] == 0
+
+    def test_full_export_declares_that_bytes_are_absent(self):
+        payload = shape_full_export(attachment_docs(), "itinera")
+        assert payload["attachmentsIncluded"] is False
+        assert payload["attachmentCount"] == 1
+        assert payload["attachmentBytes"] == 184320
+
+    def test_no_attachment_bytes_are_embedded(self):
+        # Guards the invariant rather than trusting `attachmentsIncluded`.
+        payload = shape_trip_export("1", attachment_docs(), "itinera")
+        serialised = json.dumps(payload)
+        assert "md5-x" in serialised  # the digest metadata does travel
+        for entry in payload["attachments"]:
+            assert "data" not in entry
+            assert "base64" not in entry
+
+    def test_a_trip_with_no_attachments_reports_zero(self):
+        payload = shape_trip_export("1", [{"_id": "trip:1", "type": "trip"}], "itinera")
+        assert payload["attachmentCount"] == 0
+        assert payload["attachmentBytes"] == 0
+        assert payload["attachmentsIncluded"] is False
+
+    def test_an_attachment_with_no_recorded_size_is_counted_as_unknown(self):
+        docs = [
+            {"_id": "trip:1", "type": "trip"},
+            {"_id": "att:1", "type": "attachment", "filename": "a.pdf"},
+        ]
+        payload = shape_trip_export("1", docs, "itinera")
+        assert payload["attachmentCount"] == 1
+        assert payload["attachmentBytes"] == 0
+        # A consumer must not read a zero total as "nothing to fetch".
+        assert payload["attachmentBytesUnknownCount"] == 1

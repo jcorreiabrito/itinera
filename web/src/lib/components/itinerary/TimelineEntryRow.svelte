@@ -70,7 +70,7 @@
 	let noteOpen = $state(false);
 
 	const timeLabel = $derived(entry.minutes != null ? entryTimeLabel(entry.minutes) : '');
-	const gutterLabel = $derived(entry.item?.allDay ? 'All day' : timeLabel);
+	const gutterLabel = $derived(entry.item?.allDay ? t('all_day') : timeLabel);
 
 	const resIcons: Record<string, IconComponent> = {
 		lodging: BedDouble,
@@ -88,8 +88,8 @@
 		if (item.linkedFlightId) {
 			const f = flightsById?.get(item.linkedFlightId);
 			return f
-				? { removed: false, label: 'Flight', href: links.flights }
-				: { removed: true, label: 'Flight', href: links.flights };
+				? { removed: false, label: t('flight'), href: links.flights }
+				: { removed: true, label: t('flight'), href: links.flights };
 		}
 		if (item.linkedReservationId) {
 			const r = reservationsById?.get(item.linkedReservationId);
@@ -107,7 +107,7 @@
 </script>
 
 {#snippet activityMenu(item: ItineraryItem)}
-	<Popover bind:open={menuOpen} label="Activity actions" align="end">
+	<Popover bind:open={menuOpen} label={t('activity_actions')} align="end">
 		{#snippet trigger({ toggle, open })}
 			<button
 				type="button"
@@ -115,7 +115,7 @@
 					e.stopPropagation();
 					toggle();
 				}}
-				aria-label="Activity actions"
+				aria-label={t('activity_actions')}
 				aria-haspopup="true"
 				aria-expanded={open}
 				class="grid size-11 min-h-[44px] min-w-[44px] shrink-0 place-items-center rounded-md text-ink-muted transition-colors hover:bg-surface-sunken hover:text-ink sm:size-9 sm:min-h-0 sm:min-w-0 [&_svg]:size-5 sm:[&_svg]:size-4"
@@ -123,16 +123,18 @@
 				<MoreVertical />
 			</button>
 		{/snippet}
-		<MenuItem icon={Pencil} onclick={() => act(onedit)}>Edit</MenuItem>
-		<MenuItem icon={ArrowUp} disabled={!canMoveUp} onclick={() => act(onmoveup)}>Move up</MenuItem>
+		<MenuItem icon={Pencil} onclick={() => act(onedit)}>{t('edit')}</MenuItem>
+		<MenuItem icon={ArrowUp} disabled={!canMoveUp} onclick={() => act(onmoveup)}
+			>{t('move_up')}</MenuItem
+		>
 		<MenuItem icon={ArrowDown} disabled={!canMoveDown} onclick={() => act(onmovedown)}>
-			Move down
+			{t('move_down')}
 		</MenuItem>
-		<MenuItem icon={CalendarDays} onclick={() => act(onmovetoday)}>Move to day...</MenuItem>
+		<MenuItem icon={CalendarDays} onclick={() => act(onmovetoday)}>{t('move_to_day')}</MenuItem>
 		{#if item.estCost != null}
-			<MenuItem icon={Wallet} onclick={() => act(onaddexpense)}>Add as expense</MenuItem>
+			<MenuItem icon={Wallet} onclick={() => act(onaddexpense)}>{t('add_as_expense')}</MenuItem>
 		{/if}
-		<MenuItem icon={Trash2} tone="danger" onclick={() => act(ondelete)}>Delete</MenuItem>
+		<MenuItem icon={Trash2} tone="danger" onclick={() => act(ondelete)}>{t('delete')}</MenuItem>
 	</Popover>
 {/snippet}
 
@@ -178,7 +180,7 @@
 						{/if}
 						{#if item.endTime && !item.allDay}
 							<span aria-hidden="true">·</span><span class="tabular-nums"
-								>until {formatTime(item.endTime)}</span
+								>{t('until_time', { time: formatTime(item.endTime) })}</span
 							>
 						{/if}
 						{#if item.location?.name}
@@ -202,7 +204,10 @@
 						{@const costStr = formatMoney(item.estCost, ccy, { decimals: true })}
 						<span
 							title={travelerCount > 1
-								? `Total: ${costStr} (${formatMoney(item.estCost / travelerCount, ccy, { decimals: true })} / person)`
+								? t('cost_total_tooltip', {
+										total: costStr,
+										perPerson: formatMoney(item.estCost / travelerCount, ccy, { decimals: true })
+									})
 								: costStr}
 						>
 							<Badge variant="neutral">
@@ -220,7 +225,8 @@
 					{#if linkStatus}
 						{#if linkStatus.removed}
 							<Badge variant="neutral" class="opacity-60">
-								<Link2Off class="size-3" /> booking removed
+								<Link2Off class="size-3" />
+								{t('booking_removed')}
 							</Badge>
 						{:else if linkStatus}
 							<a href={linkStatus.href} class="inline-flex">
@@ -236,10 +242,10 @@
 								noteOpen = !noteOpen;
 							}}
 							aria-expanded={noteOpen}
-							aria-label={noteOpen ? 'Hide note' : 'Show note'}
+							aria-label={noteOpen ? t('hide_note') : t('show_note')}
 							class="inline-flex items-center gap-1 rounded-full border border-border bg-surface-sunken px-2.5 py-0.5 text-xs font-medium text-ink-muted transition-colors hover:text-ink"
 						>
-							{noteOpen ? 'Hide note' : 'Note'}
+							{noteOpen ? t('hide_note') : t('note')}
 						</button>
 					{/if}
 				</div>
@@ -278,18 +284,22 @@
 				<div class="min-w-0 flex-1">
 					<p class="font-medium text-ink">
 						{#if timeLabel}<span class="sr-only">{timeLabel} – </span>{/if}
-						Flight {seg?.flightNumber ?? ''} <span class="tabular-nums">{from} → {to}</span>
+						{t('flight_n', { n: seg?.flightNumber ?? '' })}
+						<span class="tabular-nums">{from} → {to}</span>
 						{#if arrivalDayOffset > 0}
 							<span
 								class="ml-1 rounded-full bg-accent-terracotta/15 px-1.5 py-0.5 align-middle text-[0.65rem] font-semibold text-accent-terracotta"
-								title={`Arrives ${arrivalDayOffset} day${arrivalDayOffset > 1 ? 's' : ''} after departure`}
+								title={t(
+									arrivalDayOffset > 1 ? 'arrives_days_after_many' : 'arrives_days_after_one',
+									{ n: String(arrivalDayOffset) }
+								)}
 							>
 								+{arrivalDayOffset}
 							</span>
 						{/if}
 					</p>
 					<p class="mt-0.5 text-xs text-ink-muted">
-						{seg?.airline ?? ''} · <span>Tap to view in Flights</span>
+						{seg?.airline ?? ''} · <span>{t('tap_to_view_flights')}</span>
 					</p>
 				</div>
 				<Badge variant="info">{t('bookings')}</Badge>
@@ -305,9 +315,9 @@
 	{@const ResIcon = resIcons[res?.kind ?? 'other'] ?? MapPin}
 	{@const staying = placement.placement === 'staying'}
 	{@const verb = {
-		checkIn: 'Check-in:',
-		checkOut: 'Check-out:',
-		staying: 'Staying at',
+		checkIn: t('check_in') + ':',
+		checkOut: t('check_out') + ':',
+		staying: t('staying_at'),
 		point: ''
 	}[placement.placement ?? 'staying']}
 	<li class="relative flex items-start gap-2 sm:gap-3">

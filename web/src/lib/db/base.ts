@@ -15,6 +15,7 @@ import { DateTime } from 'luxon';
 
 import { SCHEMA_VERSION } from './constants';
 import { migrateDoc } from './migrations';
+import { markPending } from './pending';
 import { getDb, type Database } from './pouch';
 import { prefixRange, tripTypeRange, type KeyRange } from './ids';
 import { validateDoc, type AnyDoc } from './schemas';
@@ -86,6 +87,7 @@ export async function putDoc<T extends AnyDoc>(
 	const cleaned = stripUndefined(stamped);
 	const toWrite = validate ? validateDoc(cleaned) : cleaned;
 	const res = await db.put(toWrite as unknown as Parameters<typeof db.put>[0]);
+	markPending();
 	return { ...toWrite, _id: res.id, _rev: res.rev } as Stored<T>;
 }
 
@@ -161,6 +163,7 @@ export async function restoreDoc<T extends AnyDoc>(
 export async function purgeDoc(id: string, db: Database = getDb()): Promise<void> {
 	const doc = await db.get(id);
 	await db.remove(doc);
+	markPending();
 }
 
 /** Options shared by the scan/find helpers. */
@@ -243,7 +246,31 @@ export async function findDocs<T extends AnyDoc>(
 
 /** Bulk-write documents (used by duplicate, template apply, migrations). */
 export async function bulkPut(docs: AnyDoc[], db: Database = getDb()) {
-	return db.bulkDocs(docs as unknown as Parameters<typeof db.bulkDocs>[0]);
+	const result = await db.bulkDocs(docs as unknown as Parameters<typeof db.bulkDocs>[0]);
+	markPending(docs.length);
+	return result;
+}
+
+/**
+ * Permanently remove several documents in one round trip.
+ *
+ * `_deleted: true` is the same tombstone `purgeDoc` writes, so the deletion
+ * replicates to every device and cannot be undone by a later pull. Ids that are
+ * already gone are skipped rather than throwing: the caller is usually working
+ * from a scan that another device may have emptied in the meantime.
+ */
+export async function purgeManyDocs(ids: string[], db: Database = getDb()): Promise<void> {
+	if (!ids.length) return;
+	const res = await db.allDocs({ keys: ids, include_docs: true });
+	const tombstones = res.rows
+		// A `keys` scan reports a missing document as `{error: 'not_found'}`
+		// rather than throwing, and that row carries no `doc` at all.
+		.map((row) => ('doc' in row ? (row.doc as unknown as Stored<AnyDoc> | null) : null))
+		.filter((doc): doc is Stored<AnyDoc> => Boolean(doc))
+		.map((doc) => ({ _id: doc._id, _rev: doc._rev, _deleted: true }));
+	if (!tombstones.length) return;
+	await db.bulkDocs(tombstones as unknown as Parameters<typeof db.bulkDocs>[0]);
+	markPending(tombstones.length);
 }
 
 /** Every soft-deleted document across all types (for the Trash view). */

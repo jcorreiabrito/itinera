@@ -49,7 +49,7 @@
 
 	const isIdeas = $derived(day.date === null);
 	const heading = $derived.by(() => {
-		if (!day.date) return t('unscheduled_ideas') || 'Unscheduled · Ideas';
+		if (!day.date) return t('unscheduled_ideas');
 		const dt = DateTime.fromISO(day.date);
 		return dt.isValid ? dt.toFormat('ccc d LLL') : day.date;
 	});
@@ -111,7 +111,7 @@
 			metaOpen = false;
 			onchanged();
 		} catch {
-			toast.error('Could not save the day details. Try again.');
+			toast.error(t('could_not_save_day_details'));
 		} finally {
 			metaSaving = false;
 		}
@@ -123,12 +123,12 @@
 			await checklist.toggle(todo._id);
 			onchanged();
 		} catch {
-			toast.error('Could not update the to-do.');
+			toast.error(t('could_not_update_todo'));
 		}
 	}
 
 	function todoLabel(todo: ChecklistItem): string {
-		return `${todo.text ?? 'To-do'}, ${todo.done ? 'done' : 'not done'}`;
+		return `${todo.text ?? t('to_do')}, ${todo.done ? t('done') : t('not_done')}`;
 	}
 
 	// --- Reorder (accessible move up/down) ------------------------------------
@@ -171,7 +171,7 @@
 			await itinerary.reorderWithinDay(all);
 			onchanged();
 		} catch {
-			toast.error('Could not reorder. Try again.');
+			toast.error(t('could_not_reorder'));
 		}
 	}
 
@@ -190,7 +190,7 @@
 			await itinerary.moveToDay(moveItem._id, date);
 			onchanged();
 		} catch {
-			toast.error('Could not move the activity. Try again.');
+			toast.error(t('could_not_move_activity'));
 		}
 	}
 
@@ -198,33 +198,33 @@
 	async function addExpense(item: ItineraryItem) {
 		try {
 			const exp = await itinerary.addExpense(item._id);
-			if (exp) toast.success('Added to your costs.');
-			else toast.error('Add an estimated cost first.');
+			if (exp) toast.success(t('added_to_costs'));
+			else toast.error(t('add_estimated_cost_first'));
 			onchanged();
 		} catch {
-			toast.error('Could not add the expense. Try again.');
+			toast.error(t('could_not_add_expense'));
 		}
 	}
 
 	async function removeItem(item: ItineraryItem) {
 		try {
 			await itinerary.softDelete(item._id);
-			toast.success('Activity removed.', {
+			toast.success(t('activity_removed'), {
 				action: {
-					label: 'Undo',
+					label: t('undo'),
 					onClick: async () => {
 						try {
 							await itinerary.restore(item._id);
 							onchanged();
 						} catch {
-							toast.error('Could not undo. Try restoring from Trash.');
+							toast.error(t('could_not_undo'));
 						}
 					}
 				}
 			});
 			onchanged();
 		} catch {
-			toast.error('Could not remove the activity. Try again.');
+			toast.error(t('could_not_remove_activity'));
 		}
 	}
 
@@ -250,7 +250,7 @@
 			qTitle = '';
 			onchanged();
 		} catch {
-			toast.error('Could not add the activity. Try again.');
+			toast.error(t('could_not_add_activity'));
 		} finally {
 			qSaving = false;
 		}
@@ -325,7 +325,12 @@
 				<span class="inline-flex items-center gap-1.5 text-sm font-medium text-ink">
 					<ListTodo class="size-4 text-primary-700" />
 					{t('daily_todos')}
-					<span class="text-ink-muted">({todosDone} of {day.todos.length} done)</span>
+					<span class="text-ink-muted"
+						>({t('todos_progress', {
+							done: String(todosDone),
+							total: String(day.todos.length)
+						})})</span
+					>
 				</span>
 				<ChevronDown
 					class={cn('size-4 text-ink-muted transition-transform', todosOpen && '-rotate-180')}
@@ -346,12 +351,12 @@
 									class="size-5 shrink-0 rounded border-border text-primary-600 focus:ring-2 focus:ring-primary-600/30"
 								/>
 								<span class={cn('min-w-0 flex-1', todo.done && 'text-ink-muted line-through')}>
-									{todo.text ?? 'To-do'}
+									{todo.text ?? t('to_do')}
 								</span>
 								{#if todo.important}
 									<Star
 										class="size-3.5 shrink-0 fill-accent-amber text-accent-amber"
-										aria-label="Important"
+										aria-label={t('important')}
 									/>
 								{/if}
 							</label>
@@ -450,8 +455,8 @@
 		</div>
 		{#if day.subtotal.missingRateCount > 0}
 			<p class="mt-2 text-xs text-warning">
-				{day.subtotal.missingRateCount} cost{day.subtotal.missingRateCount === 1 ? '' : 's'} excluded
-				– add an FX rate in Costs.
+				{day.subtotal.missingRateCount}
+				{t(day.subtotal.missingRateCount === 1 ? 'cost_excluded_one' : 'costs_excluded_many')}
 			</p>
 		{/if}
 	{/if}
@@ -475,7 +480,7 @@
 			/>
 			<Button type="submit" size="sm" disabled={qSaving || !qTitle.trim()}>
 				<Plus class="size-4" />
-				{t('add') || 'Add'}
+				{t('add')}
 			</Button>
 		</div>
 		<div class="mt-2.5 flex flex-wrap items-center gap-1">
@@ -490,7 +495,7 @@
 			</label>
 			{#if !qAllDay}
 				<label class="inline-flex items-center gap-2 text-sm text-ink-muted">
-					<span class="sr-only">Start time</span>
+					<span class="sr-only">{t('start_time')}</span>
 					<input
 						type="time"
 						class="h-9 w-32"
@@ -500,13 +505,13 @@
 				</label>
 			{/if}
 			<label class="inline-flex items-center gap-2 text-sm text-ink-muted">
-				<span class="sr-only">Category</span>
+				<span class="sr-only">{t('category')}</span>
 				<Select
 					class="h-9 w-40"
 					value={qCategory}
 					onchange={(e) => (qCategory = e.currentTarget.value)}
 				>
-					<option value="">No category</option>
+					<option value="">{t('no_category')}</option>
 					{#each CATEGORY_ORDER as cat (cat)}
 						<option value={cat}>{CATEGORY_META[cat].label}</option>
 					{/each}
@@ -523,16 +528,16 @@
 			<Input
 				id="day-title"
 				value={metaTitle}
-				placeholder="e.g. Vatican day"
+				placeholder={t('day_title_placeholder')}
 				oninput={(e) => (metaTitle = e.currentTarget.value)}
 			/>
 		</Field>
-		<Field label={t('notes')} for="day-notes" hint="Markdown supported.">
+		<Field label={t('notes')} for="day-notes" hint={t('markdown_supported')}>
 			<Textarea
 				id="day-notes"
 				rows={3}
 				value={metaNotes}
-				placeholder="Plans, reminders, links..."
+				placeholder={t('day_notes_placeholder')}
 				oninput={(e) => (metaNotes = e.currentTarget.value)}
 			/>
 		</Field>

@@ -117,7 +117,7 @@
 			open = false;
 			diffSheetOpen = true;
 		} catch (err) {
-			toast.error(err instanceof Error ? err.message : 'Invalid JSON file for trip update.');
+			toast.error(err instanceof Error ? err.message : t('invalid_json_file_for_update'));
 		} finally {
 			busy = null;
 			if (input) input.value = '';
@@ -128,19 +128,19 @@
 		if (!currentDiff) return;
 		try {
 			await executeTripUpdate(currentDiff.readyToSaveDocs);
-			toast.success('Trip updated successfully from JSON.');
+			toast.success(t('trip_updated_from_json'));
 			setTimeout(() => {
 				window.location.reload();
 			}, 300);
 		} catch (err) {
-			toast.error(err instanceof Error ? err.message : 'Could not update trip.');
+			toast.error(err instanceof Error ? err.message : t('could_not_update_trip'));
 		}
 	}
 
 	async function handlePasteUpdate() {
 		const text = pasteText.trim();
 		if (!text || pasteJsonError) {
-			pasteError = 'Please paste valid JSON before continuing.';
+			pasteError = t('paste_valid_json_first');
 			return;
 		}
 		busy = 'paste';
@@ -152,7 +152,7 @@
 			pasteText = '';
 			diffSheetOpen = true;
 		} catch (err) {
-			pasteError = err instanceof Error ? err.message : 'Invalid JSON for trip update.';
+			pasteError = err instanceof Error ? err.message : t('invalid_json_for_update');
 		} finally {
 			busy = null;
 		}
@@ -172,14 +172,14 @@
 
 <UpdateDiffSheet bind:open={diffSheetOpen} diff={currentDiff} onconfirm={confirmUpdate} />
 
-<Popover bind:open align="end" label="Trip data and exports">
+<Popover bind:open align="end" label={t('trip_data_and_exports')}>
 	{#snippet trigger({ toggle, open: isOpen })}
 		<button
 			type="button"
 			onclick={toggle}
 			aria-haspopup="true"
 			aria-expanded={isOpen}
-			aria-label="Trip data and exports"
+			aria-label={t('trip_data_and_exports')}
 			class="grid size-11 min-h-[44px] min-w-[44px] place-items-center rounded-md text-ink-muted transition-colors hover:bg-surface-sunken hover:text-ink active:scale-95 sm:size-9 sm:min-h-0 sm:min-w-0 [&_svg]:size-5 sm:[&_svg]:size-4"
 		>
 			<MoreVertical />
@@ -199,7 +199,7 @@
 						}}
 					>
 						<Share2 class="size-4" />
-						<span>Compartilhar</span>
+						<span>{t('share')}</span>
 					</button>
 				{/if}
 				{#if onedit}
@@ -219,7 +219,8 @@
 		{/if}
 
 		<p class="px-2.5 py-1.5 text-xs font-semibold uppercase tracking-wide text-ink-muted/80">
-			Export {title ? `"${title}"` : ''}
+			{t('export')}
+			{title ? `"${title}"` : ''}
 		</p>
 
 		<button type="button" class={itemClass} onclick={exportJson} disabled={!online || !!busy}>
@@ -287,13 +288,13 @@
 <Dialog
 	bind:open={pasteDialogOpen}
 	title={t('paste_json_update')}
-	description="Paste an exported trip JSON below. You'll see a preview of what will change before anything is saved."
+	description={t('paste_json_dialog_desc')}
 >
 	<div class="flex flex-col gap-3">
 		<div class="flex items-center justify-between">
 			{#if pasteText.trim()}
 				<span class="text-xs font-medium {pasteJsonError ? 'text-destructive' : 'text-success'}">
-					{pasteJsonError ? 'Invalid JSON' : 'Valid JSON ✓'}
+					{pasteJsonError ? t('import_json_invalid') : t('import_json_valid')}
 				</span>
 			{:else}
 				<span></span>
@@ -303,7 +304,7 @@
 				onclick={pasteFromClipboard}
 				class="text-xs font-medium text-primary-600 underline-offset-2 hover:underline"
 			>
-				Paste from clipboard
+				{t('import_paste_from_clipboard')}
 			</button>
 		</div>
 
@@ -341,7 +342,7 @@
 			disabled={!pasteText.trim() || !!pasteJsonError || busy === 'paste'}
 			class="rounded-md bg-primary-600 px-4 py-2 text-sm font-medium text-white transition-colors hover:bg-primary-700 disabled:opacity-50"
 		>
-			{busy === 'paste' ? t('saving') : 'Preview changes'}
+			{busy === 'paste' ? t('saving') : t('update_paste_confirm')}
 		</button>
 	{/snippet}
 </Dialog>

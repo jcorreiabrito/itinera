@@ -25,6 +25,8 @@ export const en = {
 	error_generic_desc:
 		'The app could not finish loading this page. Your data is stored on this device and is unaffected.',
 	error_reference: 'Error {code}',
+	error_state_title: "Couldn't load this",
+	error_state_desc: 'Something went wrong while loading. Your saved data is safe – try again.',
 	not_found_title: 'Page not found',
 	error_not_found_heading: 'Page not found',
 	error_not_found_desc:
@@ -483,6 +485,41 @@ export const en = {
 	previous_day: 'Previous day',
 	next_day: 'Next day',
 
+	// Itinerary day header, to-dos and quick-add (ItineraryDay)
+	to_do: 'To-do',
+	important: 'Important',
+	start_time: 'Start time',
+	no_category: 'No category',
+	todos_progress: '{done} of {total} done',
+	could_not_save_day_details: 'Could not save the day details. Try again.',
+	could_not_update_todo: 'Could not update the to-do.',
+	could_not_reorder: 'Could not reorder. Try again.',
+	could_not_move_activity: 'Could not move the activity. Try again.',
+	could_not_add_activity: 'Could not add the activity. Try again.',
+	could_not_remove_activity: 'Could not remove the activity. Try again.',
+	could_not_add_expense: 'Could not add the expense. Try again.',
+	day_title_placeholder: 'e.g. Vatican day',
+	markdown_supported: 'Markdown supported.',
+	day_notes_placeholder: 'Plans, reminders, links...',
+
+	// Timeline entry row (TimelineEntryRow)
+	flight: 'Flight',
+	activity_actions: 'Activity actions',
+	move_up: 'Move up',
+	move_down: 'Move down',
+	move_to_day: 'Move to day...',
+	add_as_expense: 'Add as expense',
+	until_time: 'until {time}',
+	cost_total_tooltip: 'Total: {total} ({perPerson} / person)',
+	booking_removed: 'booking removed',
+	note: 'Note',
+	hide_note: 'Hide note',
+	show_note: 'Show note',
+	arrives_days_after_one: 'Arrives {n} day after departure',
+	arrives_days_after_many: 'Arrives {n} days after departure',
+	tap_to_view_flights: 'Tap to view in Flights',
+	staying_at: 'Staying at',
+
 	// Attachments & Data Menu
 	loading: 'Loading...',
 	open_in_new_tab: 'Open in new tab',
@@ -500,6 +537,16 @@ export const en = {
 	paste_json_update: 'Paste JSON to update',
 	exports_need_server: 'Exports need server connection. JSON Update works offline.',
 	saved_to_device: 'Saved to your device.',
+	trip_data_and_exports: 'Trip data and exports',
+	share: 'Share',
+	export: 'Export',
+	invalid_json_file_for_update: 'Invalid JSON file for trip update.',
+	invalid_json_for_update: 'Invalid JSON for trip update.',
+	trip_updated_from_json: 'Trip updated successfully from JSON.',
+	could_not_update_trip: 'Could not update trip.',
+	paste_valid_json_first: 'Please paste valid JSON before continuing.',
+	paste_json_dialog_desc:
+		"Paste an exported trip JSON below. You'll see a preview of what will change before anything is saved.",
 
 	// Map Provider & API Keys
 	carto_api_key: 'CARTO API Key (Optional)',

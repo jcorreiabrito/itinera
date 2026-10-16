@@ -5,6 +5,19 @@
  * UI always reads/writes the local database while bytes move in the background
  * and reconnects are automatic (see `docs/05-offline-and-sync.md`).
  *
+ * The status this module reports is a claim about where the user's data is, so
+ * it is only allowed to say "Synced" when that is true. Three things follow, and
+ * each of them was wrong before:
+ *
+ *  - the two directions are separate replications, because `db.sync()` gives one
+ *    `paused` event and cannot distinguish "the server has everything we have"
+ *    from "we have everything the server has";
+ *  - `pendingChanges` is fed by the write path's own tally (`./pending`), so a
+ *    write that has not been pushed is visible even while the device is online;
+ *  - reachability is probed with a real request, not read from
+ *    `navigator.onLine`, which reports the state of a network interface and, on
+ *    a LAN or a tailnet, says nothing about the machine at the other end.
+ *
  * Conflicts are resolved deterministically by last-write-wins (`updatedAt`). The
  * winner is made authoritative and each losing revision's **content is retained**
  * (snapshotted into a device-local log) before its conflict branch is **cleared**
@@ -20,7 +33,8 @@
 import { get, writable, type Readable } from 'svelte/store';
 
 import { planConflictResolution, type ConflictReport } from './conflicts';
-import { getDb, createRemoteDb, type Database } from './pouch';
+import { clearPending, markPending, pendingWrites } from './pending';
+import { getDb, createRemoteDb, getRemoteUrl, type Database } from './pouch';
 import type { AnyDoc } from './schemas';
 
 /** The discrete states surfaced in the header pill. */
@@ -34,6 +48,8 @@ export interface SyncStatus {
 	lastSyncedAt: string | null;
 	/** Whether local changes are waiting to be pushed. */
 	pendingChanges: boolean;
+	/** How many local writes are still waiting to reach the server. */
+	pendingCount: number;
 	/** Last replication error message, when `state === 'error'`. */
 	error: string | null;
 }
@@ -57,7 +73,36 @@ const store = writable<SyncStatus>({
 	state: isOnline() ? 'syncing' : 'offline',
 	lastSyncedAt: loadLastSynced(),
 	pendingChanges: false,
+	pendingCount: 0,
 	error: null
+});
+
+/*
+ * `pendingWrites` is the write path's own tally (see `./pending`), so folding it
+ * into the status store here keeps the pill's contract unchanged: it still reads
+ * `pendingChanges`, and now also gets a count it can show.
+ *
+ * This is also what finally makes the `'pending'` state reachable. It existed in
+ * the union, the pill had an icon and a colour for it, and nothing ever set it —
+ * so a device with offline edits showed "Offline" (true) but a device that was
+ * online, reachable, and simply had one write in flight showed "Synced", which
+ * was not.
+ */
+export function applyPendingCount(status: SyncStatus, count: number): SyncStatus {
+	if (status.pendingCount === count) return status;
+	return {
+		...status,
+		pendingCount: count,
+		pendingChanges: count > 0,
+		// Only a *finished* sync is downgraded to "pending". Taking over from
+		// `syncing` would hide an in-flight transfer behind a static label, and
+		// from `offline`/`error` it would hide the reason the writes are stuck.
+		state: count > 0 && status.state === 'synced' ? 'pending' : status.state
+	};
+}
+
+pendingWrites.subscribe((count) => {
+	store.update((s) => applyPendingCount(s, count));
 });
 
 /** Reactive sync status for the UI (read-only). */
@@ -70,7 +115,51 @@ function patch(next: Partial<SyncStatus>): void {
 function markSynced(): void {
 	const iso = new Date().toISOString();
 	saveLastSynced(iso);
+	clearPending();
 	patch({ state: 'synced', lastSyncedAt: iso, pendingChanges: false, error: null });
+}
+
+/**
+ * Reachability probe for the remote database.
+ *
+ * `navigator.onLine` reports whether the device has *a* network interface, not
+ * whether the home server is on the other end of it — and this app is deployed
+ * on a LAN or a tailnet, where the network is up and the server is a laptop that
+ * is asleep. Trusting the flag alone left the pill reporting a sync error (or an
+ * eternal "Syncing…") whenever the server was unreachable on a working network.
+ *
+ * A 401/403 counts as reachable: the server answered, and CouchDB's own
+ * replication will surface the credential problem.
+ */
+export async function probeRemote(timeoutMs = 5000): Promise<boolean> {
+	if (typeof fetch === 'undefined') return true;
+	try {
+		const res = await fetch(getRemoteUrl(), {
+			method: 'HEAD',
+			credentials: 'include',
+			signal: AbortSignal.timeout(timeoutMs)
+		});
+		return res.ok || res.status === 401 || res.status === 403;
+	} catch {
+		return false;
+	}
+}
+
+/** `offline` only when the device or the server is genuinely out of reach. */
+async function offlineOrError(err: unknown): Promise<Partial<SyncStatus>> {
+	const reachable = await probeRemote();
+	return reachable
+		? { state: 'error', error: describeError(err) }
+		: { state: 'offline', error: null };
+}
+
+function describeError(err: unknown): string | null {
+	if (!err) return null;
+	if (typeof err === 'string') return err;
+	const message = (err as { message?: string })?.message;
+	const status = (err as { status?: number })?.status;
+	if (message && status) return `${message} (${status})`;
+	return message ?? String(err);
 }
 
 // --- Conflict resolution ---------------------------------------------------
@@ -207,6 +296,10 @@ export async function resolveDocConflicts(id: string, db: Database = getDb()): P
 			body._id = id;
 			body._rev = doc._rev; // sits on top of the current default branch
 			await db.put(body as unknown as Parameters<typeof db.put>[0]);
+			// Written straight to PouchDB rather than through `putDoc` (the
+			// merged body must keep the winner's exact shape), so it has to
+			// declare itself: it is a local edit and it has to be pushed.
+			markPending();
 		}
 	}
 
@@ -214,6 +307,7 @@ export async function resolveDocConflicts(id: string, db: Database = getDb()): P
 	for (const rev of plan.clearRevs) {
 		try {
 			await db.remove(id, rev);
+			markPending();
 		} catch (err) {
 			// A branch already cleared by a concurrent pass is fine.
 			if (statusOf(err) !== 404) throw err;
@@ -282,9 +376,36 @@ interface Cancelable {
 	cancel(): void;
 }
 
-let handler: Cancelable | null = null;
-let changeFeed: Cancelable | null = null;
+interface ReplicationEvent {
+	change?: { docs?: Array<{ _id: string }> };
+}
+
+/** One direction of replication, with the events we act on. */
+interface Replication extends Cancelable {
+	on(event: 'active', cb: () => void): Replication;
+	on(event: 'paused', cb: (err?: unknown) => void): Replication;
+	on(event: 'denied' | 'error', cb: (err: unknown) => void): Replication;
+	on(event: 'change', cb: (info: ReplicationEvent) => void): Replication;
+}
+
+let push: Replication | null = null;
+let pull: Replication | null = null;
 let started = false;
+
+/**
+ * Both directions are idle and error-free.
+ *
+ * `db.sync()` was one call with one `paused` event, so the status could not tell
+ * "the server has everything we have" from "we have everything the server has".
+ * Two replications give each direction its own lifecycle, which is what makes
+ * the `pending` state and the pending count mean anything.
+ */
+let pushIdle = false;
+let pullIdle = false;
+
+function settleIfIdle(): void {
+	if (pushIdle && pullIdle) markSynced();
+}
 
 async function handleDocChange(docId: string, db: Database): Promise<void> {
 	try {
@@ -294,87 +415,98 @@ async function handleDocChange(docId: string, db: Database): Promise<void> {
 	}
 }
 
+function watch(replication: Replication, direction: 'push' | 'pull', db: Database): Replication {
+	const settle = (idle: boolean) => {
+		if (direction === 'push') pushIdle = idle;
+		else pullIdle = idle;
+	};
+
+	return replication
+		.on('active', () => {
+			settle(false);
+			patch({ state: 'syncing', error: null });
+		})
+		.on('change', (info) => {
+			for (const doc of info?.change?.docs ?? []) {
+				if (doc?._id) void handleDocChange(doc._id, db);
+			}
+			patch({ lastSyncedAt: new Date().toISOString() });
+		})
+		.on('paused', async (err?: unknown) => {
+			if (err) {
+				settle(false);
+				patch(await offlineOrError(err));
+				return;
+			}
+			settle(true);
+			if (direction === 'push') clearPending();
+			settleIfIdle();
+		})
+		.on('denied', (err) => patch({ state: 'error', error: describeError(err) }))
+		.on('error', async (err) => {
+			settle(false);
+			patch(await offlineOrError(err));
+		});
+}
+
 /** Begin live, retrying, bidirectional replication. Idempotent. */
 export function startSync(db: Database = getDb()): void {
 	if (started) return;
 	started = true;
+	pushIdle = false;
+	pullIdle = false;
 
-	console.log('startSync: creating remote db handle');
 	const remote = createRemoteDb();
-	console.log('startSync: remote db handle created, url:', remote.name);
-
-	console.log('startSync: calling db.sync');
-	const sync = db.sync(remote, { live: true, retry: true });
-	console.log('startSync: db.sync returned');
-	sync
-		.on('active', () => {
-			console.log('sync event: active');
-			patch({ state: 'syncing', error: null });
-		})
-		.on('change', (info: unknown) => {
-			console.log('sync event: change', info);
-			const docs = (info as { change?: { docs?: Array<{ _id: string }> } })?.change?.docs ?? [];
-			for (const d of docs) if (d?._id) void handleDocChange(d._id, db);
-			patch({ lastSyncedAt: new Date().toISOString() });
-		})
-		.on('paused', (err: unknown) => {
-			console.log('sync event: paused', err);
-			if (err) {
-				patch({ state: isOnline() ? 'error' : 'offline', error: String(err) });
-			} else if (isOnline()) {
-				markSynced();
-			} else {
-				patch({ state: 'offline' });
-			}
-		})
-		.on('denied', (err: unknown) => {
-			console.log('sync event: denied', err);
-			patch({ state: 'error', error: String(err) });
-		})
-		.on('error', (err: unknown) => {
-			console.log('sync event: error', err);
-			patch({ state: isOnline() ? 'error' : 'offline', error: String(err) });
-		});
-	handler = sync as unknown as Cancelable;
-
-	// Track local writes so we can show "pending" while offline.
-	const feed = db.changes({ since: 'now', live: true }).on('change', () => {
-		if (!isOnline()) patch({ state: 'offline', pendingChanges: true });
-	});
-	changeFeed = feed as unknown as Cancelable;
+	const options = { live: true, retry: true };
+	push = watch(db.replicate.to(remote, options) as unknown as Replication, 'push', db);
+	pull = watch(db.replicate.from(remote, options) as unknown as Replication, 'pull', db);
 
 	if (typeof window !== 'undefined') {
-		window.addEventListener('online', () => patch({ state: 'syncing' }));
-		window.addEventListener('offline', () => patch({ state: 'offline' }));
+		window.addEventListener('online', () => {
+			patch({ state: 'syncing' });
+			// The flag only says an interface came up; confirm before celebrating.
+			void probeRemote().then((reachable) => {
+				if (!reachable) patch({ state: 'offline', error: null });
+			});
+		});
+		window.addEventListener('offline', () => patch({ state: 'offline', error: null }));
 	}
 
 	// Reconcile any conflicts that arrived while the app was closed.
 	void resolveAllConflicts(db);
 }
 
-/** Stop replication and the change feed. */
+/** Stop replication. */
 export function stopSync(): void {
-	handler?.cancel();
-	changeFeed?.cancel();
-	handler = null;
-	changeFeed = null;
+	push?.cancel();
+	pull?.cancel();
+	push = null;
+	pull = null;
+	pushIdle = false;
+	pullIdle = false;
 	started = false;
 }
 
 /**
  * Force an immediate one-shot sync (the "Sync now" action). Resolves once both
  * directions complete; updates the status store.
+ *
+ * Unlike the background replicas this one does *not* retry forever, so a
+ * "Sync now" tap on an unreachable server fails promptly and visibly instead of
+ * spinning.
  */
 export async function syncNow(db: Database = getDb()): Promise<void> {
 	const remote = createRemoteDb();
 	patch({ state: 'syncing', error: null });
 	try {
 		await db.replicate.to(remote);
+		clearPending();
 		await db.replicate.from(remote);
 		await resolveAllConflicts(db);
 		markSynced();
 	} catch (err) {
-		patch({ state: isOnline() ? 'error' : 'offline', error: String(err) });
+		const next = await offlineOrError(err);
+		patch(next);
 		throw err;
 	}
 }

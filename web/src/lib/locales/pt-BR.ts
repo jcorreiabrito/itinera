@@ -18,6 +18,9 @@ export const ptBR: Record<string, string> = {
 	error_generic_desc:
 		'O aplicativo não conseguiu terminar de carregar esta página. Seus dados ficam neste dispositivo e não foram afetados.',
 	error_reference: 'Erro {code}',
+	error_state_title: 'Não foi possível carregar isto',
+	error_state_desc:
+		'Algo deu errado ao carregar. Seus dados salvos estão seguros – tente novamente.',
 	not_found_title: 'Página não encontrada',
 	error_not_found_heading: 'Página não encontrada',
 	error_not_found_desc:
@@ -480,6 +483,41 @@ export const ptBR: Record<string, string> = {
 	previous_day: 'Dia anterior',
 	next_day: 'Próximo dia',
 
+	// Itinerary day header, to-dos and quick-add (ItineraryDay)
+	to_do: 'Tarefa',
+	important: 'Importante',
+	start_time: 'Horário de início',
+	no_category: 'Sem categoria',
+	todos_progress: '{done} de {total} concluídos',
+	could_not_save_day_details: 'Não foi possível salvar os detalhes do dia. Tente novamente.',
+	could_not_update_todo: 'Não foi possível atualizar a tarefa.',
+	could_not_reorder: 'Não foi possível reordenar. Tente novamente.',
+	could_not_move_activity: 'Não foi possível mover a atividade. Tente novamente.',
+	could_not_add_activity: 'Não foi possível adicionar a atividade. Tente novamente.',
+	could_not_remove_activity: 'Não foi possível remover a atividade. Tente novamente.',
+	could_not_add_expense: 'Não foi possível adicionar a despesa. Tente novamente.',
+	day_title_placeholder: 'ex.: dia no Vaticano',
+	markdown_supported: 'Markdown compatível.',
+	day_notes_placeholder: 'Planos, lembretes, links...',
+
+	// Timeline entry row (TimelineEntryRow)
+	flight: 'Voo',
+	activity_actions: 'Ações da atividade',
+	move_up: 'Mover para cima',
+	move_down: 'Mover para baixo',
+	move_to_day: 'Mover para outro dia...',
+	add_as_expense: 'Adicionar como despesa',
+	until_time: 'até {time}',
+	cost_total_tooltip: 'Total: {total} ({perPerson} por pessoa)',
+	booking_removed: 'reserva removida',
+	note: 'Nota',
+	hide_note: 'Ocultar nota',
+	show_note: 'Mostrar nota',
+	arrives_days_after_one: 'Chega {n} dia após a partida',
+	arrives_days_after_many: 'Chega {n} dias após a partida',
+	tap_to_view_flights: 'Toque para ver em Voos',
+	staying_at: 'Hospedado em',
+
 	// Attachments & Data Menu
 	loading: 'Carregando...',
 	open_in_new_tab: 'Abrir em nova aba',
@@ -498,6 +536,16 @@ export const ptBR: Record<string, string> = {
 	exports_need_server:
 		'Exportações precisam de conexão com o servidor. A atualização por JSON funciona offline.',
 	saved_to_device: 'Salvo no seu dispositivo.',
+	trip_data_and_exports: 'Dados e exportações da viagem',
+	share: 'Compartilhar',
+	export: 'Exportar',
+	invalid_json_file_for_update: 'Arquivo JSON inválido para atualizar a viagem.',
+	invalid_json_for_update: 'JSON inválido para atualizar a viagem.',
+	trip_updated_from_json: 'Viagem atualizada com sucesso a partir do JSON.',
+	could_not_update_trip: 'Não foi possível atualizar a viagem.',
+	paste_valid_json_first: 'Cole um JSON válido antes de continuar.',
+	paste_json_dialog_desc:
+		'Cole abaixo o JSON exportado da viagem. Você verá uma prévia do que vai mudar antes de qualquer coisa ser salva.',
 
 	// Map Provider & API Keys
 	carto_api_key: 'Chave de API do CARTO (Opcional)',

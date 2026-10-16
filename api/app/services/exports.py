@@ -63,6 +63,35 @@ def build_attachment_manifest(docs: list[dict[str, Any]]) -> list[dict[str, Any]
     return manifest
 
 
+def _attachment_summary(manifest: list[dict[str, Any]]) -> dict[str, Any]:
+    """
+    Say out loud that the manifest is metadata only.
+
+    The exported documents keep their CouchDB `_attachments` stubs — the
+    `digest`, `length` and `content_type` of each binary — but the bytes
+    themselves are never in the JSON. Nothing in the payload said so, so a user
+    restoring the file on a new device got a trip that looked complete, with
+    every receipt and boarding pass silently unopenable. A file that is handed
+    to someone else, or opened years later, has to describe its own gaps.
+    """
+    total = 0
+    unknown = 0
+    for entry in manifest:
+        size = entry.get("size")
+        if isinstance(size, (int, float)):
+            total += int(size)
+        else:
+            unknown += 1
+    return {
+        "attachmentsIncluded": False,
+        "attachmentCount": len(manifest),
+        "attachmentBytes": total,
+        # Entries with no recorded length, so a consumer does not read
+        # `attachmentBytes` as a complete total when it is a lower bound.
+        "attachmentBytesUnknownCount": unknown,
+    }
+
+
 def shape_trip_export(
     trip_id: str, docs: list[dict[str, Any]], db_name: str
 ) -> dict[str, Any]:
@@ -85,11 +114,13 @@ def shape_trip_export(
         "documents": documents,
         "counts": counts,
         "attachments": manifest,
+        **_attachment_summary(manifest),
     }
 
 
 def shape_full_export(docs: list[dict[str, Any]], db_name: str) -> dict[str, Any]:
     """Build a faithful whole-database export payload for backup/restore."""
+    manifest = build_attachment_manifest(docs)
     return {
         "schema": FULL_EXPORT_SCHEMA,
         "version": EXPORT_VERSION,
@@ -97,6 +128,8 @@ def shape_full_export(docs: list[dict[str, Any]], db_name: str) -> dict[str, Any
         "db": db_name,
         "docCount": len(docs),
         "documents": docs,
-        "attachments": build_attachment_manifest(docs),
+        "attachments": manifest,
+        **_attachment_summary(manifest),
     }
+
 

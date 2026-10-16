@@ -26,6 +26,7 @@ import {
 	listTripDocs,
 	nowIso,
 	patchDoc,
+	purgeManyDocs,
 	rangeScan,
 	restoreDoc,
 	softDeleteDoc
@@ -262,6 +263,24 @@ export async function restore(id: string): Promise<Trip> {
 		}
 	}
 	return restoredTrip;
+}
+
+/**
+ * Permanently delete a trip and every document that belongs to it.
+ *
+ * Purging only the trip leaves its days, items, flights, reservations, expenses
+ * and attachments soft-deleted in the Trash forever: their trip is gone, so
+ * nothing links to them any more, and restoring one produces an orphan nobody
+ * can reach. The children go with the parent.
+ */
+export async function purge(id: string): Promise<void> {
+	const fullId = fullTripid(id);
+	const childIds: string[] = [];
+	for (const type of TRIP_CHILD_TYPES) {
+		const docs = await listTripDocs<AnyDoc>(type, fullId, { includeDeleted: true });
+		childIds.push(...docs.map((doc) => doc._id));
+	}
+	await purgeManyDocs([...childIds, fullId]);
 }
 
 /** Set (or clear) the cover image attachment reference. */

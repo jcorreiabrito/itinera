@@ -77,7 +77,9 @@
 			onclick={toggle}
 			aria-haspopup="true"
 			aria-expanded={isOpen}
-			aria-label={`${current.label}.`}
+			aria-label={$syncStatus.pendingCount > 0
+				? `${current.label}. ${$syncStatus.pendingCount}`
+				: `${current.label}.`}
 			class={cn(
 				'relative inline-flex h-11 min-h-[44px] min-w-[44px] items-center justify-center gap-1.5 rounded-full border px-3 py-1 text-xs font-medium transition-colors hover:brightness-95 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary-600 focus-visible:ring-offset-2 focus-visible:ring-offset-bg sm:h-7 sm:min-h-0 sm:min-w-0 sm:justify-start sm:px-2.5',
 				current.tone
@@ -108,7 +110,17 @@
 		<div class="flex items-center justify-between gap-2 px-1">
 			<span class="text-sm font-semibold text-ink">{current.label}</span>
 			{#if $syncStatus.pendingChanges}
-				<span class="text-xs text-warning">{t('unsynced_changes')}</span>
+				<!--
+					The count, not just the fact. "Pending" with one queued edit and
+					"Pending" with four hundred read identically, and only one of them
+					means "do not close this laptop".
+				-->
+				<span class="text-xs text-warning">
+					{t('unsynced_changes')}
+					{#if $syncStatus.pendingCount > 0}
+						<span class="tabular-nums">· {$syncStatus.pendingCount}</span>
+					{/if}
+				</span>
 			{/if}
 		</div>
 
