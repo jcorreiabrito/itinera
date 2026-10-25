@@ -22,6 +22,14 @@ from ..errors import PdfUnavailable, TripNotFound
 from ..i18n import get_i18n
 from ..util import utcnow_iso
 from .exports import group_docs_by_type
+from .money import (
+    budget_remaining,
+    convert_to_home,
+    expense_amounts,
+    rollup_by_category,
+    rollup_by_day,
+    sum_expenses,
+)
 
 TEMPLATES_DIR = Path(__file__).resolve().parent.parent / "templates"
 STATIC_DIR = Path(__file__).resolve().parent.parent / "static"
@@ -80,42 +88,20 @@ CURRENCY_SYMBOLS: dict[str, dict[str, str]] = {
 
 
 def _to_home(
-    amount: Any, currency: Any, home_currency: str, fx_rate: Any
+    amount: Any, currency: Any, home_currency: str, fx_rate: Any = None
 ) -> float | None:
-    """
-    Convert `amount` in `currency` to `home_currency`, mirroring the web app's
-    `convertToHome()`:
+    """Named seam kept for the PDF tests; delegates to `money.convert_to_home()`.
 
-    - same currency (or no currency recorded) -> the amount unchanged;
-    - foreign with an `fxRate` -> amount x rate;
-    - foreign with NO rate -> `None`, i.e. excluded rather than silently summed
-      as though the two currencies were interchangeable.
+    There is exactly one implementation of the conversion rule (a foreign amount
+    with no rate is excluded, not summed), so the printed sheet and the phone
+    cannot drift apart. See `app/services/money.py` for why that matters.
     """
-    if amount is None or amount == "":
-        return None
-    try:
-        value = float(amount)
-    except (TypeError, ValueError):
-        return None
-    code = (str(currency).strip().upper() if currency else "") or home_currency.upper()
-    if not currency or code == home_currency.upper():
-        return value
-    if fx_rate is None or fx_rate == "":
-        return None
-    try:
-        return value * float(fx_rate)
-    except (TypeError, ValueError):
-        return None
+    return convert_to_home(amount, currency, home_currency, fx_rate)
 
 
 def _missing_rate(exp: dict[str, Any], home_currency: str) -> bool:
     """True when a foreign amount exists but no rate was entered for it."""
-    currency = exp.get("currency")
-    if not currency or str(currency).strip().upper() == home_currency.upper():
-        return False
-    if exp.get("fxRate") not in (None, ""):
-        return False
-    return exp.get("amountEstimate") is not None or exp.get("amountActual") is not None
+    return expense_amounts(exp, home_currency).missing_rate
 
 
 def _money(amount: float | None, ccy: str, lang: str = "en") -> str | None:
@@ -435,27 +421,16 @@ def shape_trip_pdf_context(
         )
 
     # --- Cost summary ---
+    #
+    # Aggregated by `services/money.py`, which mirrors the web app's
+    # `db/money.ts` expression for expression — including the `per_person`
+    # multiplier the screen applies. The PDF used to sum the raw home-currency
+    # conversions without it, so an expense entered as "120 per person" for four
+    # travellers printed 120 on paper and 480 on the phone.
     expenses = _active("expense")
-    by_cat: dict[str, dict[str, float]] = {}
-    total_est = 0.0
-    total_act = 0.0
-    missing_rate = 0
-    for exp in expenses:
-        # Every expense carries its own `currency` and a manually entered
-        # `fxRate` snapshot to the trip's home currency (see docs/12). The web
-        # app converts each amount with that snapshot and EXCLUDES any foreign
-        # amount with no rate, reporting the count — this used to sum the raw
-        # numbers and label the result in the home currency, so a €50 + $100
-        # trip printed a total that was simply wrong.
-        est = _to_home(exp.get("amountEstimate"), exp.get("currency"), home_ccy, exp.get("fxRate"))
-        act = _to_home(exp.get("amountActual"), exp.get("currency"), home_ccy, exp.get("fxRate"))
-        if _missing_rate(exp, home_ccy):
-            missing_rate += 1
-        total_est += est or 0.0
-        total_act += act or 0.0
-        agg = by_cat.setdefault(exp.get("category") or "other", {"estimate": 0.0, "actual": 0.0})
-        agg["estimate"] += est or 0.0
-        agg["actual"] += act or 0.0
+    traveler_count = max(int(trip.get("travelerCount") or 1), 1)
+    totals = sum_expenses(expenses, home_ccy, traveler_count)
+    by_cat = rollup_by_category(expenses, home_ccy, traveler_count)
 
     budget_total = (trip.get("budget") or {}).get("total")
     cost_rows = [
@@ -464,23 +439,25 @@ def shape_trip_pdf_context(
             # and groups by); `label` is what the document prints.
             "category": cat,
             "label": _term_label(cat, effective_lang, i18n_dict),
-            "estimate": _money(vals["estimate"], home_ccy, effective_lang),
-            "actual": _money(vals["actual"], home_ccy, effective_lang),
+            "estimate": _money(vals.estimate, home_ccy, effective_lang),
+            "actual": _money(vals.actual, home_ccy, effective_lang),
         }
         for cat, vals in sorted(by_cat.items())
     ]
     costs = {
         "homeCurrency": home_ccy,
-        "totalEstimate": _money(total_est, home_ccy, effective_lang),
-        "totalActual": _money(total_act, home_ccy, effective_lang),
+        "totalEstimate": _money(totals.estimate, home_ccy, effective_lang),
+        "totalActual": _money(totals.actual, home_ccy, effective_lang),
         "budget": _money(budget_total, home_ccy, effective_lang) if budget_total is not None else None,
-        "remaining": (
-            _money(budget_total - total_act, home_ccy, effective_lang) if budget_total is not None else None
+        # `budget_remaining` tolerates a stored string and a missing budget,
+        # where the previous subtraction would have raised on either.
+        "remaining": _money(
+            budget_remaining(totals.actual, budget_total), home_ccy, effective_lang
         ),
         "rows": cost_rows,
         "hasData": bool(expenses),
         # Surfaced in the template so a total that quietly omits an amount says so.
-        "missingRateCount": missing_rate,
+        "missingRateCount": totals.missing_rate_count,
     }
 
     raw_dests = [d for d in trip.get("destinations", []) if isinstance(d, dict) and d.get("name")]
@@ -499,22 +476,13 @@ def shape_trip_pdf_context(
                 return d.get("name")
         return None
 
-    traveler_count = max(int(trip.get("travelerCount") or 1), 1)
-
     # Expenses by date, so a day subtotal is the SUM OF THAT DAY'S EXPENSES —
     # the figure the itinerary screen shows under "Day subtotal" — rather than a
     # sum of item estimates, which double-counts anything also recorded as an
-    # expense and mixes currencies.
-    expenses_by_date: dict[str, float] = {}
-    for exp in expenses:
-        if not exp.get("date"):
-            continue
-        amount = _to_home(exp.get("amountActual"), exp.get("currency"), home_ccy, exp.get("fxRate"))
-        if amount is None:
-            amount = _to_home(exp.get("amountEstimate"), exp.get("currency"), home_ccy, exp.get("fxRate"))
-        if amount:
-            date_key = str(exp["date"])
-            expenses_by_date[date_key] = expenses_by_date.get(date_key, 0.0) + amount
+    # expense and mixes currencies. `rollup_by_day` applies the same
+    # `actual ?? estimate` and `per_person` rules as the totals above.
+    day_rollup = rollup_by_day(expenses, home_ccy, traveler_count)
+    expenses_by_date = {day.date: day.totals.spent for day in day_rollup.days if day.date}
 
     for block in day_blocks:
         block["destination"] = _find_dest(block.get("date"))
