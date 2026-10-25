@@ -369,6 +369,153 @@ class TestDocumentLanguage:
         assert "<title>Viagem sem título" in html_page
 
 
+class TestPaperSize:
+    """`?paper=` chooses the CSS page size; anything unknown is A4, not a 422."""
+
+    def test_default_is_a4(self):
+        html_page = render_trip_html(shape_trip_pdf_context([_trip()]))
+        assert "size: A4;" in html_page
+
+    def test_letter_is_threaded_into_the_page_rule(self):
+        html_page = render_trip_html(shape_trip_pdf_context([_trip()]), paper="letter")
+        assert "size: letter;" in html_page
+
+    def test_paper_value_is_case_and_space_insensitive(self):
+        html_page = render_trip_html(shape_trip_pdf_context([_trip()]), paper="  LETTER ")
+        assert "size: letter;" in html_page
+
+    def test_unknown_paper_falls_back_to_a4(self):
+        html_page = render_trip_html(shape_trip_pdf_context([_trip()]), paper="A3")
+        assert "size: A4;" in html_page
+        assert "size: A3" not in html_page
+
+
+class TestCoverSheet:
+    """Page one has to answer what the document is before the reader turns it."""
+
+    def test_cover_names_the_trip_dates_destinations_and_party(self):
+        docs = [
+            _trip(
+                {
+                    "title": "Paris in June",
+                    "travelerCount": 3,
+                    "destinations": [{"name": "Paris"}, {"name": "Lyon"}],
+                }
+            )
+        ]
+        ctx = shape_trip_pdf_context(docs)
+        cover = ctx["cover"]
+        assert cover["title"] == "Paris in June"
+        assert cover["destinations"] == "Paris → Lyon"
+        assert "Jun 01" in cover["dateRange"]
+        assert "Jun 03" in cover["dateRange"]
+        assert cover["travelerCount"] == 3
+
+        html_page = render_trip_html(ctx)
+        assert "<h1>Paris in June</h1>" in html_page
+        assert "Paris → Lyon" in html_page
+        assert "Travelers: 3" in html_page
+        assert 'datetime="2026-06-01/2026-06-03"' in html_page
+        assert "<h2>Contents</h2>" in html_page
+
+    def test_cover_uses_the_untitled_fallback_and_no_contents_when_empty(self):
+        ctx = shape_trip_pdf_context([])
+        assert ctx["cover"]["title"] == "Untitled trip"
+        assert ctx["cover"]["sections"] == []
+        html_page = render_trip_html(ctx)
+        assert "<h1>Untitled trip</h1>" in html_page
+        assert 'class="contents"' not in html_page
+
+    def test_contents_lists_only_sections_with_content(self):
+        # A dated trip renders the overview grid and the day blocks; there is
+        # nothing in the other four sections to send the reader to.
+        ctx = shape_trip_pdf_context([_trip(), _item("2026-06-01", "Breakfast")])
+        labels = [entry["label"] for entry in ctx["cover"]["sections"]]
+        assert labels == ["Trip Overview", "Itinerary"]
+        assert "Flights" not in labels
+
+    def test_contents_lists_every_present_section_in_document_order(self):
+        docs = [
+            _trip({"travelerCount": 2}),
+            _item("2026-06-01", "Breakfast", startTime="09:00", category="food"),
+            {"_id": "fl:01", "type": "flight", "segments": []},
+            {"_id": "res:01", "type": "reservation", "name": "Hotel", "kind": "lodging"},
+            {"_id": "chk:01", "type": "checklistItem", "text": "Passport"},
+            _expense("food", actual=10),
+        ]
+        ctx = shape_trip_pdf_context(docs)
+        assert [entry["label"] for entry in ctx["cover"]["sections"]] == [
+            "Trip Overview",
+            "Itinerary",
+            "Flights",
+            "Reservations",
+            "Checklist",
+            "Costs & Budget",
+        ]
+        html_page = render_trip_html(ctx)
+        assert 'class="contents"' in html_page
+        assert "<h2>Contents</h2>" in html_page
+
+    def test_cover_follows_the_requested_language(self):
+        docs = [_trip({"travelerCount": 2}), _item("2026-06-01", "Café")]
+        ctx = shape_trip_pdf_context(docs, lang="pt-BR")
+        cover = ctx["cover"]
+        assert cover["contentsLabel"] == "Índice"
+        assert cover["travelersLabel"] == "Viajantes"
+        assert [entry["label"] for entry in cover["sections"]] == [
+            "Visão Geral da Viagem",
+            "Roteiro",
+        ]
+        assert "01 de Jun" in cover["dateRange"]
+
+        html_page = render_trip_html(ctx)
+        assert "<h2>Índice</h2>" in html_page
+        assert "Viajantes: 2" in html_page
+
+    def test_cover_never_prints_an_english_heading_in_portuguese(self):
+        html_page = render_trip_html(
+            shape_trip_pdf_context([_trip(), _expense("food", actual=10)], lang="pt-BR")
+        )
+        assert "Contents" not in html_page
+        assert "Travelers" not in html_page
+        assert "Índice" in html_page
+        assert "Viajantes" in html_page
+
+
+def _body_text(page) -> str:
+    """A page's content text, ignoring the margin-box footer."""
+    parts: list[str] = []
+
+    def walk(box) -> None:
+        text = getattr(box, "text", None)
+        if text:
+            parts.append(text)
+        for child in getattr(box, "children", ()):
+            walk(child)
+
+    walk(page._page_box.children[0])
+    return " ".join(parts)
+
+
+class TestCoverPagination:
+    def test_the_cover_is_page_one_and_the_page_after_it_is_not_blank(self):
+        weasyprint = pytest.importorskip("weasyprint")
+        docs = [_trip(), _item("2026-06-01", "Breakfast", startTime="09:00")]
+        document = weasyprint.HTML(
+            string=render_trip_html(shape_trip_pdf_context(docs))
+        ).render()
+
+        assert len(document.pages) >= 2
+        cover = _body_text(document.pages[0])
+        assert "Test Trip" in cover
+        assert "Contents" in cover
+        assert "Breakfast" not in cover
+
+        for page in document.pages[1:]:
+            assert _body_text(page).strip(), "a page after the cover is blank"
+        assert "Breakfast" in _body_text(document.pages[1])
+
+
 class TestRenderMarkdown:
     def test_renders_lists(self):
         text = "- Natal Luz, 41ª edição\n- Acendimento das Luzes"

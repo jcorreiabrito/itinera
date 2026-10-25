@@ -2,13 +2,13 @@
 <html lang="{{ lang }}">
 <head>
     <meta charset="utf-8" />
-    <title>{{ i18n.doc_title.format(title=trip.title or i18n.untitled_trip) }}</title>
+    <title>{{ i18n.doc_title.format(title=cover.title) }}</title>
     <style>
         {{ font_face_css | safe }}
 
         /* Itinera printable theme – cozy / warm / forest-green (see 13-ui-ux.md). */
         @page {
-            size: A4;
+            size: {{ paper_size }};
             margin: 18mm 16mm 16mm 16mm;
             @bottom-center {
                 content: "Itinera";
@@ -64,11 +64,23 @@
             border-radius: 16px;
             padding: 22px 24px;
             margin-bottom: 18px;
+            min-height: 225mm;
+            page-break-after: always;
         }
         .cover h1 { color: #fffdf9; font-size: 24pt; margin-bottom: 4px; }
         .cover .meta { font-size: 11pt; opacity: 0.95; }
-        .cover .meta span { white-space: nowrap; }
-        .cover .dot { opacity: 0.6; padding: 0 6px; }
+        .cover .meta div { margin-top: 3px; }
+        .cover .contents { margin-top: 26mm; }
+        .cover .contents h2 {
+            color: #fffdf9;
+            font-size: 14pt;
+            border-bottom: 1px solid rgba(255, 255, 255, 0.45);
+            padding-bottom: 4px;
+            margin-bottom: 8px;
+        }
+        .cover .contents ol { margin: 0; padding-left: 20px; font-size: 11pt; }
+        .cover .contents li { margin-bottom: 3px; }
+        .cover .contents a { color: #fffdf9; text-decoration: none; }
 
         section { margin-bottom: 16px; page-break-inside: auto; }
 
@@ -377,11 +389,22 @@
 </head>
 <body>
     <div class="cover">
-        <h1>{{ trip.title or i18n.untitled_trip }}</h1>
+        <h1>{{ cover.title }}</h1>
         <div class="meta">
-            {% if destinations %}<span>{{ destinations }}</span>{% endif %}
-            {% if trip.startDate %}<span class="dot">•</span><span>{{ trip.startDate }}</span>{% if trip.endDate %} → {{ trip.endDate }}{% endif %}{% endif %}
+            {% if cover.destinations %}<div>{{ cover.destinations }}</div>{% endif %}
+            {% if cover.dateRange %}<div>{% if cover.dateRangeISO %}<time datetime="{{ cover.dateRangeISO }}">{{ cover.dateRange }}</time>{% else %}{{ cover.dateRange }}{% endif %}</div>{% endif %}
+            <div>{{ cover.travelersLabel }}: {{ cover.travelerCount }}</div>
         </div>
+        {% if cover.sections %}
+        <nav class="contents" aria-label="{{ cover.contentsLabel }}">
+            <h2>{{ cover.contentsLabel }}</h2>
+            <ol>
+                {% for entry in cover.sections %}
+                <li><a href="#{{ entry.id }}">{{ entry.label }}</a></li>
+                {% endfor %}
+            </ol>
+        </nav>
+        {% endif %}
     </div>
 
     {% if trip.notes %}
@@ -391,6 +414,7 @@
     {% endif %}
 
     {% if calendar_grid and calendar_grid.has_data %}
+        <section id="overview">
         {% for chunk in calendar_grid.chunks %}
         <section class="cal-grid-section">
             <h2 class="section-title">
@@ -442,9 +466,10 @@
             </div>
         </section>
         {% endfor %}
+        </section>
     {% endif %}
 
-    <section>
+    <section id="itinerary">
         <h2 class="section-title">{{ i18n.itinerary }}</h2>
         {% if days %}
             {% for day in days %}
@@ -479,7 +504,7 @@
         {% endif %}
     </section>
 
-    <section>
+    <section id="flights">
         <h2 class="section-title">{{ i18n.flights }}</h2>
         {% if flights %}
             {% for f in flights %}
@@ -506,7 +531,7 @@
         {% endif %}
     </section>
 
-    <section>
+    <section id="reservations">
         <h2 class="section-title">{{ i18n.reservations }}</h2>
         {% if reservations %}
             {% for r in reservations %}
@@ -525,7 +550,7 @@
         {% endif %}
     </section>
 
-    <section>
+    <section id="checklist">
         <h2 class="section-title">
             {{ i18n.checklist }}
             <span class="progress">{{ checklist_progress.done }}/{{ checklist_progress.total }} {{ i18n.done }}</span>
@@ -549,7 +574,7 @@
         {% endif %}
     </section>
 
-    <section>
+    <section id="costs">
         <h2 class="section-title">{{ i18n.costs }}</h2>
         {% if costs.hasData %}
         <table class="list">

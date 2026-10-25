@@ -25,10 +25,13 @@ router = APIRouter(tags=["pdf"])
 async def print_trip(
     trip_id: str,
     lang: str | None = Query(None, description="Language for PDF rendering (e.g. 'pt-BR' or 'en')"),
+    paper: str | None = Query(
+        None, description="Paper size: 'a4' (default) or 'letter' (unknown values use a4)"
+    ),
     couch: CouchClient = Depends(get_couch),
 ) -> Response:
     try:
-        pdf_bytes, filename = await build_trip_pdf(couch, trip_id, lang=lang)
+        pdf_bytes, filename = await build_trip_pdf(couch, trip_id, lang=lang, paper=paper)
     except TripNotFound as exc:
         raise HTTPException(status_code=404, detail=str(exc)) from exc
     except PdfUnavailable as exc:

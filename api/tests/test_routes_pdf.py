@@ -84,6 +84,38 @@ class TestPrintPdf:
         resp = await self._get_pdf()
         assert b"/Lang (en)" in _pdf_including_object_streams(resp.content)
 
+    async def test_default_paper_is_a4(self):
+        resp = await self._get_pdf()
+        assert re.search(
+            rb"/MediaBox \[0 0 595\.\d+ 841\.\d+\]",
+            _pdf_including_object_streams(resp.content),
+        )
+
+    async def test_letter_paper_sets_the_page_size(self):
+        resp = await self._get_pdf("?paper=letter")
+        assert resp.status_code == 200
+        assert b"/MediaBox [0 0 612 792]" in _pdf_including_object_streams(resp.content)
+
+    async def test_unknown_paper_falls_back_to_a4(self):
+        resp = await self._get_pdf("?paper=a3")
+        assert resp.status_code == 200
+        assert re.search(
+            rb"/MediaBox \[0 0 595\.\d+ 841\.\d+\]",
+            _pdf_including_object_streams(resp.content),
+        )
+
+    async def test_language_and_paper_compose(self):
+        resp = await self._get_pdf("?lang=pt-BR&paper=letter")
+        blob = _pdf_including_object_streams(resp.content)
+        assert b"/Lang (pt-BR)" in blob
+        assert b"/MediaBox [0 0 612 792]" in blob
+
+    async def test_pdf_is_tagged_for_screen_readers(self):
+        resp = await self._get_pdf()
+        blob = _pdf_including_object_streams(resp.content)
+        assert b"/StructTreeRoot" in blob
+        assert b"/MarkInfo <</Marked true>>" in blob
+
     async def test_filename_names_the_trip_not_the_language(self):
         resp = await self._get_pdf("?lang=pt-BR")
         assert 'filename="itinera-paris.pdf"' in resp.headers["content-disposition"]

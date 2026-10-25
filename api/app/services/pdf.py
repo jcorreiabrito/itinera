@@ -138,7 +138,8 @@ def _money(amount: float | None, ccy: str, lang: str = "en") -> str | None:
 
 
 # Labels for the values that live in a closed set — an itinerary item's or an
-# expense's `category`, a reservation's `kind`. The screens label these through
+# expense's `category`, a reservation's `kind` — and the couple of cover-sheet
+# words the shared dictionary has no key for. The screens label these through
 # `t('cat_food')` &c.; the shared dictionary (`app/i18n.py`) already carries a
 # `cat_*` key for most of them, and the ones it has no key for are here, next to
 # the template that prints them. Keep this in step with
@@ -152,6 +153,8 @@ EXTRA_TERM_LABELS: dict[str, dict[str, str]] = {
         "free": "Free time",
         "car": "Car rental",
         "restaurant": "Restaurant",
+        "contents": "Contents",
+        "travelers": "Travelers",
     },
     "pt-BR": {
         "sightseeing": "Passeios",
@@ -159,19 +162,21 @@ EXTRA_TERM_LABELS: dict[str, dict[str, str]] = {
         "free": "Tempo livre",
         "car": "Aluguel de carro",
         "restaurant": "Restaurante",
+        "contents": "Índice",
+        "travelers": "Viajantes",
     },
 }
 
 
 def _term_label(value: Any, lang: str, i18n_dict: dict[str, str]) -> str:
     """
-    The label a stored category/kind prints as, in the document's language.
+    The label a stored category/kind — or a cover-sheet word — prints as.
 
     Resolution order: the shared dictionary's `cat_<value>` key first, because
     that is where the screens' labels live and where a new category should get
-    one; then `EXTRA_TERM_LABELS`, for the closed-set values with no key there;
-    then the stored value itself, so a category written by a newer client prints
-    as itself rather than as an empty chip or the key name.
+    one; then `EXTRA_TERM_LABELS`, for the closed-set values and cover words
+    with no key there; then the stored value itself, so a category written by a
+    newer client prints as itself rather than as an empty chip or the key name.
 
     An empty value reads as the localised "Other" — the same word the costs
     rollup uses for an expense with no category.
@@ -332,6 +337,24 @@ def _date_range(start: str | None, end: str | None) -> list[str]:
         out.append(cur.isoformat())
         cur += timedelta(days=1)
     return out
+
+
+def _cover_date_range(start: str | None, end: str | None, lang: str) -> str:
+    """The trip's dates as one localised line on the cover sheet.
+
+    A malformed date falls back to the stored string rather than dropping the
+    date from the cover; `_safe_date` has already decided it is not a date.
+    """
+    start_label = _format_day_label(_safe_date(start), start or "", lang)
+    end_label = _format_day_label(_safe_date(end), end or "", lang)
+    if start_label and end_label and end_label != start_label:
+        return f"{start_label} – {end_label}"  # noqa: RUF001
+    return start_label or end_label
+
+
+def _paper_css(paper: str | None) -> str:
+    """CSS page-size keyword for `?paper=`; anything but "letter" is A4."""
+    return "letter" if (paper or "").strip().lower() == "letter" else "A4"
 
 
 def _parse_minutes(val: str | None) -> int | None:
@@ -619,9 +642,50 @@ def shape_trip_pdf_context(
         "has_data": len(chunks) > 0 and any(len(c["days"]) > 0 for c in chunks),
     }
 
+    # --- Cover sheet ---
+    #
+    # Page one says what the document is before the reader turns it: title,
+    # dates, places and party size, then only the sections with something in
+    # them. A contents entry pointing at an empty section is how a reader ends
+    # up flipping through "No flights recorded."
+    contents: list[dict[str, str]] = []
+    if calendar_grid["has_data"]:
+        contents.append({"id": "overview", "label": i18n_dict["trip_overview"]})
+    if day_blocks:
+        contents.append({"id": "itinerary", "label": i18n_dict["itinerary"]})
+    if flights:
+        contents.append({"id": "flights", "label": i18n_dict["flights"]})
+    if reservations:
+        contents.append({"id": "reservations", "label": i18n_dict["reservations"]})
+    if checklist:
+        contents.append({"id": "checklist", "label": i18n_dict["checklist"]})
+    if costs["hasData"]:
+        contents.append({"id": "costs", "label": i18n_dict["costs"]})
+
+    raw_title = trip.get("title")
+    raw_start = trip.get("startDate")
+    raw_end = trip.get("endDate")
+    cover = {
+        "title": (raw_title.strip() if isinstance(raw_title, str) else "")
+        or i18n_dict["untitled_trip"],
+        "dateRange": _cover_date_range(raw_start, raw_end, effective_lang),
+        # Machine-readable twin of the printed line, so a screen reader or a
+        # parser gets the dates the way they are stored, not only the way they
+        # are worded.
+        "dateRangeISO": (
+            f"{raw_start}/{raw_end}" if raw_start and raw_end else raw_start or raw_end or ""
+        ),
+        "destinations": destinations,
+        "travelerCount": traveler_count,
+        "travelersLabel": _term_label("travelers", effective_lang, i18n_dict),
+        "contentsLabel": _term_label("contents", effective_lang, i18n_dict),
+        "sections": contents,
+    }
+
     return {
         "trip": trip,
         "destinations": destinations,
+        "cover": cover,
         "days": day_blocks,
         "flights": flights,
         "reservations": reservations,
@@ -672,12 +736,16 @@ def _font_face_css() -> str:
     return "\n".join(rules)
 
 
-def render_trip_html(context: dict[str, Any]) -> str:
+def render_trip_html(context: dict[str, Any], paper: str | None = None) -> str:
     """Render the trip PDF HTML from the shaped context (no native deps)."""
     return (
         _jinja_env()
         .get_template("trip_pdf.html")
-        .render(font_face_css=_font_face_css(), **context)
+        .render(
+            font_face_css=_font_face_css(),
+            paper_size=_paper_css(paper),
+            **context,
+        )
     )
 
 
@@ -713,14 +781,14 @@ def html_to_pdf(html: str, *, base_url: str | None = None) -> bytes:
 
 
 async def build_trip_pdf(
-    couch: CouchClient, trip_id: str, lang: str | None = None
+    couch: CouchClient, trip_id: str, lang: str | None = None, paper: str | None = None
 ) -> tuple[bytes, str]:
     """Fetch a trip, render its printable PDF, and return `(bytes, filename)`."""
     docs = await couch.get_trip_docs(trip_id)
     if not any(d.get("type") == "trip" for d in docs):
         raise TripNotFound(trip_id)
     context = shape_trip_pdf_context(docs, lang=lang)
-    pdf_bytes = html_to_pdf(render_trip_html(context))
+    pdf_bytes = html_to_pdf(render_trip_html(context, paper=paper))
     # The filename deliberately does not carry the language: it names the trip,
     # and the language already travels in the `?lang=` the caller asked with, in
     # the document's own `/Lang` and in the `<html lang>` a screen reader

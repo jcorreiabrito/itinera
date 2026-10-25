@@ -218,6 +218,31 @@ class CouchClient:
         resp.raise_for_status()
         return resp.content
 
+    async def put_attachment(
+        self,
+        doc_id: str,
+        name: str,
+        data: bytes,
+        content_type: str,
+        *,
+        rev: str | None = None,
+    ) -> dict[str, Any]:
+        """Upload or replace a named attachment on a document.
+
+        CouchDB creates a new document revision for every attachment write, so the
+        caller must pass the **current** `_rev` (and use the returned one for any
+        further attachment on the same document). Used by backup restore; the app
+        itself writes attachments inline through PouchDB.
+        """
+        resp = await self._client.put(
+            f"/{self._db}/{quote(doc_id, safe='')}/{quote(name, safe='')}",
+            params={"rev": rev} if rev else None,
+            content=data,
+            headers={"Content-Type": content_type or "application/octet-stream"},
+        )
+        resp.raise_for_status()
+        return resp.json()
+
     # --- Internals ---
 
     async def _prefix_scan(self, prefix: str) -> list[dict[str, Any]]:

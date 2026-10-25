@@ -70,6 +70,26 @@ All configuration lives in `deploy/.env` (copied from `.env.example`; **gitignor
 
 ---
 
+## Client configuration (`web/static/config.js`)
+
+The **server** is configured by `.env`; the **browser app** is configured by one optional file, [`web/static/config.js`](../web/static/config.js). It is plain JavaScript loaded before the app bundle, so every key is optional and nothing needs to be recompiled or type-checked. Anything you omit keeps the default below; a malformed file is reported in the browser console and the defaults are used, so the app still starts.
+
+| Key | Default | Purpose |
+|---|---|---|
+| `dbName` | `itinera` | Local IndexedDB database name. Use a different name to keep two datasets on one device. |
+| `remoteUrl` | `/db/itinera` | CouchDB endpoint as seen by the browser. Keep it **same-origin** — Caddy injects the credentials. Change it only if you proxy `/db` somewhere else. |
+| `defaultCurrency` | `EUR` | ISO-4217 code a **new** installation starts with. Once saved in Settings, the saved value wins. |
+| `weatherEnabled` | `true` | Set `false` on a deployment with no route to `api.open-meteo.com`; day cards then show only an already-cached forecast. |
+| `flags` | `{}` | Feature switches. **An absent key means ON**; set one to `false` to hide that feature (e.g. `flags: { wallet: false }`). |
+
+`config.js` is copied into the static build, so in the Docker stack a change needs the same rebuild as any other frontend change:
+
+```bash
+docker compose up --build -d
+```
+
+---
+
 ## How the PWA is served
 
 `web.Dockerfile` is a **multi-stage build**:
@@ -131,6 +151,28 @@ docker run --rm -v itinera_exports-data:/data:ro -v "$(PWD):/out" \
 ```
 
 > Optional warm backup: replicate CouchDB to a second CouchDB (e.g. on a NAS).
+
+### 3. Restore from inside the app (or the API)
+
+Settings → **Data & backups** lists the server's backups and offers **Restore** on each one. The dialog always starts with a **dry run** showing exactly what would change, then:
+
+1. writes a fresh **safety snapshot** of the current data (the restore aborts if that fails);
+2. adds every document in the backup that is missing;
+3. only if you tick *"Also overwrite records that still exist"*, replaces existing documents with the backup's version;
+4. re-uploads the backup's attachment files.
+
+A restore **never deletes** a document that exists now. The same operation is available as an API call:
+
+```bash
+# Preview (writes nothing)
+curl -X POST "http://localhost/api/backups/backup-20260101T120000/restore?dry_run=true"
+
+# Restore missing records only (safe on a live database)
+curl -X POST "http://localhost/api/backups/backup-20260101T120000/restore"
+
+# Also overwrite records that still exist
+curl -X POST "http://localhost/api/backups/backup-20260101T120000/restore?mode=replace"
+```
 
 ## Remote access over Tailscale (+ HTTPS)
 
