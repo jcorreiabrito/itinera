@@ -1,4 +1,24 @@
-export const ptBR: Record<string, string> = {
+import { batchPt } from './features/batch';
+import { capturePt } from './features/capture';
+import { commandPt } from './features/command';
+import { configPt } from './features/config';
+import { conflictsPt } from './features/conflicts';
+import { densityPt } from './features/density';
+import { exportCenterPt } from './features/export-center';
+import { feasibilityPt } from './features/feasibility';
+import { packingPt } from './features/packing';
+import { printDocPt } from './features/print-doc';
+import { readinessPt } from './features/readiness';
+import { restorePt } from './features/restore';
+import { todayPt } from './features/today';
+import { walletPt } from './features/wallet';
+import { workspacePt } from './features/workspace';
+
+/**
+ * The core Portuguese dictionary — see `en.ts` for why the file is split.
+ * `basePtBR` is what parity is measured against; `ptBR` is what `t()` reads.
+ */
+export const basePtBR: Record<string, string> = {
 	// Navigation & Core
 	trips: 'Viagens',
 	new_trip: 'Nova viagem',
@@ -1089,4 +1109,23 @@ export const ptBR: Record<string, string> = {
 	no_files_yet: 'Nenhum arquivo ainda. Cartões de embarque e vouchers ficam salvos offline.',
 	add_named: 'Adicionar {name}',
 	checklist_view_label: 'Visualização da checklist'
+};
+
+export const ptBR: Record<string, string> = {
+	...basePtBR,
+	...batchPt,
+	...capturePt,
+	...commandPt,
+	...configPt,
+	...conflictsPt,
+	...densityPt,
+	...exportCenterPt,
+	...feasibilityPt,
+	...packingPt,
+	...printDocPt,
+	...readinessPt,
+	...restorePt,
+	...todayPt,
+	...walletPt,
+	...workspacePt
 };

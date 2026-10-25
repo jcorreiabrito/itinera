@@ -4,8 +4,31 @@
  * Deliberately NOT annotated `: Record<string, string>`: that widens the type so
  * `keyof typeof en` collapses to `string`, which makes `t()`'s key parameter
  * accept anything and silently defeats the whole point of typing it.
+ *
+ * The file is split in two. `baseEn` is the core vocabulary every screen uses;
+ * `features/*.ts` hold the strings a single feature owns, and `en` spreads them
+ * together. The split exists so two people — or two parallel workstreams — can
+ * add a feature without both editing this thousand-line object. The merge is
+ * where a duplicate key would silently shadow an existing string, which is why
+ * `locales.test.ts` checks the slices against `baseEn` and against each other.
  */
-export const en = {
+import { batchEn } from './features/batch';
+import { captureEn } from './features/capture';
+import { commandEn } from './features/command';
+import { configEn } from './features/config';
+import { conflictsEn } from './features/conflicts';
+import { densityEn } from './features/density';
+import { exportCenterEn } from './features/export-center';
+import { feasibilityEn } from './features/feasibility';
+import { packingEn } from './features/packing';
+import { printDocEn } from './features/print-doc';
+import { readinessEn } from './features/readiness';
+import { restoreEn } from './features/restore';
+import { todayEn } from './features/today';
+import { walletEn } from './features/wallet';
+import { workspaceEn } from './features/workspace';
+
+export const baseEn = {
 	// Navigation & Core
 	trips: 'Trips',
 	new_trip: 'New trip',
@@ -1079,4 +1102,24 @@ export const en = {
 	no_files_yet: 'No files yet. Boarding passes and vouchers are stored offline.',
 	add_named: 'Add {name}',
 	checklist_view_label: 'Checklist view'
+} satisfies Record<string, string>;
+
+/** The merged reference dictionary every call site's `TranslationKey` comes from. */
+export const en = {
+	...baseEn,
+	...batchEn,
+	...captureEn,
+	...commandEn,
+	...configEn,
+	...conflictsEn,
+	...densityEn,
+	...exportCenterEn,
+	...feasibilityEn,
+	...packingEn,
+	...printDocEn,
+	...readinessEn,
+	...restoreEn,
+	...todayEn,
+	...walletEn,
+	...workspaceEn
 } satisfies Record<string, string>;
