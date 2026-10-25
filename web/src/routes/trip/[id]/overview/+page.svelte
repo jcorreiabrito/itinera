@@ -3,7 +3,7 @@
 	import { page } from '$app/state';
 	import { resolve } from '$app/paths';
 	import { checklist, expenses, flights, itinerary, reservations, todayIso, trips } from '$lib/db';
-	import type { ChecklistItem, Flight, Reservation } from '$lib/db';
+	import type { ChecklistItem, Expense, Flight, Reservation } from '$lib/db';
 	import { t } from '$lib/i18n.svelte';
 	import { ErrorState, Skeleton } from '$lib/components/ui';
 	import {
@@ -17,9 +17,15 @@
 		ReservationsWidget,
 		TodayPlanWidget
 	} from '$lib/components/overview';
+	import { ReadinessCard } from '$lib/components/readiness';
+	import { flagEnabled } from '$lib/config';
 	import { computeNextUp, nextFlightIndex, summarizeReservations } from '$lib/overview';
+	import { computeReadiness } from '$lib/readiness';
 	import { getTripShellContext } from '$lib/trip-context';
 	import { startLive } from '$lib/live';
+
+	const readinessEnabled = flagEnabled('readiness');
+	const todayEnabled = flagEnabled('today');
 
 	const shell = getTripShellContext();
 	const reloadSignal = shell.reloadSignal;
@@ -38,19 +44,21 @@
 	let budget = $state<expenses.BudgetSummary | null>(null);
 	let flightList = $state<Flight[]>([]);
 	let resList = $state<Reservation[]>([]);
+	let expenseList = $state<Expense[]>([]);
 	let today = $state(todayIso());
 
 	async function loadAll(tripId: string) {
 		if (!tripId) return;
 		today = todayIso();
 		try {
-			const [t, tl, cl, b, fl, rl] = await Promise.all([
+			const [t, tl, cl, b, fl, rl, el] = await Promise.all([
 				trips.getWithDerived(tripId, today),
 				itinerary.tripTimeline(tripId),
 				checklist.byTrip(tripId),
 				expenses.summary(tripId, today),
 				flights.byTrip(tripId),
-				reservations.byTrip(tripId)
+				reservations.byTrip(tripId),
+				expenses.byTrip(tripId)
 			]);
 			tripWD = t;
 			timeline = tl;
@@ -58,6 +66,7 @@
 			budget = b;
 			flightList = fl;
 			resList = rl;
+			expenseList = el;
 			everLoaded = true;
 			loadError = false;
 		} catch {
@@ -101,6 +110,21 @@
 			.slice(0, 3)
 	);
 
+	const readiness = $derived(
+		tripWD
+			? computeReadiness(
+					{
+						trip: tripWD,
+						flights: flightList,
+						reservations: resList,
+						checklist: checkItems,
+						expenses: expenseList
+					},
+					today
+				)
+			: null
+	);
+
 	const nextUp = $derived(timeline ? computeNextUp(timeline.days, Date.now()) : null);
 	const todayPlan = $derived(
 		timeline ? (timeline.days.find((d) => d.date === today) ?? null) : null
@@ -109,6 +133,7 @@
 	const flightNext = $derived(nextFlightIndex(flightList, Date.now()));
 
 	const links = $derived({
+		today: resolve(`/trip/${id}/today`),
 		itinerary: resolve(`/trip/${id}/itinerary`),
 		checklist: resolve(`/trip/${id}/checklist`),
 		costs: resolve(`/trip/${id}/costs`),
@@ -144,10 +169,16 @@
 			</div>
 		{/if}
 
+		{#if readiness && readinessEnabled}
+			<div class="min-w-0 md:col-span-2">
+				<ReadinessCard {readiness} />
+			</div>
+		{/if}
+
 		<NextUpWidget {nextUp} href={links.itinerary} />
 
 		{#if isActive}
-			<TodayPlanWidget day={todayPlan} href={links.itinerary} />
+			<TodayPlanWidget day={todayPlan} href={todayEnabled ? links.today : links.itinerary} />
 		{/if}
 
 		<ChecklistWidget

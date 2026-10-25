@@ -2,6 +2,7 @@
 	import type { expenses, MoneyTotals } from '$lib/db';
 	import { formatMoney, formatWeekdayDate } from '$lib/format';
 	import { Badge } from '$lib/components/ui';
+	import { t } from '$lib/i18n.svelte';
 	import CostBar from './CostBar.svelte';
 
 	interface Props {
@@ -36,25 +37,25 @@
 	<p
 		class="rounded-lg border border-dashed border-border bg-surface-sunken px-4 py-8 text-center text-sm text-ink-muted"
 	>
-		{unpaidOnly ? 'Nothing outstanding – every dated cost is paid.' : 'No dated costs yet.'}
+		{unpaidOnly ? t('costs_nothing_outstanding_dated') : t('costs_no_dated_costs')}
 	</p>
 {:else}
 	<ul class="space-y-2.5">
 		{#each visibleDays as day (day.date)}
-			{@const t = day.totals}
+			{@const totals = day.totals}
 			<li class="rounded-lg border border-border bg-surface p-3.5 shadow-soft">
 				<div class="flex items-baseline justify-between gap-3">
 					<h3 class="font-medium">{formatWeekdayDate(day.date)}</h3>
 					<span class="text-base font-semibold tabular-nums">
-						{money(unpaidOnly ? t.unpaid : t.spent)}
+						{money(unpaidOnly ? totals.unpaid : totals.spent)}
 					</span>
 				</div>
 				{#if unpaidOnly}
-					<p class="mt-1 text-xs text-ink-muted">Outstanding (unpaid)</p>
+					<p class="mt-1 text-xs text-ink-muted">{t('costs_outstanding')}</p>
 				{:else}
 					<div class="mt-2">
 						<CostBar
-							value={t.spent}
+							value={totals.spent}
 							{target}
 							max={scale}
 							tone={day.overBudget ? 'warning' : 'primary'}
@@ -64,21 +65,31 @@
 						class="mt-1.5 flex flex-wrap items-center justify-between gap-x-3 gap-y-1 text-xs text-ink-muted"
 					>
 						<span class="tabular-nums">
-							Est. {money(t.estimate)} • Actual {money(t.actual)}
+							{t('costs_est_actual', {
+								estimate: money(totals.estimate),
+								actual: money(totals.actual)
+							})}
 						</span>
 						{#if day.overBudget && target != null}
-							<Badge variant="warning">Over budget • {money(t.spent - target)}</Badge>
+							<Badge variant="warning">
+								{t('costs_over_budget_amount', { amount: money(totals.spent - target) })}
+							</Badge>
 						{:else if target != null}
-							<span class="tabular-nums">Target {money(target)}</span>
+							<span class="tabular-nums">{t('costs_target', { amount: money(target) })}</span>
 						{/if}
 					</div>
 				{/if}
 
 				<span class="sr-only">
-					{formatWeekdayDate(day.date)}: {money(t.spent)} spent{target != null
-						? ` of ${money(target)} target`
-						: ''}{day.overBudget ? `, over budget ` : ''}.
-					{#if t.unpaid > 0}{money(t.unpaid)} unpaid.{/if}
+					{t('costs_sr_day_spent', {
+						date: formatWeekdayDate(day.date),
+						amount: money(totals.spent)
+					})}{target != null
+						? t('costs_sr_of_day_target', { amount: money(target) })
+						: ''}{day.overBudget ? t('costs_sr_over_budget') : ''}.
+					{#if totals.unpaid > 0}{t('costs_sr_unpaid', {
+							amount: money(totals.unpaid)
+						})}{/if}
 				</span>
 			</li>
 		{/each}
@@ -86,18 +97,21 @@
 		{#if showUndated}
 			<li class="rounded-lg border border-border bg-surface-sunken/70 p-3.5">
 				<div class="flex items-baseline justify-between gap-3">
-					<h3 class="font-medium">Whole-trip costs</h3>
+					<h3 class="font-medium">{t('costs_whole_trip')}</h3>
 					<span class="text-base font-semibold tabular-nums">
 						{money(unpaidOnly ? byDay.undated.unpaid : byDay.undated.spent)}
 					</span>
 				</div>
 				<p class="mt-1 text-xs text-ink-muted">
 					{#if unpaidOnly}
-						Outstanding (unpaid)
+						{t('costs_outstanding')}
 					{:else}
-						Undated – flights, insurance and other trip-wide spend.
+						{t('costs_undated_hint')}
 						<span class="tabular-nums">
-							Est. {money(byDay.undated.estimate)} • Actual {money(byDay.undated.actual)}
+							{t('costs_est_actual', {
+								estimate: money(byDay.undated.estimate),
+								actual: money(byDay.undated.actual)
+							})}
 						</span>
 					{/if}
 				</p>
@@ -108,16 +122,16 @@
 	<div
 		class="mt-4 flex flex-col gap-1 rounded-lg bg-primary-100 px-4 py-3 sm:flex-row sm:items-center sm:justify-between"
 	>
-		<span class="font-medium text-primary-700">Total</span>
+		<span class="font-medium text-primary-700">{t('costs_total')}</span>
 		{#if unpaidOnly}
 			<span class="font-semibold tabular-nums text-primary-700">
-				{money(summary.unpaid)} unpaid
+				{t('costs_unpaid_summary', { amount: money(summary.unpaid) })}
 			</span>
 		{:else}
 			<span class="text-sm font-medium tabular-nums text-primary-700">
-				Estimated <span class="text-base font-semibold">{money(summary.estimate)}</span>
+				{t('estimated')} <span class="text-base font-semibold">{money(summary.estimate)}</span>
 				<span aria-hidden="true" class="mx-1 opacity-50">/</span>
-				Actual <span class="text-base font-semibold">{money(grandPrimary)}</span>
+				{t('actual')} <span class="text-base font-semibold">{money(grandPrimary)}</span>
 			</span>
 		{/if}
 	</div>

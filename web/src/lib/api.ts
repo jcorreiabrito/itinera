@@ -174,6 +174,65 @@ export function listBackups(): Promise<BackupList> {
 	return getJson<BackupList>('/backups');
 }
 
+/**
+ * Which documents a restore is allowed to touch.
+ *
+ * `merge` only creates documents that are missing — safe to run on a live
+ * database. `replace` also overwrites documents that already exist, using the
+ * server's current revision. Neither mode ever deletes a document.
+ */
+export type RestoreMode = 'merge' | 'replace';
+
+/** How many documents/attachments a restore would touch. */
+export interface RestorePlan {
+	create: number;
+	replace: number;
+	untouched: number;
+	skipped: number;
+	attachments: number;
+	missingAttachmentFiles: string[];
+}
+
+/** One document or attachment that could not be restored. */
+export interface RestoreFailure {
+	id?: string;
+	attachment?: string;
+	error?: string;
+	reason?: string | null;
+}
+
+/** Result of `POST /api/backups/{name}/restore`. */
+export interface RestoreResult {
+	backup: string;
+	mode: RestoreMode;
+	dryRun: boolean;
+	backupDb?: string | null;
+	planned: RestorePlan;
+	restored: { documents: number; attachments: number };
+	failures: RestoreFailure[];
+	/** Name of the pre-restore snapshot, or `null` for a dry run. */
+	snapshot: string | null;
+}
+
+/**
+ * Restore a server backup (`POST /api/backups/{name}/restore`).
+ *
+ * Always ask for a dry run first and show its counts: this is the one action in
+ * the app that can overwrite user data. The server writes a fresh snapshot
+ * before touching anything, and its name comes back in the result.
+ */
+export function restoreBackup(
+	name: string,
+	options: { mode?: RestoreMode; dryRun?: boolean } = {}
+): Promise<RestoreResult> {
+	const params = new URLSearchParams();
+	if (options.mode && options.mode !== 'merge') params.set('mode', options.mode);
+	if (options.dryRun) params.set('dry_run', 'true');
+	const query = params.toString();
+	const path = `/backups/${encodeURIComponent(name)}/restore${query ? `?${query}` : ''}`;
+	return getJson<RestoreResult>(path, { method: 'POST' });
+}
+
 /** Result of `POST /api/trips/import.json`. */
 export interface ImportTripResult {
 	tripId: string;

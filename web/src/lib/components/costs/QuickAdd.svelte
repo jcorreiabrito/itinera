@@ -3,6 +3,7 @@
 	import { expenses, todayIso } from '$lib/db';
 	import type { ExpenseCategory } from '$lib/db';
 	import { Button, Input, Select, toast } from '$lib/components/ui';
+	import { t } from '$lib/i18n.svelte';
 	import { CATEGORY_ORDER, CATEGORY_META, categoryLabel, currencyOptions } from './labels';
 	import { getSuggestedFxRate } from '$lib/utils/currency';
 
@@ -48,7 +49,7 @@
 			amount = '';
 			onsaved?.();
 		} catch {
-			toast.error('Could not add the expense. Try again.');
+			toast.error(t('could_not_add_expense'));
 		} finally {
 			saving = false;
 		}
@@ -63,7 +64,9 @@
 	}}
 >
 	<div class="col-span-1 min-w-0 sm:min-w-[6.5rem] sm:flex-1">
-		<label for="quick-amount" class="mb-1 block text-xs font-medium text-ink-muted"> Amount </label>
+		<label for="quick-amount" class="mb-1 block text-xs font-medium text-ink-muted">
+			{t('costs_amount')}
+		</label>
 		<Input
 			id="quick-amount"
 			type="number"
@@ -78,7 +81,7 @@
 
 	<div class="col-span-1 min-w-0 sm:w-24 sm:shrink-0">
 		<label for="quick-currency" class="mb-1 block text-xs font-medium text-ink-muted"
-			>Currency</label
+			>{t('currency')}</label
 		>
 		<Select
 			id="quick-currency"
@@ -93,7 +96,7 @@
 
 	<div class="col-span-1 min-w-0 sm:min-w-[8rem] sm:flex-1">
 		<label for="quick-category" class="mb-1 block text-xs font-medium text-ink-muted"
-			>Category</label
+			>{t('category')}</label
 		>
 		<Select
 			id="quick-category"
@@ -107,7 +110,9 @@
 	</div>
 
 	<div class="col-span-1 min-w-0 sm:min-w-[8.5rem] sm:flex-1">
-		<label for="quick-date" class="mb-1 block text-xs font-medium text-ink-muted">Day</label>
+		<label for="quick-date" class="mb-1 block text-xs font-medium text-ink-muted">
+			{t('label_day')}
+		</label>
 		<Input
 			id="quick-date"
 			type="date"
@@ -119,7 +124,7 @@
 	<div class="col-span-2 sm:col-span-1 sm:shrink-0">
 		<Button type="submit" disabled={!valid || saving} class="w-full sm:w-auto">
 			<Plus class="size-4" />
-			Add
+			{t('add')}
 		</Button>
 	</div>
 </form>

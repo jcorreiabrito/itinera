@@ -15,9 +15,14 @@
 	interface Props {
 		/** Bare trip ULID. */
 		tripId: string;
+		/**
+		 * A reservation to open once the list has loaded, from `?reservation=`
+		 * in the address bar. A link to a booking should land on the booking.
+		 */
+		initialId?: string;
 	}
 
-	let { tripId }: Props = $props();
+	let { tripId, initialId }: Props = $props();
 
 	const shell = getTripShellContext();
 	const reloadSignal = shell.reloadSignal;
@@ -44,6 +49,7 @@
 			]);
 			trip = t;
 			resList = list;
+			openDeepLink(list);
 			/* eslint-disable-next-line svelte/prefer-svelte-reactivity -- a plain Map/Date is correct here: this is a local accumulator/registry rebuilt on every run, not reactive $state. SvelteMap would add reactivity nobody reads. */
 			const counts = new Map<string, number>();
 			for (const a of atts) {
@@ -104,6 +110,21 @@
 		sheetOpen = true;
 	}
 
+	/**
+	 * Open the reservation a deep link names, exactly once — `loadAll` also runs
+	 * on every replication event, and reopening a closed editor would make the
+	 * page fight the user.
+	 */
+	let openedFor = $state('');
+
+	function openDeepLink(list: Reservation[]) {
+		if (!initialId || openedFor === initialId) return;
+		const target = list.find((res) => res._id === initialId);
+		if (!target) return;
+		openedFor = initialId;
+		openEdit(target);
+	}
+
 	async function removeReservation(res: Reservation) {
 		try {
 			await reservations.softDelete(res._id);
@@ -149,7 +170,7 @@
 	</EmptyState>
 {:else}
 	<!-- Type filter chips: toggle buttons that narrow the chronological model. -->
-	<div class="mb-4 flex flex-wrap gap-2" role="group" aria-label="Filter reservations by type">
+	<div class="mb-4 flex flex-wrap gap-2" role="group" aria-label={t('res_filter_by_type')}>
 		<button
 			type="button"
 			onclick={() => (filter = null)}
@@ -195,7 +216,9 @@
 	{:else}
 		<div class="space-y-6">
 			{#each timeline as group (group.date ?? 'undated')}
-				<section aria-label={group.date ? `Reservations for ${group.date}` : t('unscheduled')}>
+				<section
+					aria-label={group.date ? t('res_for_date', { date: group.date }) : t('unscheduled')}
+				>
 					<h2 class="mb-2 px-1 text-sm font-semibold text-ink">
 						{group.date ? formatWeekdayDate(group.date) : t('unscheduled')}
 					</h2>

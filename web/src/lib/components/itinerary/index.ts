@@ -1,4 +1,5 @@
 export { default as DateStrip } from './DateStrip.svelte';
+export { default as DayFeasibility } from './DayFeasibility.svelte';
 export { default as ItineraryDay } from './ItineraryDay.svelte';
 export { default as ItineraryItemSheet } from './ItineraryItemSheet.svelte';
 export { default as MoveToDayDialog } from './MoveToDayDialog.svelte';

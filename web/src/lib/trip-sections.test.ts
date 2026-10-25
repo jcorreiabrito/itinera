@@ -23,6 +23,7 @@ describe('TRIP_SECTIONS', () => {
 		expect(find('/trip/abc/overview')).toBe('overview');
 		expect(find('/trip/abc/itinerary')).toBe('itinerary');
 		expect(find('/trip/abc/checklist')).toBe('checklist');
+		expect(find('/trip/abc/wallet')).toBe('wallet');
 		expect(find('/trip/abc/costs')).toBe('costs');
 	});
 
@@ -60,8 +61,10 @@ describe('TRIP_SECTIONS', () => {
 
 describe('TRIP_MOBILE_TABS', () => {
 	it('renders the sections that opt into the bottom bar, in the declared order', () => {
+		// Today leads on a phone; Overview stays a sidebar destination because the
+		// bar is capped at five tabs (see MOBILE_ORDER).
 		expect(TRIP_MOBILE_TABS.map((tab) => tab.id)).toEqual([
-			'overview',
+			'today',
 			'itinerary',
 			'flights',
 			'checklist',

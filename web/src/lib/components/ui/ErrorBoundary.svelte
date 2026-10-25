@@ -1,5 +1,6 @@
 <script lang="ts">
 	import type { Snippet } from 'svelte';
+	import { t } from '$lib/i18n.svelte';
 
 	let {
 		children,
@@ -35,7 +36,7 @@
 							d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z"
 						/>
 					</svg>
-					<span>Something went wrong in this section</span>
+					<span>{t('error_section')}</span>
 				</div>
 				<p class="mb-3 text-sm text-ink-muted">{error.message}</p>
 				<button
@@ -43,7 +44,7 @@
 					onclick={reset}
 					class="inline-flex items-center rounded-md border border-border bg-surface px-3 py-1.5 text-xs font-medium text-ink transition-colors hover:bg-surface-sunken"
 				>
-					Try again
+					{t('retry')}
 				</button>
 			</div>
 		{/if}

@@ -10,14 +10,26 @@
 	let { trip }: Props = $props();
 
 	import { formatDestinationRoute } from '$lib/destinations';
-	import { t } from '$lib/i18n.svelte';
+	import { t, type TranslationKey } from '$lib/i18n.svelte';
 
 	const title = $derived(trip.title?.trim() || t('untitled_trip'));
 	const destLabel = $derived(formatDestinationRoute(trip.destinations ?? []));
-	const statusLabel = $derived(trip.derived.status);
+
+	const STATUS_LABEL_KEYS: Record<string, TranslationKey> = {
+		Active: 'active_now',
+		Upcoming: 'upcoming',
+		Past: 'past',
+		Archived: 'archived',
+		Planning: 'planning'
+	};
+
+	const statusLabel = $derived.by(() => {
+		const key = STATUS_LABEL_KEYS[trip.derived.status];
+		return key ? t(key) : trip.derived.status;
+	});
 </script>
 
-<section aria-label="trip summary" class="relative overflow-hidden rounded-xl">
+<section aria-label={t('home_trip_summary')} class="relative overflow-hidden rounded-xl">
 	<TripCover
 		attId={trip.coverImageAttId}
 		{title}

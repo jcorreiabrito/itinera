@@ -103,6 +103,7 @@ export {
 	syncNow,
 	listConflicts,
 	markConflictReviewed,
+	restoreConflictFields,
 	resolveAllConflicts,
 	resolveDocConflicts,
 	currentSyncStatus

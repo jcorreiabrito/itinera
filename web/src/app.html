@@ -16,6 +16,12 @@
 		<meta name="apple-mobile-web-app-capable" content="yes" />
 		<meta name="apple-mobile-web-app-status-bar-style" content="default" />
 		<meta name="apple-mobile-web-app-title" content="Itinera" />
+		<!--
+			Deployment config. A plain, same-origin script (not a fetch) so it has
+			already run when `src/lib/config.ts` is first imported, precached with
+			the rest of `static/`, and unable to fail independently of the page.
+		-->
+		<script src="%sveltekit.assets%/config.js"></script>
 		<script>
 			(function () {
 				try {

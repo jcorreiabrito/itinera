@@ -9,11 +9,15 @@
 	import { getDestinationForDate } from '$lib/destinations';
 	import { renderMarkdown } from '$lib/markdown';
 	import { cn } from '$lib/utils';
+	import { getRuntimeConfig, flagEnabled } from '$lib/config';
 	import { fetchTripWeather, loadCachedWeather, type DayWeather } from '$lib/utils/weather';
 	import { t } from '$lib/i18n.svelte';
 	import { CATEGORY_META, CATEGORY_ORDER } from './categories';
 	import TimelineEntryRow from './TimelineEntryRow.svelte';
 	import MoveToDayDialog from './MoveToDayDialog.svelte';
+	import DayFeasibility from './DayFeasibility.svelte';
+
+	const feasibilityEnabled = flagEnabled('feasibility');
 
 	interface Props {
 		day: itinerary.DayTimeline;
@@ -74,11 +78,15 @@
 			dayWeather = cached.days[targetDate];
 		}
 
-		fetchTripWeather(lat, lng).then((forecast) => {
-			if (forecast?.days?.[targetDate]) {
-				dayWeather = forecast.days[targetDate];
-			}
-		});
+		// A deployment with no route to the forecast service keeps showing the
+		// cached forecast without a failing request on every day card.
+		if (getRuntimeConfig().weatherEnabled) {
+			fetchTripWeather(lat, lng).then((forecast) => {
+				if (forecast?.days?.[targetDate]) {
+					dayWeather = forecast.days[targetDate];
+				}
+			});
+		}
 	});
 
 	const todosDone = $derived(day.todos.filter((t) => t.done).length);
@@ -369,6 +377,11 @@
 				{/each}
 			</ul>
 		</div>
+	{/if}
+
+	<!-- Day feasibility: a warning sits above the timeline it is about -->
+	{#if feasibilityEnabled}
+		<DayFeasibility {day} {onedit} />
 	{/if}
 
 	<!-- Timed lane (ordered list = the timeline) -->

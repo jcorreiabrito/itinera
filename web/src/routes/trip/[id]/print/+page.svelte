@@ -9,26 +9,92 @@
 	 * day-timeline code the screens use. There is no second implementation to
 	 * drift, which is what the server-side `print.pdf` endpoint can never promise.
 	 *
-	 * Layout is decided by `@media print` in `src/app.css` plus the two helpers
-	 * it exposes: `.no-print` for chrome that must not reach paper, and
-	 * `.page-break` for the major sections that should start a new sheet.
+	 * The query string is the same contract the export center builds with
+	 * `printHref`: `doc` selects the sections, `paper` the sheet, `lang` the
+	 * dictionary (and the language handed to the server PDF link).
+	 *
+	 * Layout is decided by `@media print` in `src/app.css` plus the helpers it
+	 * exposes: `.no-print` for chrome that must not reach paper, `.page-break` for
+	 * the major sections that should start a new sheet, and the `print-document`
+	 * paper profiles (A4 by default, `.paper-letter` for US Letter).
 	 */
-	import { onMount } from 'svelte';
+	import { onDestroy, onMount } from 'svelte';
+	import { goto } from '$app/navigation';
 	import { resolve } from '$app/paths';
+	import type { ResolvedPathname } from '$app/types';
 	import { page } from '$app/state';
 	import { checklist, expenses, flights, itinerary, reservations, trips } from '$lib/db';
 	import type { ChecklistItem, Flight, Reservation, Trip } from '$lib/db';
-	import { t } from '$lib/i18n.svelte';
-	import { ErrorState, Skeleton } from '$lib/components/ui';
+	import { getLanguage, setLanguage, t } from '$lib/i18n.svelte';
+	import type { Language, TranslationKey } from '$lib/i18n.svelte';
+	import { ErrorState, Select, Skeleton } from '$lib/components/ui';
 	import { flagEmoji, formatDateRange, formatMoney } from '$lib/format';
 	import { renderMarkdown } from '$lib/markdown';
 	import { DateTime } from 'luxon';
-	import { Printer, ArrowLeft } from 'lucide-svelte';
-	import { getLanguage } from '$lib/i18n.svelte';
+	import { ArrowLeft, Download, Printer } from 'lucide-svelte';
+	import { getApiUrl } from '$lib/api';
+	import {
+		pdfFilename,
+		printHref,
+		tripPdfPath,
+		type ExportDocId,
+		type PaperSize
+	} from '$lib/export-center';
 	import { startLive } from '$lib/live';
 	import { computeFlight } from '$lib/db/repositories/flights';
 
 	const id = $derived(page.params.id ?? '');
+
+	/* The query contract, narrowed once so the rest of the file is typed. */
+	function readDoc(value: string | null): ExportDocId {
+		switch (value) {
+			case 'itinerary':
+			case 'costs':
+			case 'checklist':
+			case 'bookings':
+				return value;
+			default:
+				return 'all';
+		}
+	}
+
+	function readPaper(value: string | null): PaperSize {
+		return value === 'letter' ? 'letter' : 'a4';
+	}
+
+	function readLanguage(value: string | null): Language | null {
+		return value === 'en' || value === 'pt-BR' ? value : null;
+	}
+
+	const doc = $derived(readDoc(page.url.searchParams.get('doc')));
+	const paper = $derived(readPaper(page.url.searchParams.get('paper')));
+	const requestedLanguage = $derived(readLanguage(page.url.searchParams.get('lang')));
+	/** The language the document is in: `?lang=` when given, the app's otherwise. */
+	const lang = $derived(requestedLanguage ?? getLanguage());
+
+	const DOC_TITLES: Record<ExportDocId, TranslationKey> = {
+		all: 'print_doc_all',
+		itinerary: 'print_doc_itinerary',
+		costs: 'print_doc_costs',
+		checklist: 'print_doc_checklist',
+		bookings: 'print_doc_bookings'
+	};
+
+	/** Selector order: the whole booklet first, then the sections it contains. */
+	const DOC_ORDER: readonly ExportDocId[] = ['all', 'itinerary', 'costs', 'checklist', 'bookings'];
+
+	type SectionId =
+		'costs' | 'flights' | 'reservations' | 'itinerary' | 'unscheduled' | 'checklist' | 'notes';
+
+	const SECTION_TITLES: Record<SectionId, TranslationKey> = {
+		costs: 'costs',
+		flights: 'flights',
+		reservations: 'reservations',
+		itinerary: 'itinerary',
+		unscheduled: 'unscheduled_ideas',
+		checklist: 'checklist',
+		notes: 'notes'
+	};
 
 	let trip = $state<Trip | null>(null);
 	let timeline = $state<{
@@ -74,20 +140,82 @@
 
 	onMount(() => startLive(() => loadAll(id)));
 
+	const printPath = $derived(resolve('/trip/[id]/print', { id }));
+
+	/** Navigate to the same document with a changed profile. */
+	function updateQuery(next: { doc?: ExportDocId; paper?: PaperSize; lang?: Language }) {
+		/*
+		 * `printHref` prefixes the path `resolve()` produced above; the type
+		 * assertion just tells the navigation lint what the builder already knows.
+		 */
+		void goto(
+			printHref(printPath, {
+				doc: next.doc ?? doc,
+				paper: next.paper ?? paper,
+				lang: next.lang ?? lang
+			}) as ResolvedPathname,
+			{ replaceState: true, noScroll: true }
+		);
+	}
+
+	function onDocChange(event: Event & { currentTarget: HTMLSelectElement }) {
+		updateQuery({ doc: readDoc(event.currentTarget.value) });
+	}
+
+	function onPaperChange(event: Event & { currentTarget: HTMLSelectElement }) {
+		updateQuery({ paper: readPaper(event.currentTarget.value) });
+	}
+
+	function onLanguageChange(event: Event & { currentTarget: HTMLSelectElement }) {
+		updateQuery({ lang: event.currentTarget.value === 'pt-BR' ? 'pt-BR' : 'en' });
+	}
+
+	/*
+	 * `?lang=` is a property of the document, not of the app: a link shared as
+	 * `?lang=pt-BR` must print Portuguese even when this device is in English.
+	 * The effect reasserts the request if `initLanguage()` resolves after mount
+	 * and overwrites the shared language, and `onDestroy` puts the device back
+	 * the way it was. `leaving` stops the restore from being undone by a final
+	 * effect run triggered by its own state change.
+	 */
+	let restoreLanguage: Language | null = null;
+	let leaving = false;
+
+	$effect(() => {
+		const requested = requestedLanguage;
+		if (leaving || !requested) return;
+		const current = getLanguage();
+		if (current === requested) return;
+		if (restoreLanguage === null) restoreLanguage = current;
+		setLanguage(requested);
+	});
+
+	onDestroy(() => {
+		leaving = true;
+		if (restoreLanguage) setLanguage(restoreLanguage);
+	});
+
 	/*
 	 * `html.app-printing` is what unlocks scrolling while a sheet is open — a
 	 * sheet sets `document.documentElement.style.overflow = 'hidden'`, and a
 	 * hidden-overflow document prints as a single clipped page. The class is
 	 * removed again on `afterprint` so on-screen behaviour is unchanged.
+	 *
+	 * `print-route` lets the print stylesheet drop the shell's paper-only trip
+	 * header: this route has its own h1 and named page.
 	 */
 	onMount(() => {
-		const onBefore = () => document.documentElement.classList.add('app-printing');
-		const onAfter = () => document.documentElement.classList.remove('app-printing');
+		const root = document.documentElement;
+		root.classList.add('print-route');
+		const onBefore = () => root.classList.add('app-printing');
+		const onAfter = () => root.classList.remove('app-printing');
 		window.addEventListener('beforeprint', onBefore);
 		window.addEventListener('afterprint', onAfter);
 		return () => {
 			window.removeEventListener('beforeprint', onBefore);
 			window.removeEventListener('afterprint', onAfter);
+			root.classList.remove('app-printing');
+			root.classList.remove('print-route');
 		};
 	});
 
@@ -133,33 +261,127 @@
 		if (item.estCost == null) return null;
 		return formatMoney(item.estCost, item.currency || homeCurrency, { decimals: true });
 	}
+
+	/*
+	 * Presence and inclusion are separate booleans: a section can be part of the
+	 * chosen document and still be empty, and an empty section must not print a
+	 * heading. `visibleSections` is the document order both the body and the
+	 * cover's contents list follow.
+	 */
+	const hasCosts = $derived(budget !== null && (budget.spent > 0 || budget.budgetTotal != null));
+	const hasFlights = $derived(flightList.length > 0);
+	const hasReservations = $derived(resList.length > 0);
+	const hasItinerary = $derived(days.length > 0);
+	const hasUnscheduled = $derived(unscheduledItems.length > 0);
+	const hasChecklist = $derived(checkItems.length > 0);
+	const hasNotes = $derived(Boolean(trip?.notes?.trim()));
+
+	const showsCosts = $derived(hasCosts && (doc === 'all' || doc === 'costs'));
+	const showsFlights = $derived(hasFlights && (doc === 'all' || doc === 'bookings'));
+	const showsReservations = $derived(hasReservations && (doc === 'all' || doc === 'bookings'));
+	const showsItinerary = $derived(hasItinerary && (doc === 'all' || doc === 'itinerary'));
+	const showsUnscheduled = $derived(hasUnscheduled && (doc === 'all' || doc === 'itinerary'));
+	const showsChecklist = $derived(hasChecklist && (doc === 'all' || doc === 'checklist'));
+	const showsNotes = $derived(hasNotes && doc === 'all');
+
+	const visibleSections = $derived.by(() => {
+		const sections: SectionId[] = [];
+		if (showsCosts) sections.push('costs');
+		if (showsFlights) sections.push('flights');
+		if (showsReservations) sections.push('reservations');
+		if (showsItinerary) sections.push('itinerary');
+		if (showsUnscheduled) sections.push('unscheduled');
+		if (showsChecklist) sections.push('checklist');
+		if (showsNotes) sections.push('notes');
+		return sections;
+	});
+
+	/**
+	 * A section starts a new sheet unless it is the first one on the sheet. The
+	 * whole-trip booklet's first body section follows the cover, so every one of
+	 * them breaks; a single-document print keeps its header and first section
+	 * together. A hidden first section never leaves a break with nothing after it.
+	 */
+	function startsPage(section: SectionId): boolean {
+		return doc === 'all' || visibleSections[0] !== section;
+	}
+
+	const serverPdfHref = $derived(id ? getApiUrl(tripPdfPath(id, lang)) : '');
 </script>
 
 <svelte:head>
-	<title>{trip?.title?.trim() || t('itinerary')}</title>
+	<title>{trip?.title?.trim() || t('untitled_trip')} – {t(DOC_TITLES[doc])}</title>
 	<meta name="robots" content="noindex" />
 </svelte:head>
 
 <!-- Screen-only toolbar. Everything in here is `.no-print`. -->
 <div
-	class="no-print sticky top-0 z-10 -mx-4 mb-4 flex flex-wrap items-center justify-between gap-2 border-b border-border bg-bg/90 px-4 py-2 backdrop-blur-md sm:-mx-6 sm:px-6"
+	class="no-print sticky top-0 z-10 -mx-4 mb-4 border-b border-border bg-bg/90 backdrop-blur-md sm:-mx-6"
 >
-	<a
-		href={resolve('/trip/[id]/overview', { id })}
-		class="inline-flex min-h-touch items-center gap-1.5 rounded-md px-2.5 text-sm font-medium text-ink-muted transition-colors hover:bg-surface-sunken hover:text-ink [&_svg]:size-4"
-	>
-		<ArrowLeft />
-		{t('back_to_trip')}
-	</a>
-	<button
-		type="button"
-		onclick={() => window.print()}
-		class="inline-flex min-h-touch items-center gap-2 rounded-md bg-primary-600 px-4 text-sm font-medium text-white shadow-soft transition-colors hover:bg-primary-700 active:scale-[0.97] [&_svg]:size-4"
-	>
-		<Printer />
-		{t('print_or_pdf')}
-	</button>
-	<p class="w-full text-center text-xs text-ink-muted sm:w-auto sm:text-right">
+	<div class="flex flex-wrap items-center justify-between gap-2 px-4 py-2 sm:px-6">
+		<a
+			href={resolve('/trip/[id]/overview', { id })}
+			class="inline-flex min-h-touch items-center gap-1.5 rounded-md px-2.5 text-sm font-medium text-ink-muted transition-colors hover:bg-surface-sunken hover:text-ink [&_svg]:size-4"
+		>
+			<ArrowLeft />
+			{t('back_to_trip')}
+		</a>
+		<div class="flex flex-wrap items-center gap-2">
+			{#if serverPdfHref}
+				<!-- eslint-disable svelte/no-navigation-without-resolve -- an API download, not an app route -->
+				<a
+					href={serverPdfHref}
+					download={pdfFilename(id)}
+					class="inline-flex min-h-touch items-center gap-1.5 rounded-md px-2.5 text-sm font-medium text-ink-muted transition-colors hover:bg-surface-sunken hover:text-ink [&_svg]:size-4"
+				>
+					<Download />
+					{t('print_server_pdf')}
+				</a>
+				<!-- eslint-enable svelte/no-navigation-without-resolve -->
+			{/if}
+			<button
+				type="button"
+				onclick={() => window.print()}
+				class="inline-flex min-h-touch items-center gap-2 rounded-md bg-primary-600 px-4 text-sm font-medium text-white shadow-soft transition-colors hover:bg-primary-700 active:scale-[0.97] [&_svg]:size-4"
+			>
+				<Printer />
+				{t('print_or_pdf')}
+			</button>
+		</div>
+	</div>
+
+	<div class="grid grid-cols-2 gap-3 border-t border-border px-4 py-3 sm:grid-cols-3 sm:px-6">
+		<div>
+			<label for="print-doc" class="mb-1 block text-xs font-medium text-ink-muted">
+				{t('print_document')}
+			</label>
+			<Select id="print-doc" value={doc} onchange={onDocChange}>
+				{#each DOC_ORDER as value (value)}
+					<option {value}>{t(DOC_TITLES[value])}</option>
+				{/each}
+			</Select>
+		</div>
+		<div>
+			<label for="print-paper" class="mb-1 block text-xs font-medium text-ink-muted">
+				{t('print_paper')}
+			</label>
+			<Select id="print-paper" value={paper} onchange={onPaperChange}>
+				<option value="a4">{t('print_paper_a4')}</option>
+				<option value="letter">{t('print_paper_letter')}</option>
+			</Select>
+		</div>
+		<div>
+			<label for="print-lang" class="mb-1 block text-xs font-medium text-ink-muted">
+				{t('export_center_language')}
+			</label>
+			<Select id="print-lang" value={lang} onchange={onLanguageChange}>
+				<option value="en">{t('export_center_lang_en')}</option>
+				<option value="pt-BR">{t('export_center_lang_pt')}</option>
+			</Select>
+		</div>
+	</div>
+
+	<p class="px-4 pb-2 text-center text-xs text-ink-muted sm:px-6 sm:text-right">
 		{t('print_hint')}
 	</p>
 </div>
@@ -181,49 +403,112 @@
 		block in app.css pins them to black-on-white, so the same markup prints
 		legibly whether or not dark mode is on.
 	-->
-	<article class="print-document mx-auto max-w-3xl text-ink">
-		<!-- Cover -->
-		<header class="border-b-2 border-ink/20 pb-5">
-			<p class="text-xs font-semibold uppercase tracking-[0.2em] text-ink-muted">
-				{t('trip_itinerary')}
-			</p>
-			<h1 class="mt-2 font-serif text-3xl font-semibold leading-tight sm:text-4xl">
-				{trip.title?.trim() || trip.destinations?.[0]?.name || 'Trip'}
-			</h1>
-			{#if trip.destinations?.length}
-				<p class="mt-2 text-base text-ink-muted">
-					{trip.destinations
-						.map((d) => `${flagEmoji(d.country) ? flagEmoji(d.country) + ' ' : ''}${d.name}`)
-						.join(' · ')}
+	<article
+		class="print-document mx-auto max-w-3xl text-ink"
+		class:paper-letter={paper === 'letter'}
+	>
+		{#if doc === 'all'}
+			<!-- Cover page. Its contents list only names sections that will print. -->
+			<div class="print-cover">
+				<header class="border-b-2 border-ink/20 pb-5">
+					<p class="text-xs font-semibold uppercase tracking-[0.2em] text-ink-muted">
+						{t('print_cover')}
+					</p>
+					<h1 class="mt-2 font-serif text-3xl font-semibold leading-tight sm:text-4xl">
+						{trip.title?.trim() || trip.destinations?.[0]?.name || t('untitled_trip')}
+					</h1>
+					{#if trip.destinations?.length}
+						<p class="mt-2 text-base text-ink-muted">
+							{trip.destinations
+								.map((d) => `${flagEmoji(d.country) ? flagEmoji(d.country) + ' ' : ''}${d.name}`)
+								.join(' · ')}
+						</p>
+					{/if}
+					<dl class="mt-4 grid grid-cols-2 gap-x-6 gap-y-2 text-sm sm:grid-cols-4">
+						<div>
+							<dt class="text-xs uppercase tracking-wide text-ink-muted">{t('dates')}</dt>
+							<dd class="font-medium">
+								{trip.startDate || trip.endDate
+									? formatDateRange(trip.startDate, trip.endDate)
+									: t('no_dates_yet')}
+							</dd>
+						</div>
+						<div>
+							<dt class="text-xs uppercase tracking-wide text-ink-muted">{t('travelers')}</dt>
+							<dd class="font-medium">{travelerCount}</dd>
+						</div>
+						<div>
+							<dt class="text-xs uppercase tracking-wide text-ink-muted">{t('currency')}</dt>
+							<dd class="font-medium">{homeCurrency}</dd>
+						</div>
+						<div>
+							<dt class="text-xs uppercase tracking-wide text-ink-muted">{t('days')}</dt>
+							<dd class="font-medium">{days.filter((d) => d.date).length}</dd>
+						</div>
+					</dl>
+				</header>
+
+				{#if visibleSections.length}
+					<section class="mt-8" aria-labelledby="print-contents-heading">
+						<h2 id="print-contents-heading" class="font-serif text-xl font-semibold">
+							{t('print_contents')}
+						</h2>
+						<ol class="mt-3 grid gap-x-8 gap-y-1 text-sm sm:grid-cols-2">
+							{#each visibleSections as section (section)}
+								<li>
+									<a href={`#print-${section}`} class="hover:text-primary-700">
+										{t(SECTION_TITLES[section])}
+									</a>
+								</li>
+							{/each}
+						</ol>
+					</section>
+				{/if}
+			</div>
+		{:else}
+			<!-- A single document still carries the trip's identity on its first sheet. -->
+			<header class="border-b-2 border-ink/20 pb-5">
+				<p class="text-xs font-semibold uppercase tracking-[0.2em] text-ink-muted">
+					{t(DOC_TITLES[doc])}
 				</p>
-			{/if}
-			<dl class="mt-4 grid grid-cols-2 gap-x-6 gap-y-2 text-sm sm:grid-cols-4">
-				<div>
-					<dt class="text-xs uppercase tracking-wide text-ink-muted">{t('dates')}</dt>
-					<dd class="font-medium">
-						{trip.startDate || trip.endDate
-							? formatDateRange(trip.startDate, trip.endDate)
-							: t('no_dates_yet')}
-					</dd>
-				</div>
-				<div>
-					<dt class="text-xs uppercase tracking-wide text-ink-muted">{t('travelers')}</dt>
-					<dd class="font-medium">{travelerCount}</dd>
-				</div>
-				<div>
-					<dt class="text-xs uppercase tracking-wide text-ink-muted">{t('currency')}</dt>
-					<dd class="font-medium">{homeCurrency}</dd>
-				</div>
-				<div>
-					<dt class="text-xs uppercase tracking-wide text-ink-muted">{t('days')}</dt>
-					<dd class="font-medium">{days.filter((d) => d.date).length}</dd>
-				</div>
-			</dl>
-		</header>
+				<h1 class="mt-2 font-serif text-3xl font-semibold leading-tight sm:text-4xl">
+					{trip.title?.trim() || trip.destinations?.[0]?.name || t('untitled_trip')}
+				</h1>
+				{#if trip.destinations?.length}
+					<p class="mt-2 text-base text-ink-muted">
+						{trip.destinations
+							.map((d) => `${flagEmoji(d.country) ? flagEmoji(d.country) + ' ' : ''}${d.name}`)
+							.join(' · ')}
+					</p>
+				{/if}
+				<dl class="mt-4 grid grid-cols-2 gap-x-6 gap-y-2 text-sm sm:grid-cols-4">
+					<div>
+						<dt class="text-xs uppercase tracking-wide text-ink-muted">{t('dates')}</dt>
+						<dd class="font-medium">
+							{trip.startDate || trip.endDate
+								? formatDateRange(trip.startDate, trip.endDate)
+								: t('no_dates_yet')}
+						</dd>
+					</div>
+					<div>
+						<dt class="text-xs uppercase tracking-wide text-ink-muted">{t('travelers')}</dt>
+						<dd class="font-medium">{travelerCount}</dd>
+					</div>
+					<div>
+						<dt class="text-xs uppercase tracking-wide text-ink-muted">{t('currency')}</dt>
+						<dd class="font-medium">{homeCurrency}</dd>
+					</div>
+					<div>
+						<dt class="text-xs uppercase tracking-wide text-ink-muted">{t('days')}</dt>
+						<dd class="font-medium">{days.filter((d) => d.date).length}</dd>
+					</div>
+				</dl>
+			</header>
+		{/if}
 
 		<!-- Budget -->
-		{#if budget && (budget.spent > 0 || budget.budgetTotal != null)}
-			<section class="mt-6">
+		{#if showsCosts && budget}
+			<section id="print-costs" class="mt-6" class:page-break={startsPage('costs')}>
 				<h2 class="font-serif text-xl font-semibold">{t('costs')}</h2>
 				<table class="mt-3 w-full border-collapse text-sm">
 					<tbody>
@@ -249,7 +534,9 @@
 									>{budget.remaining < 0 ? t('over_budget') : t('remaining')}</th
 								>
 								<td class="py-1.5 text-right tabular-nums"
-									>{formatMoney(Math.abs(budget.remaining), homeCurrency, { decimals: true })}</td
+									>{formatMoney(Math.abs(budget.remaining), homeCurrency, {
+										decimals: true
+									})}</td
 								>
 							</tr>
 						{/if}
@@ -265,8 +552,8 @@
 		{/if}
 
 		<!-- Flights -->
-		{#if flightList.length}
-			<section class="page-break mt-8">
+		{#if showsFlights}
+			<section id="print-flights" class="mt-8" class:page-break={startsPage('flights')}>
 				<h2 class="font-serif text-xl font-semibold">{t('flights')}</h2>
 				<ul class="mt-3 space-y-4">
 					{#each flightList as flight (flight._id)}
@@ -356,8 +643,8 @@
 		{/if}
 
 		<!-- Reservations -->
-		{#if resList.length}
-			<section class="page-break mt-8">
+		{#if showsReservations}
+			<section id="print-reservations" class="mt-8" class:page-break={startsPage('reservations')}>
 				<h2 class="font-serif text-xl font-semibold">{t('reservations')}</h2>
 				<ul class="mt-3 space-y-3">
 					{#each resList as res (res._id)}
@@ -407,8 +694,8 @@
 		{/if}
 
 		<!-- Day by day -->
-		{#if days.length}
-			<section class="page-break mt-8">
+		{#if showsItinerary}
+			<section id="print-itinerary" class="mt-8" class:page-break={startsPage('itinerary')}>
 				<h2 class="font-serif text-xl font-semibold">{t('itinerary')}</h2>
 				<div class="mt-3 space-y-5">
 					{#each days as day (day.date)}
@@ -522,8 +809,8 @@
 		{/if}
 
 		<!-- Unscheduled ideas -->
-		{#if unscheduledItems.length}
-			<section class="page-break mt-8">
+		{#if showsUnscheduled}
+			<section id="print-unscheduled" class="mt-8" class:page-break={startsPage('unscheduled')}>
 				<h2 class="font-serif text-xl font-semibold">{t('unscheduled_ideas')}</h2>
 				<ul class="mt-2 space-y-1 text-sm">
 					{#each unscheduledItems as idea (idea._id)}
@@ -539,8 +826,8 @@
 		{/if}
 
 		<!-- Checklist -->
-		{#if checkItems.length}
-			<section class="page-break mt-8">
+		{#if showsChecklist}
+			<section id="print-checklist" class="mt-8" class:page-break={startsPage('checklist')}>
 				<h2 class="font-serif text-xl font-semibold">{t('checklist')}</h2>
 				<div class="mt-3 grid gap-4 sm:grid-cols-2">
 					{#each checklistGroups as group (group.name)}
@@ -579,14 +866,18 @@
 		{/if}
 
 		<!-- Trip notes -->
-		{#if trip.notes?.trim()}
-			<section class="page-break mt-8">
+		{#if showsNotes}
+			<section id="print-notes" class="mt-8" class:page-break={startsPage('notes')}>
 				<h2 class="font-serif text-xl font-semibold">{t('notes')}</h2>
 				<div class="mt-2 text-sm">
 					<!-- eslint-disable-next-line svelte/no-at-html-tags -- renderMarkdown escapes all user text before adding allowlisted tags (see $lib/markdown.ts) -->
 					{@html renderMarkdown(trip.notes)}
 				</div>
 			</section>
+		{/if}
+
+		{#if visibleSections.length === 0}
+			<p class="mt-8 text-sm text-ink-muted">{t('print_empty')}</p>
 		{/if}
 
 		<footer class="mt-10 border-t border-border pt-3 text-xs text-ink-muted">

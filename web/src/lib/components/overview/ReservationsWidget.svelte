@@ -5,7 +5,7 @@
 	import { formatDate, relativeTime } from '$lib/format';
 	import type { ResolvedPathname } from '$app/types';
 	import WidgetCard from './WidgetCard.svelte';
-	import { t } from '$lib/i18n.svelte';
+	import { t, type TranslationKey } from '$lib/i18n.svelte';
 
 	interface Props {
 		summary: ReservationSummary;
@@ -15,20 +15,20 @@
 
 	let { summary, reservations, href }: Props = $props();
 
-	const KIND_LABEL: Record<string, [string, string]> = {
-		lodging: ['hotel', 'hotels'],
-		car: ['car', 'cars'],
-		restaurant: ['restaurant', 'restaurants'],
-		activity: ['activity', 'activities'],
-		transport: ['transfer', 'transfers'],
-		other: ['booking', 'bookings']
+	const KIND_LABEL_KEYS: Record<string, [TranslationKey, TranslationKey]> = {
+		lodging: ['res_kind_hotel_one', 'res_kind_hotel_many'],
+		car: ['res_kind_car_one', 'res_kind_car_many'],
+		restaurant: ['res_kind_restaurant_one', 'res_kind_restaurant_many'],
+		activity: ['res_kind_activity_one', 'res_kind_activity_many'],
+		transport: ['res_kind_transfer_one', 'res_kind_transfer_many'],
+		other: ['res_kind_booking_one', 'res_kind_booking_many']
 	};
 
 	const countsLabel = $derived(
 		summary.counts
 			.map((c) => {
-				const labels = KIND_LABEL[c.kind] ?? KIND_LABEL.other;
-				return `${c.count} ${labels[c.count === 1 ? 0 : 1]}`;
+				const keys = KIND_LABEL_KEYS[c.kind] ?? KIND_LABEL_KEYS.other;
+				return t(keys[c.count === 1 ? 0 : 1], { n: String(c.count) });
 			})
 			.join(', ')
 	);
@@ -36,10 +36,11 @@
 	const shown = $derived(reservations.slice(0, 5));
 </script>
 
-<WidgetCard title="Reservations" icon={BedDouble} {href} linkLabel="Reservations">
+<WidgetCard title={t('reservations')} icon={BedDouble} {href} linkLabel={t('reservations')}>
 	{#if summary.total === 0}
 		<p class="text-sm text-ink-muted">
-			None yet – <a {href} class="font-medium text-primary-700 hover:underline">add a booking</a>.
+			{t('home_none_yet')} –
+			<a {href} class="font-medium text-primary-700 hover:underline">{t('home_add_booking')}</a>.
 		</p>
 	{:else}
 		<p class="text-sm font-medium text-ink">{countsLabel}</p>

@@ -5,13 +5,23 @@
 	import type { ResolvedPathname } from '$app/types';
 	import { writable } from 'svelte/store';
 	import { page } from '$app/state';
-	import { trips } from '$lib/db';
+	import { todayIso, trips } from '$lib/db';
 	import type { Trip } from '$lib/db';
 	import { t, type TranslationKey } from '$lib/i18n.svelte';
-	import { AlertTriangle, ArrowLeft, MapPinned, Pencil, RotateCw, Share2 } from 'lucide-svelte';
+	import {
+		AlertTriangle,
+		ArrowLeft,
+		MapPinned,
+		Pencil,
+		Plus,
+		RotateCw,
+		Share2
+	} from 'lucide-svelte';
 	import type { IconComponent } from '$lib/types';
 	import { TRIP_MOBILE_TABS, TRIP_SECTIONS } from '$lib/trip-sections';
 	import { formatDateRange } from '$lib/format';
+	import { flagEnabled } from '$lib/config';
+	import { QuickCaptureSheet } from '$lib/components/capture';
 	import { TripDataMenu, TripFormSheet } from '$lib/components/trip';
 	import { setTripShellContext } from '$lib/trip-context';
 	import { startLive } from '$lib/live';
@@ -32,6 +42,9 @@
 	let loadError = $state(false);
 	let editOpen = $state(false);
 	let shareOpen = $state(false);
+	let captureOpen = $state(false);
+	/** Deployment switch, read once: `flags: { capture: false }` removes the entry points. */
+	const captureEnabled = flagEnabled('capture');
 	const reloadSignal = writable(0);
 
 	const id = $derived(page.params.id ?? '');
@@ -165,6 +178,17 @@
 					<ThemeToggle />
 				</div>
 				{#if trip}
+					{#if captureEnabled}
+						<button
+							type="button"
+							onclick={() => (captureOpen = true)}
+							aria-label={t('capture_title')}
+							title={t('capture_title')}
+							class="hidden size-11 min-h-[44px] min-w-[44px] place-items-center rounded-md text-ink-muted transition-colors hover:bg-surface-sunken hover:text-ink active:scale-95 sm:grid [&_svg]:size-5"
+						>
+							<Plus />
+						</button>
+					{/if}
 					<button
 						type="button"
 						onclick={() => (shareOpen = true)}
@@ -287,6 +311,26 @@
 			</ul>
 		</nav>
 	</div>
+
+	<!--
+			Quick Capture, within thumb reach on a phone.
+
+			Sits above the bottom tab bar rather than in it: the bar has five fixed
+			destinations and a sixth slot would shrink every label. The sheet is the
+			one place a thought gets written down before it is lost, so it has to be
+			reachable from every section without a trip through the itinerary.
+		-->
+	{#if captureEnabled && trip}
+		<button
+			type="button"
+			onclick={() => (captureOpen = true)}
+			aria-label={t('capture_title')}
+			title={t('capture_title')}
+			class="no-print fixed bottom-[calc(4.5rem+env(safe-area-inset-bottom,0px))] right-4 z-40 grid size-14 place-items-center rounded-full bg-primary-600 text-white shadow-soft transition-transform hover:bg-primary-700 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary-600 focus-visible:ring-offset-2 focus-visible:ring-offset-bg active:scale-95 sm:hidden [&_svg]:size-6"
+		>
+			<Plus aria-hidden="true" />
+		</button>
+	{/if}
 </div>
 
 <TripFormSheet
@@ -299,4 +343,14 @@
 
 {#if trip}
 	<ShareTripModal bind:open={shareOpen} {trip} />
+{/if}
+
+{#if captureEnabled && trip}
+	<QuickCaptureSheet
+		bind:open={captureOpen}
+		tripId={id}
+		homeCurrency={trip.homeCurrency ?? 'EUR'}
+		defaultDate={todayIso()}
+		onsaved={requestReload}
+	/>
 {/if}

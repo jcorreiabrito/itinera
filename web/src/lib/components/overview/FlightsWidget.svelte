@@ -3,6 +3,7 @@
 	import type { Flight } from '$lib/db';
 	import { Plane } from 'lucide-svelte';
 	import { formatDate } from '$lib/format';
+	import { t } from '$lib/i18n.svelte';
 	import { cn } from '$lib/utils';
 	import type { ResolvedPathname } from '$app/types';
 	import WidgetCard from './WidgetCard.svelte';
@@ -18,10 +19,11 @@
 	const shown = $derived(flights.slice(0, 5));
 </script>
 
-<WidgetCard title="Flights" icon={Plane} {href} linkLabel="Flights">
+<WidgetCard title={t('flights')} icon={Plane} {href} linkLabel={t('flights')}>
 	{#if flights.length === 0}
 		<p class="text-sm text-ink-muted">
-			None yet – <a {href} class="font-medium text-primary-700 hover:underline">add a flight</a>.
+			{t('home_none_yet')} –
+			<a {href} class="font-medium text-primary-700 hover:underline">{t('home_add_flight')}</a>.
 		</p>
 	{:else}
 		<ul class="space-y-1">
@@ -36,17 +38,19 @@
 						class="flex min-w-0 flex-1 items-center gap-2 truncate text-sm font-medium text-ink"
 					>
 						<Plane class="size-3.5 shrink-0 text-primary-700" />
-						<span class="truncate">{flightsRepo.route(flight) || 'Flight'}</span>
+						<span class="truncate">{flightsRepo.route(flight) || t('flight')}</span>
 					</span>
 					<span class="shrink-0 text-xs text-ink-muted">
 						{formatDate(flight.segments?.[0]?.departLocal ?? null)}{#if i === nextIndex}
-							· Next{/if}
+							· {t('home_next')}{/if}
 					</span>
 				</li>
 			{/each}
 		</ul>
 		{#if flights.length > shown.length}
-			<p class="mt-2 text-xs text-ink-muted">{flights.length - shown.length} more</p>
+			<p class="mt-2 text-xs text-ink-muted">
+				{t('home_more_count', { n: String(flights.length - shown.length) })}
+			</p>
 		{/if}
 	{/if}
 </WidgetCard>

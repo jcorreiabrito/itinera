@@ -347,7 +347,7 @@
 			<Input
 				id={fid('tags')}
 				value={form.tags}
-				placeholder="family, summer"
+				placeholder={t('trip_tags_placeholder')}
 				oninput={(e) => (form.tags = e.currentTarget.value)}
 			/>
 		</Field>

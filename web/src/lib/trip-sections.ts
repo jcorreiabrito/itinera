@@ -1,6 +1,17 @@
 import { resolve } from '$app/paths';
 import type { ResolvedPathname } from '$app/types';
-import { BedDouble, CalendarDays, LayoutDashboard, ListChecks, Plane, Wallet } from 'lucide-svelte';
+import {
+	BedDouble,
+	CalendarDays,
+	FileDown,
+	LayoutDashboard,
+	ListChecks,
+	Plane,
+	Sun,
+	Ticket,
+	Wallet
+} from 'lucide-svelte';
+import { flagEnabled } from '$lib/config';
 import type { TranslationKey } from '$lib/i18n.svelte';
 import type { IconComponent } from '$lib/types';
 
@@ -18,7 +29,15 @@ import type { IconComponent } from '$lib/types';
  */
 
 export type TripSectionId =
-	'overview' | 'itinerary' | 'flights' | 'reservations' | 'checklist' | 'costs';
+	| 'overview'
+	| 'today'
+	| 'itinerary'
+	| 'flights'
+	| 'reservations'
+	| 'wallet'
+	| 'checklist'
+	| 'costs'
+	| 'export';
 
 export interface TripSection {
 	id: TripSectionId;
@@ -53,8 +72,17 @@ export interface TripSection {
 const under = (pathname: string, tripId: string, segment: string) =>
 	pathname.startsWith(`/trip/${tripId}/${segment}`);
 
+/*
+ * A section a deployment switched off is dropped from the declarations, so
+ * neither navigation can link to it and the mobile order below simply skips it.
+ * The page itself remains reachable by URL: the flag hides a destination, it
+ * does not delete data the self-hoster may have put there.
+ */
+const enabled = (id: TripSectionId) =>
+	(id !== 'today' || flagEnabled('today')) && (id !== 'wallet' || flagEnabled('wallet'));
+
 /** Sidebar order. Mobile order is declared separately below. */
-export const TRIP_SECTIONS: TripSection[] = [
+const ALL_SECTIONS: TripSection[] = [
 	{
 		id: 'overview',
 		labelKey: 'overview',
@@ -65,6 +93,23 @@ export const TRIP_SECTIONS: TripSection[] = [
 			labelKey: 'overview',
 			path: (id) => resolve('/trip/[id]/overview', { id }),
 			isActive: (pathname, id) => under(pathname, id, 'overview')
+		}
+	},
+	{
+		id: 'today',
+		labelKey: 'today',
+		icon: Sun,
+		/*
+		 * Deliberately not `wide`: Today is one column of large type even on a
+		 * desk monitor — it is the screen you read standing in a queue, and
+		 * stretching it to 1280px would separate the time from the item.
+		 */
+		path: (id) => resolve('/trip/[id]/today', { id }),
+		isActive: (pathname, id) => under(pathname, id, 'today'),
+		mobile: {
+			labelKey: 'today',
+			path: (id) => resolve('/trip/[id]/today', { id }),
+			isActive: (pathname, id) => under(pathname, id, 'today')
 		}
 	},
 	{
@@ -118,6 +163,13 @@ export const TRIP_SECTIONS: TripSection[] = [
 		isActive: (pathname, id, tab) => under(pathname, id, 'bookings') && tab === 'reservations'
 	},
 	{
+		id: 'wallet',
+		labelKey: 'wallet',
+		icon: Ticket,
+		path: (id) => resolve('/trip/[id]/wallet', { id }),
+		isActive: (pathname, id) => under(pathname, id, 'wallet')
+	},
+	{
 		id: 'costs',
 		labelKey: 'costs',
 		icon: Wallet,
@@ -130,8 +182,19 @@ export const TRIP_SECTIONS: TripSection[] = [
 			path: (id) => resolve('/trip/[id]/costs', { id }),
 			isActive: (pathname, id) => under(pathname, id, 'costs')
 		}
+	},
+	{
+		id: 'export',
+		labelKey: 'export',
+		icon: FileDown,
+		separated: true,
+		// One entry for every document: print, PDF, calendar and JSON.
+		path: (id) => resolve('/trip/[id]/export', { id }),
+		isActive: (pathname, id) => under(pathname, id, 'export')
 	}
 ];
+
+export const TRIP_SECTIONS: TripSection[] = ALL_SECTIONS.filter((section) => enabled(section.id));
 
 const byId = new Map(TRIP_SECTIONS.map((section) => [section.id, section]));
 
@@ -144,8 +207,15 @@ export interface TripMobileTab {
 	isActive: (pathname: string, tripId: string) => boolean;
 }
 
-/** Bottom-bar order. Flights stands in for the whole Bookings route. */
-const MOBILE_ORDER: TripSectionId[] = ['overview', 'itinerary', 'flights', 'checklist', 'costs'];
+/**
+ * Bottom-bar order. Flights stands in for the whole Bookings route.
+ *
+ * Today takes the first slot Overview used to hold: on a phone, "what am I
+ * doing now" beats a dashboard of nine widgets. Five is the ceiling — a sixth
+ * tab squeezes every label below a comfortable tap width — so Overview stays a
+ * sidebar destination and is linked from the Today page instead.
+ */
+const MOBILE_ORDER: TripSectionId[] = ['today', 'itinerary', 'flights', 'checklist', 'costs'];
 
 export const TRIP_MOBILE_TABS: TripMobileTab[] = MOBILE_ORDER.flatMap((id) => {
 	const section = byId.get(id);

@@ -78,8 +78,8 @@
 					index: idx + 1,
 					id: i._id,
 					item: i,
-					title: i.title || 'Activity',
-					locationName: name || address || 'Location',
+					title: i.title || t('label_activity'),
+					locationName: name || address || t('map_location'),
 					lat,
 					lng,
 					startTime: i.startTime,
@@ -216,7 +216,7 @@
 	async function downloadOfflineMap() {
 		if (downloadingOffline) return;
 		downloadingOffline = true;
-		toast.info('Downloading offline map tiles for destination...');
+		toast.info(t('map_downloading_tiles'));
 		try {
 			let centerLat = 20,
 				centerLng = 0;
@@ -263,10 +263,10 @@
 			}
 
 			await Promise.allSettled(tilesToFetch.map((url) => fetch(url, { mode: 'no-cors' })));
-			toast.success(`Offline map ready! ${tilesToFetch.length} tiles cached 🗺️`);
+			toast.success(t('map_offline_ready', { n: String(tilesToFetch.length) }));
 		} catch (err) {
 			console.error('Failed to pre-cache map tiles', err);
-			toast.error('Could not complete offline map download.');
+			toast.error(t('map_download_failed'));
 		} finally {
 			downloadingOffline = false;
 		}
@@ -360,7 +360,7 @@
 				const popupContent = `
           <div class="p-1 max-w-xs font-sans">
             <div class="flex items-center space-x-1 text-xs font-semibold text-primary-700 uppercase tracking-wider mb-1">
-              <span>Pin #${loc.index}</span>
+              <span>${t('map_pin_number', { n: String(loc.index) })}</span>
               ${loc.startTime ? `<span>• ${loc.startTime}</span>` : ''}
             </div>
             <h4 class="font-serif font-bold text-ink text-sm mb-1">${loc.title}</h4>
@@ -424,7 +424,10 @@
 				title: newPinTitle.trim(),
 				date: newPinDate || undefined,
 				location: {
-					name: `Pin (${pendingCoords.lat.toFixed(4)}, ${pendingCoords.lng.toFixed(4)})`,
+					name: t('map_pin_name', {
+						lat: pendingCoords.lat.toFixed(4),
+						lng: pendingCoords.lng.toFixed(4)
+					}),
 					lat: pendingCoords.lat,
 					lng: pendingCoords.lng
 				}
@@ -573,7 +576,7 @@
 					class="scrollbar-none z-10 flex items-center space-x-2 overflow-x-auto border-t border-border bg-surface/95 px-3 py-2 backdrop-blur"
 				>
 					<span class="shrink-0 text-[11px] font-semibold uppercase tracking-wider text-ink-muted"
-						>Pins:</span
+						>{t('map_pins_label')}</span
 					>
 					{#each locations as item (item.id)}
 						<button
@@ -615,12 +618,12 @@
 				type="text"
 				value={newPinTitle}
 				oninput={(e) => (newPinTitle = e.currentTarget.value)}
-				placeholder="e.g. Scenic Overlook Stop"
+				placeholder={t('map_pin_title_placeholder')}
 				class="h-9 w-full rounded-md border border-border bg-surface px-3 text-base text-ink shadow-sm transition-colors focus:border-primary-600 focus:outline-none focus:ring-2 focus:ring-primary-600/30"
 			/>
 		</Field>
 
-		<Field label={`${t('days')} (${t('optional') || 'Optional'})`}>
+		<Field label={`${t('days')} (${t('optional')})`}>
 			<input
 				type="date"
 				value={newPinDate}

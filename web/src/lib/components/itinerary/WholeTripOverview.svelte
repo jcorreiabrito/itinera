@@ -73,7 +73,7 @@
 			const seg = entry.flight.segment;
 			const from = seg?.from?.code ?? seg?.from?.city ?? '–';
 			const to = seg?.to?.code ?? seg?.to?.city ?? '–';
-			return `Flight ${seg?.flightNumber ?? ''} ${from} → ${to}`;
+			return `${t('flight')} ${seg?.flightNumber ?? ''} ${from} → ${to}`;
 		}
 		if (entry.kind === 'reservation' && entry.reservation) {
 			const placement = entry.reservation;
@@ -82,9 +82,9 @@
 				return res?.name ?? t('label_reservation');
 			}
 			const verb = {
-				checkIn: 'Check-in',
-				checkOut: 'Check-out',
-				staying: 'Staying at',
+				checkIn: t('check_in'),
+				checkOut: t('check_out'),
+				staying: t('staying_at'),
 				point: ''
 			}[placement.placement ?? 'staying'];
 			return `${verb}: ${res?.name ?? t('label_reservation')}`;
@@ -275,7 +275,7 @@
 			<div
 				class="sticky left-0 z-50 flex h-[100px] w-12 shrink-0 items-center justify-center border-r border-border bg-surface-sunken text-[10px] font-bold tracking-wider text-ink-muted/80 sm:w-16"
 			>
-				TIME
+				{t('time')}
 			</div>
 			<!-- Day Headers Columns -->
 			<div class="flex flex-1">
@@ -297,7 +297,7 @@
 								<button
 									type="button"
 									onclick={() => onaddactivity(day.date)}
-									aria-label="Add activity to {p.day} {p.month}"
+									aria-label={t('day_add_activity', { date: `${p.day} ${p.month}` })}
 									class="flex size-6 items-center justify-center rounded-md text-primary-600 transition-colors hover:bg-surface hover:text-primary-700"
 								>
 									<Plus class="size-4" />
@@ -366,7 +366,7 @@
 			<div
 				class="sticky left-0 z-50 flex w-12 shrink-0 items-center justify-center border-r border-border bg-surface-sunken py-2 text-[9px] font-bold uppercase tracking-wider text-ink-muted/80 sm:w-16"
 			>
-				ALL DAY
+				{t('all_day')}
 			</div>
 			<!-- Day Columns for All-Day elements -->
 			<div class="flex flex-1 bg-surface-sunken">
@@ -433,7 +433,7 @@
 							<div
 								class="flex h-6 items-center justify-center text-[10px] italic text-ink-muted/40"
 							>
-								none
+								{t('none')}
 							</div>
 						{/if}
 					</div>
@@ -531,7 +531,7 @@
 										<div
 											class="border-current-soft mt-0.5 flex items-center justify-between truncate border-t pt-0.5 text-[9px] font-medium opacity-80"
 										>
-											<span class="truncate">Flight Booking</span>
+											<span class="truncate">{t('label_flight_booking')}</span>
 										</div>
 									{/if}
 								</a>
@@ -558,7 +558,7 @@
 										<div
 											class="border-current-soft mt-0.5 flex items-center justify-between truncate border-t pt-0.5 text-[9px] font-medium opacity-80"
 										>
-											<span class="truncate">Reservation Booking</span>
+											<span class="truncate">{t('label_reservation_booking')}</span>
 										</div>
 									{/if}
 								</a>

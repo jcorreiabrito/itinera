@@ -8,7 +8,18 @@
 
 	const id = $derived(page.params.id ?? '');
 
-	const tab = $derived(page.url.searchParams.get('tab') === 'flights' ? 'flights' : 'reservations');
+	/*
+	 * Flights is the default, matching TRIP_SECTIONS: a bare /bookings URL used
+	 * to render Reservations while the sidebar highlighted Flights, so the app
+	 * disagreed with itself about which tab you were on.
+	 */
+	const tab = $derived(
+		page.url.searchParams.get('tab') === 'reservations' ? 'reservations' : 'flights'
+	);
+
+	/* Deep links: /bookings?tab=flights&flight=flight:XX opens that record. */
+	const flightId = $derived(page.url.searchParams.get('flight') ?? undefined);
+	const reservationId = $derived(page.url.searchParams.get('reservation') ?? undefined);
 
 	const segClass = (active: boolean) =>
 		cn(
@@ -46,11 +57,11 @@
 
 	{#if tab === 'flights'}
 		{#key id}
-			<FlightsPane tripId={id} />
+			<FlightsPane tripId={id} initialId={flightId} />
 		{/key}
 	{:else}
 		{#key id}
-			<ReservationsPane tripId={id} />
+			<ReservationsPane tripId={id} initialId={reservationId} />
 		{/key}
 	{/if}
 </section>

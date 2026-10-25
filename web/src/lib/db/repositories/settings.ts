@@ -6,6 +6,7 @@
  * (`docs/04-data-model.md`). Read-through creates the document on first access.
  */
 
+import { getRuntimeConfig } from '../../config';
 import { createDoc, getDoc, patchDoc } from '../base';
 import { SETTINGS_ID } from '../constants';
 import type { Settings, ThemePref } from '../schemas';
@@ -22,7 +23,14 @@ export interface SettingsPatch {
 }
 
 const DEFAULTS = {
-	homeCurrencyDefault: 'EUR',
+	/*
+	 * The deployment's `config.js` can change what a *new* install starts with.
+	 * A getter, not a literal, so the value is read when the singleton is created
+	 * rather than when this module is first imported.
+	 */
+	get homeCurrencyDefault(): string {
+		return getRuntimeConfig().defaultCurrency;
+	},
 	defaultChecklistTemplateId: null,
 	theme: 'system' as ThemePref,
 	firstDayOfWeek: 1,

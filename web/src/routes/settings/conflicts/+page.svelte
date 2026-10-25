@@ -1,20 +1,18 @@
 <script lang="ts">
 	import { onMount } from 'svelte';
 	import { resolve } from '$app/paths';
-	import { listConflicts, markConflictReviewed, trips } from '$lib/db';
-	import { t, type TranslationKey } from '$lib/i18n.svelte';
+	import { listConflicts, trips } from '$lib/db';
+	import { t } from '$lib/i18n.svelte';
 	import { ArrowLeft, GitMerge, Check } from 'lucide-svelte';
-	import { Badge, Button, EmptyState, Skeleton, SyncStatusPill, toast } from '$lib/components/ui';
-	import { relativeTime } from '$lib/format';
+	import { EmptyState, Skeleton, SyncStatusPill, toast } from '$lib/components/ui';
+	import { ConflictCard } from '$lib/components/conflicts';
 	import { startLive } from '$lib/live';
 
 	type Report = Awaited<ReturnType<typeof listConflicts>>[number];
-	type StoredDoc = Report['winner'];
 
 	let loaded = $state(false);
 	let reports = $state<Report[]>([]);
 	let tripTitles = $state<Map<string, string>>(new Map());
-	let busy = $state<string | null>(null);
 
 	async function load() {
 		try {
@@ -35,85 +33,11 @@
 		return startLive(load);
 	});
 
-	const TYPE_LABELS: Record<string, TranslationKey> = {
-		trip: 'label_trip',
-		tripDay: 'label_itinerary_day',
-		itineraryItem: 'label_itinerary_item',
-		checklistItem: 'label_checklist_item',
-		checklistTemplate: 'label_checklist_template',
-		flight: 'label_flight_booking',
-		reservation: 'label_reservation',
-		expense: 'label_expense',
-		attachment: 'label_attachment',
-		settings: 'settings'
-	};
-
-	function typeLabel(doc: StoredDoc): string {
-		const key = TYPE_LABELS[doc.type ?? ''];
-		return key ? t(key) : t('label_record');
-	}
-
-	function docName(doc: StoredDoc): string {
-		const d = doc as Record<string, unknown>;
-		return (
-			(d.title as string) ??
-			(d.name as string) ??
-			(d.text as string) ??
-			(d.description as string) ??
-			''
-		);
-	}
-
-	function tripContext(doc: StoredDoc): string {
-		const d = doc as Record<string, unknown>;
-		if (doc.type === 'trip') return '';
-		const tripid = d.tripid as string | undefined;
-		if (!tripid) return '';
-		return tripTitles.get(tripid) ?? '';
-	}
-
-	// Keys that are metadata or noise rather than user-visible content.
-	const IGNORED = new Set([
-		'type',
-		'tripid',
-		'_schemaVersion',
-		'createdAt',
-		'updatedAt',
-		'deletedAt',
-		'order'
-	]);
-
-	function humanize(key: string): string {
-		return key
-			.replace(/([a-z])([A-Z])/g, '$1 $2')
-			.replace(/^./, (c) => c.toUpperCase())
-			.toLowerCase()
-			.replace(/^./, (c) => c.toUpperCase());
-	}
-
-	function changedFields(winner: StoredDoc, loser: StoredDoc): string[] {
-		const w = winner as Record<string, unknown>;
-		const l = loser as Record<string, unknown>;
-		const keys = new Set([...Object.keys(w), ...Object.keys(l)]);
-		const out: string[] = [];
-		for (const k of keys) {
-			if (k.startsWith('_') || IGNORED.has(k)) continue;
-			if (JSON.stringify(w[k]) !== JSON.stringify(l[k])) out.push(humanize(k));
-		}
-		return out;
-	}
-
-	async function dismiss(report: Report) {
-		busy = report.id;
-		try {
-			await markConflictReviewed(report.id);
-			reports = reports.filter((r) => r.id !== report.id);
-			toast.success(t('marked_as_reviewed'));
-		} catch {
-			toast.error(t('could_not_update_retry'));
-		} finally {
-			busy = null;
-		}
+	/** Which trip a record belongs to — the title is the reader's only handle. */
+	function contextFor(report: Report): string {
+		if (report.winner.type === 'trip') return '';
+		const tripid = (report.winner as Record<string, unknown>).tripid as string | undefined;
+		return tripid ? (tripTitles.get(tripid) ?? '') : '';
 	}
 </script>
 
@@ -161,48 +85,8 @@
 	{:else}
 		<ul class="space-y-4">
 			{#each reports as report (report.id)}
-				{@const context = tripContext(report.winner)}
-				{@const name = docName(report.winner)}
-				<li class="rounded-lg border border-border bg-surface p-4 shadow-soft">
-					<div class="flex flex-wrap items-start justify-between gap-3">
-						<div class="min-w-0">
-							<div class="flex flex-wrap items-center gap-2">
-								<Badge variant="neutral">{typeLabel(report.winner)}</Badge>
-								{#if name}<span class="truncate font-medium text-ink">{name}</span>{/if}
-							</div>
-							{#if context}
-								<p class="mt-1 text-xs text-ink-muted">{context}</p>
-							{/if}
-							<p class="mt-1.5 text-sm text-ink">
-								{t('kept_version_saved', {
-									time: relativeTime(report.winner.updatedAt) || t('most_recently')
-								})}
-							</p>
-						</div>
-						<Button
-							variant="secondary"
-							size="sm"
-							onclick={() => dismiss(report)}
-							disabled={busy === report.id}
-						>
-							{busy === report.id ? t('saving') : t('mark_reviewed')}
-						</Button>
-					</div>
-
-					<div class="mt-3 space-y-2 border-t border-border pt-3">
-						{#each report.losers as loser (loser._rev)}
-							{@const fields = changedFields(report.winner, loser)}
-							<div class="text-xs text-ink-muted">
-								<span class="font-medium text-ink">{t('set_aside')}</span>
-								· {t('edited_at', { time: relativeTime(loser.updatedAt) || '' })}
-								{#if fields.length}
-									· {t('differs_in', { fields: fields.join(', ') })}
-								{:else}
-									· {t('identical_content')}
-								{/if}
-							</div>
-						{/each}
-					</div>
+				<li>
+					<ConflictCard {report} context={contextFor(report)} onresolved={load} />
 				</li>
 			{/each}
 		</ul>

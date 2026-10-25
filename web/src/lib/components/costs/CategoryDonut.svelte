@@ -1,6 +1,7 @@
 <script lang="ts">
 	import type { expenses } from '$lib/db';
 	import { formatMoney } from '$lib/format';
+	import { t } from '$lib/i18n.svelte';
 	import { categoryLabel } from './labels';
 
 	interface Props {
@@ -88,7 +89,7 @@
 				</svg>
 				<div class="absolute inset-0 flex flex-col items-center justify-center text-center">
 					<span class="text-[0.65rem] font-medium uppercase tracking-wider text-ink-muted">
-						{unpaidOnly ? 'Unpaid' : 'Spent'}
+						{unpaidOnly ? t('unpaid') : t('costs_spent_label')}
 					</span>
 					<span class="text-sm font-bold tabular-nums text-ink">
 						{formatMoney(totalSpent, homeCurrency)}

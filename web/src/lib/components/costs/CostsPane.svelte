@@ -20,6 +20,7 @@
 		type CostsView
 	} from '$lib/utils/url-state';
 	import SummaryHeader from './SummaryHeader.svelte';
+	import PaceCard from './PaceCard.svelte';
 	import QuickAdd from './QuickAdd.svelte';
 	import ByDayView from './ByDayView.svelte';
 	import ByCategoryView from './ByCategoryView.svelte';
@@ -308,6 +309,10 @@
 	<div class="space-y-5">
 		<SummaryHeader {summary} onEditBudget={() => (budgetOpen = true)} />
 
+		{#if trip}
+			<PaceCard {trip} expenses={explist} />
+		{/if}
+
 		<QuickAdd {tripId} homeCurrency={home} onsaved={reload} />
 
 		{#if !hasExpenses}
@@ -330,7 +335,7 @@
 				<div
 					class="flex w-full rounded-lg border border-border bg-surface-sunken p-1 sm:inline-flex"
 					role="tablist"
-					aria-label="Cost views"
+					aria-label={t('costs_views_label')}
 				>
 					{#each TABS as tab (tab.value)}
 						<button

@@ -443,9 +443,16 @@ function buildDay(date: string, data: TripData): DayTimeline {
 	untimed.sort((a, b) => (a.order ?? 0) - (b.order ?? 0));
 	timed.sort((a, b) => (a.minutes ?? 0) - (b.minutes ?? 0) || a.order - b.order);
 
+	/*
+	 * The traveller count matters here for the same reason it matters on the
+	 * Costs page: a "120 per person" dinner for four is 480, and the day strip
+	 * used to print 120 while the costs screen and the PDF printed 480. The
+	 * three surfaces must show one number.
+	 */
 	const subtotal = sumExpenses(
 		data.expenses.filter((e) => e.date === date),
-		data.home
+		data.home,
+		Math.max(data.trip?.travelerCount ?? 1, 1)
 	);
 
 	return {
@@ -503,7 +510,17 @@ function buildUnscheduled(data: TripData): DayTimeline {
 		timed: items
 			.filter((i) => !i.allDay)
 			.map((item) => ({ kind: 'item' as const, minutes: null, order: item.order ?? 0, item })),
-		subtotal: { estimate: 0, actual: 0, spent: 0, unpaid: 0, missingRateCount: 0 }
+		/*
+		 * Undated expenses live here rather than on a day: insurance, a rail
+		 * pass, the airport transfer booked before the dates existed. The bucket
+		 * used to report zero, so the one screen that lists undated things said
+		 * the trip had not cost anything for them.
+		 */
+		subtotal: sumExpenses(
+			data.expenses.filter((e) => !e.date),
+			data.home,
+			Math.max(data.trip?.travelerCount ?? 1, 1)
+		)
 	};
 }
 

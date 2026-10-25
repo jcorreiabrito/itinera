@@ -2,6 +2,7 @@
 	import type { expenses } from '$lib/db';
 	import { formatMoney } from '$lib/format';
 	import { Badge } from '$lib/components/ui';
+	import { t } from '$lib/i18n.svelte';
 	import CostBar from './CostBar.svelte';
 	import CategoryDonut from './CategoryDonut.svelte';
 	import { categoryIcon, categoryLabel } from './labels';
@@ -30,14 +31,14 @@
 	<p
 		class="rounded-lg border border-dashed border-border bg-surface-sunken px-4 py-8 text-center text-sm text-ink-muted"
 	>
-		{unpaidOnly ? 'Nothing outstanding – every cost is paid.' : 'No costs yet.'}
+		{unpaidOnly ? t('costs_nothing_outstanding') : t('no_costs_yet')}
 	</p>
 {:else}
 	<CategoryDonut {categories} {homeCurrency} {unpaidOnly} class="mb-4" />
 
 	<ul class="space-y-2.5">
 		{#each visible as row (row.category)}
-			{@const t = row.totals}
+			{@const totals = row.totals}
 			{@const Icon = categoryIcon(row.category)}
 			<li class="rounded-lg border border-border bg-surface p-3.5 shadow-soft">
 				<div class="flex items-baseline justify-between gap-3">
@@ -46,15 +47,15 @@
 						{categoryLabel(row.category)}
 					</h3>
 					<span class="text-base font-semibold tabular-nums">
-						{money(unpaidOnly ? t.unpaid : t.spent)}
+						{money(unpaidOnly ? totals.unpaid : totals.spent)}
 					</span>
 				</div>
 				{#if unpaidOnly}
-					<p class="mt-1 text-xs text-ink-muted">Outstanding (unpaid)</p>
+					<p class="mt-1 text-xs text-ink-muted">{t('costs_outstanding')}</p>
 				{:else}
 					<div class="mt-2">
 						<CostBar
-							value={t.spent}
+							value={totals.spent}
 							target={row.cap}
 							max={scale}
 							tone={row.overCap ? 'warning' : 'primary'}
@@ -64,21 +65,31 @@
 						class="mt-1.5 flex flex-wrap items-center justify-between gap-x-3 gap-y-1 text-xs text-ink-muted"
 					>
 						<span class="tabular-nums">
-							Est. {money(t.estimate)} • Actual {money(t.actual)}
+							{t('costs_est_actual', {
+								estimate: money(totals.estimate),
+								actual: money(totals.actual)
+							})}
 						</span>
 						{#if row.overCap && row.cap != null}
-							<Badge variant="warning">Over cap • {money(t.spent - row.cap)}</Badge>
+							<Badge variant="warning">
+								{t('costs_over_cap', { amount: money(totals.spent - row.cap) })}
+							</Badge>
 						{:else if row.cap != null}
-							<span class="tabular-nums">Cap {money(row.cap)}</span>
+							<span class="tabular-nums">{t('costs_cap', { amount: money(row.cap) })}</span>
 						{/if}
 					</div>
 				{/if}
 
 				<span class="sr-only">
-					{categoryLabel(row.category)}: {money(t.spent)} spent{row.cap != null
-						? ` of ${money(row.cap)} cap`
-						: ''}{row.overCap ? `, over cap ` : ''}.
-					{#if t.unpaid > 0}{money(t.unpaid)} unpaid.{/if}
+					{t('costs_sr_category_spent', {
+						category: categoryLabel(row.category),
+						amount: money(totals.spent)
+					})}{row.cap != null ? t('costs_sr_of_cap', { amount: money(row.cap) }) : ''}{row.overCap
+						? t('costs_sr_over_cap')
+						: ''}.
+					{#if totals.unpaid > 0}{t('costs_sr_unpaid', {
+							amount: money(totals.unpaid)
+						})}{/if}
 				</span>
 			</li>
 		{/each}
@@ -87,14 +98,14 @@
 	<div
 		class="mt-4 flex flex-col gap-1 rounded-lg bg-primary-100 px-4 py-3 sm:flex-row sm:items-center sm:justify-between"
 	>
-		<span class="font-medium text-primary-700">Total</span>
+		<span class="font-medium text-primary-700">{t('costs_total')}</span>
 		{#if unpaidOnly}
 			<span class="font-semibold tabular-nums text-primary-700">{money(summary.unpaid)}</span>
 		{:else}
 			<span class="text-sm font-medium tabular-nums text-primary-700">
-				Estimated <span class="text-base font-semibold">{money(summary.estimate)}</span>
+				{t('estimated')} <span class="text-base font-semibold">{money(summary.estimate)}</span>
 				<span aria-hidden="true" class="mx-1 opacity-50">/</span>
-				Actual <span class="text-base font-semibold">{money(summary.actual)}</span>
+				{t('actual')} <span class="text-base font-semibold">{money(summary.actual)}</span>
 			</span>
 		{/if}
 	</div>

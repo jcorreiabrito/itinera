@@ -32,6 +32,7 @@
 
 import { get, writable, type Readable } from 'svelte/store';
 
+import { patchDoc } from './base';
 import { planConflictResolution, type ConflictReport } from './conflicts';
 import { clearPending, markPending, pendingWrites } from './pending';
 import { getDb, createRemoteDb, getRemoteUrl, type Database } from './pouch';
@@ -355,6 +356,41 @@ export async function listConflicts(db: Database = getDb()): Promise<ConflictRep
 		});
 	}
 	return reports;
+}
+
+/**
+ * Restore chosen fields from a retained losing revision.
+ *
+ * Resolution itself is whole-document last-writer-wins, so the moment a conflict
+ * is resolved the loser's values exist nowhere but this log. Recovering one of
+ * them is therefore a **new local edit**, written through `patchDoc`: it stamps
+ * `updatedAt`, validates the merged document, marks it pending and replicates
+ * like any other change. That is what keeps the restored value from being
+ * re-resolved away the next time the two devices meet.
+ *
+ * A field the losing revision did not have is removed (`patchDoc` deletes keys
+ * whose value is `undefined`), which is what makes "the other device cleared
+ * this field" restorable rather than silently ignored.
+ *
+ * @throws when the revision is no longer retained, or the merged document fails
+ * validation — the caller must be able to say the restore did not happen.
+ */
+export async function restoreConflictFields(
+	docId: string,
+	loserRev: string,
+	fields: readonly string[],
+	db: Database = getDb()
+): Promise<void> {
+	const log = await readConflictLog(db);
+	const loser = log.entries[docId]?.losers.find((entry) => entry.rev === loserRev);
+	if (!loser)
+		throw new Error(`restoreConflictFields: no retained revision ${loserRev} for ${docId}`);
+	const patch: Record<string, unknown> = {};
+	for (const field of fields) {
+		if (field.startsWith('_')) continue;
+		patch[field] = loser.doc[field];
+	}
+	await patchDoc(docId, patch as never, db);
 }
 
 /** Dismiss a reviewed conflict: drop its retained losers from the local log. */

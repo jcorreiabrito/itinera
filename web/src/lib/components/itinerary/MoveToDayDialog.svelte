@@ -2,6 +2,7 @@
 	import { Lightbulb, Check } from 'lucide-svelte';
 	import { DateTime } from 'luxon';
 	import { Dialog } from '$lib/components/ui';
+	import { t } from '$lib/i18n.svelte';
 	import { cn } from '$lib/utils';
 
 	interface Props {
@@ -38,15 +39,15 @@
 
 <Dialog
 	bind:open
-	title="Move to day"
-	description={title ? `Where should "${title}" go?` : undefined}
+	title={t('day_move_to_title')}
+	description={title ? t('where_should_item_go', { title }) : undefined}
 >
 	<ul class="flex max-h-[60dvh] flex-col gap-1.5 overflow-y-auto pr-1">
 		<li>
 			<button type="button" class={rowClass(current === null)} onclick={() => choose(null)}>
 				<span class="flex items-center gap-2">
 					<Lightbulb class="size-4 text-accent-terracotta" />
-					Unscheduled (Ideas)
+					{t('unscheduled_ideas')}
 				</span>
 				{#if current === null}<Check class="size-4" />{/if}
 			</button>

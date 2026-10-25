@@ -154,11 +154,11 @@
 			flightOpts = fl.map((f) => ({
 				id: f._id,
 				label: flights.computeFlight(f).route
-					? `Flight: ${flights.computeFlight(f).route}`
-					: 'Flight'
+					? t('costs_flight_option', { route: flights.computeFlight(f).route })
+					: t('flight')
 			}));
 			resOpts = rs.map((r) => ({ id: r._id, label: r.name?.trim() ?? t('label_reservation') }));
-			itemOpts = it.map((i) => ({ id: i._id, label: i.title?.trim() ?? 'Activity' }));
+			itemOpts = it.map((i) => ({ id: i._id, label: i.title?.trim() ?? t('label_activity') }));
 		} catch {
 			flightOpts = [];
 			resOpts = [];
@@ -419,7 +419,7 @@
 						min={0}
 						step="any"
 						value={form.fxRate}
-						placeholder="e.g. 0.92"
+						placeholder={t('costs_rate_placeholder')}
 						invalid={!!errors.fxRate}
 						oninput={(e) => (form.fxRate = e.currentTarget.value)}
 					/>

@@ -638,9 +638,32 @@
    * text is the child of a `<button>`. Hiding those by tag deleted the document.
    */
 	@media print {
+		/*
+     * Two named paper profiles, plus the unnamed rule so a screen that does not
+     * opt in (Ctrl+P from any trip tab) still prints A4 as it always did.
+     * The printable route puts `page: a4 | letter` on `.print-document`.
+     */
 		@page {
 			size: A4;
 			margin: 14mm;
+		}
+
+		@page a4 {
+			size: A4;
+			margin: 14mm;
+		}
+
+		@page letter {
+			size: letter;
+			margin: 14mm;
+		}
+
+		.print-document {
+			page: a4;
+		}
+
+		.print-document.paper-letter {
+			page: letter;
 		}
 
 		nav,
@@ -668,6 +691,14 @@
 			clip-path: none !important;
 			white-space: normal !important;
 			border: 0 !important;
+		}
+
+		/*
+     * The reveal above is for headings that carry the document's title. The
+     * root layout's skip link is a keyboard control, not paper content.
+     */
+		body > a.sr-only {
+			display: none !important;
 		}
 
 		/*
@@ -713,6 +744,16 @@
 			overflow: visible !important;
 		}
 
+		/*
+     * The printable route renders its own cover and document title. The trip
+     * shell's paper-only header would otherwise print a second <h1> above it
+     * and — because the document below names its page — force that header onto
+     * a sheet of its own. The route adds `print-route` to <html> while mounted.
+     */
+		html.print-route header[class~='print:block'] {
+			display: none !important;
+		}
+
 		/* A sheet/dialog open at print time leaves the document unscrollable. */
 		.app-printing,
 		.app-printing body {
@@ -745,9 +786,16 @@
 		.card,
 		li,
 		tr,
+		table,
 		.day {
 			break-inside: avoid;
 			page-break-inside: avoid;
+		}
+
+		/* The booklet itself is meant to run over several sheets. */
+		.print-document {
+			break-inside: auto;
+			page-break-inside: auto;
 		}
 
 		h1,

@@ -15,9 +15,15 @@
 	interface Props {
 		/** Bare trip ULID. */
 		tripId: string;
+		/**
+		 * A flight to open once the list has loaded, from `?flight=` in the
+		 * address bar. A link to a booking should land on the booking, not on a
+		 * list the reader has to scan for the reference they were sent.
+		 */
+		initialId?: string;
 	}
 
-	let { tripId }: Props = $props();
+	let { tripId, initialId }: Props = $props();
 
 	const shell = getTripShellContext();
 	const reloadSignal = shell.reloadSignal;
@@ -43,6 +49,7 @@
 			]);
 			trip = t;
 			flightList = list;
+			openDeepLink(list);
 			/* eslint-disable-next-line svelte/prefer-svelte-reactivity -- a plain Map/Date is correct here: this is a local accumulator/registry rebuilt on every run, not reactive $state. SvelteMap would add reactivity nobody reads. */
 			const counts = new Map<string, number>();
 			for (const a of atts) {
@@ -91,6 +98,23 @@
 		sheetMode = 'edit';
 		sheetFlight = flight;
 		sheetOpen = true;
+	}
+
+	/**
+	 * Open the flight a deep link names, exactly once.
+	 *
+	 * `openedFor` is what makes "once" true: `loadAll` also runs on every live
+	 * replication event, and without it a user who closed the editor would see
+	 * it reopen when the next change synced in.
+	 */
+	let openedFor = $state('');
+
+	function openDeepLink(list: Flight[]) {
+		if (!initialId || openedFor === initialId) return;
+		const target = list.find((flight) => flight._id === initialId);
+		if (!target) return;
+		openedFor = initialId;
+		openEdit(target);
 	}
 
 	async function removeFlight(flight: Flight) {

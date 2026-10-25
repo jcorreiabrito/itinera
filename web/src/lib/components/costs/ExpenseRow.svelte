@@ -4,6 +4,7 @@
 	import type { Expense } from '$lib/db';
 	import { formatMoney, formatWeekdayDate } from '$lib/format';
 	import { Badge } from '$lib/components/ui';
+	import { t } from '$lib/i18n.svelte';
 	import { categoryIcon, categoryLabel, sourceMeta } from './labels';
 
 	interface Props {
@@ -65,13 +66,13 @@
 					{/if}
 				</span>
 				<span class="mt-0.5 block text-xs text-ink-muted">
-					{expense.date ? formatWeekdayDate(expense.date) : 'Whole-trip cost'}
+					{expense.date ? formatWeekdayDate(expense.date) : t('costs_whole_trip_label')}
 					<span aria-hidden="true"> · </span>
 					{categoryLabel(expense.category ?? 'other')}
 					{#if travelerCount > 1}
 						<span aria-hidden="true"> · </span>
 						<span class="font-medium text-ink-muted/80">
-							{expense.costType === 'per_person' ? 'Per Person' : 'Group Total'}
+							{expense.costType === 'per_person' ? t('costs_per_person') : t('costs_group_total')}
 						</span>
 					{/if}
 				</span>
@@ -86,13 +87,16 @@
 					<span class="block text-sm font-semibold tabular-nums sm:text-base">
 						{formatMoney(origValue, cur)}
 						{#if expense.costType === 'per_person' && travelerCount > 1}
-							<span class="text-[10px] font-normal text-ink-muted">/pp</span>
+							<span class="text-[10px] font-normal text-ink-muted">
+								{t('costs_per_person_abbr')}
+							</span>
 						{/if}
 					</span>
 					{#if foreign}
 						{#if amounts.missingRate}
 							<Badge variant="warning" class="mt-0.5 [&_svg]:size-3">
-								<TriangleAlert aria-hidden="true" /> Needs rate
+								<TriangleAlert aria-hidden="true" />
+								{t('costs_needs_rate')}
 							</Badge>
 						{:else}
 							<span class="block text-xs tabular-nums text-ink-muted">
@@ -101,14 +105,18 @@
 									homeCurrency
 								)}
 								{#if expense.costType === 'per_person' && travelerCount > 1}
-									<span class="text-[9px] font-normal text-ink-muted">total</span>
+									<span class="text-[9px] font-normal text-ink-muted">
+										{t('costs_total_suffix')}
+									</span>
 								{/if}
 							</span>
 						{/if}
 					{:else if expense.costType === 'per_person' && travelerCount > 1}
 						<span class="block text-xs tabular-nums text-ink-muted">
 							{formatMoney(origValue * travelerCount, homeCurrency)}
-							<span class="text-[9px] font-normal text-ink-muted">total</span>
+							<span class="text-[9px] font-normal text-ink-muted">
+								{t('costs_total_suffix')}
+							</span>
 						</span>
 					{/if}
 				{/if}
@@ -120,7 +128,7 @@
 		type="button"
 		onclick={ontogglePaid}
 		aria-pressed={paid}
-		aria-label={paid ? 'Paid – mark as unpaid' : 'Unpaid – mark as paid'}
+		aria-label={paid ? t('costs_mark_unpaid') : t('costs_mark_paid')}
 		class="flex w-14 shrink-0 flex-col items-center justify-center gap-0.5 border-l border-border px-1 text-[11px] font-medium transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-primary-600 active:scale-95 [&_svg]:size-4
             {paid
 			? 'bg-success/10 text-success hover:bg-success/15'
@@ -128,10 +136,10 @@
 	>
 		{#if paid}
 			<Check aria-hidden="true" />
-			<span>Paid</span>
+			<span>{t('paid')}</span>
 		{:else}
 			<Circle aria-hidden="true" />
-			<span>Unpaid</span>
+			<span>{t('unpaid')}</span>
 		{/if}
 	</button>
 </li>

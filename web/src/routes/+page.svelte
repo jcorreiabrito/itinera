@@ -64,7 +64,7 @@
 
 	let conflictOpen = $state(false);
 	let templateOpen = $state(false);
-	let createOpen = $state(false);
+	let createOpen = $state(page.url.searchParams.get('new') === '1');
 	let editOpen = $state(false);
 	let editTrip = $state<Trip | null>(null);
 	let dupOpen = $state(false);
@@ -122,6 +122,23 @@
 		else replaceState(next, {});
 		/* eslint-enable svelte/no-navigation-without-resolve */
 		urlNormalised = true;
+	});
+
+	/*
+	 * The command palette opens New trip by navigating to /?new=1. Arriving
+	 * from another route is covered by the initial read above, but when the
+	 * palette runs while this page is already mounted only an effect sees it.
+	 * Drop the parameter once consumed so Back does not reopen the sheet.
+	 */
+	$effect(() => {
+		if (page.url.searchParams.get('new') !== '1') return;
+		createOpen = true;
+		const url = new URL(page.url);
+		url.searchParams.delete('new');
+		// The current page minus one parameter: already resolved, nothing to add.
+		/* eslint-disable svelte/no-navigation-without-resolve */
+		replaceState(url, {});
+		/* eslint-enable svelte/no-navigation-without-resolve */
 	});
 
 	async function load() {

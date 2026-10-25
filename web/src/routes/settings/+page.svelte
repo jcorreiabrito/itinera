@@ -8,7 +8,15 @@
 		storageEstimate,
 		syncStatus
 	} from '$lib/db';
-	import { downloadAllExport, listBackups, runBackup, type BackupSummary } from '$lib/api';
+	import {
+		downloadAllExport,
+		listBackups,
+		restoreBackup,
+		runBackup,
+		type BackupSummary,
+		type RestoreMode,
+		type RestoreResult
+	} from '$lib/api';
 	import { t, setLanguage, type Language, type TranslationKey } from '$lib/i18n.svelte';
 	import {
 		ArrowLeft,
@@ -18,6 +26,7 @@
 		HardDrive,
 		Pencil,
 		RefreshCw,
+		RotateCcw,
 		Server,
 		ShieldCheck,
 		Sparkles,
@@ -27,6 +36,7 @@
 	import {
 		Badge,
 		Button,
+		Checkbox,
 		Dialog,
 		Field,
 		Input,
@@ -106,6 +116,18 @@
 	let exporting = $state(false);
 	let backingUp = $state(false);
 	let loadingBackups = $state(false);
+
+	/*
+	 * Restore is the one server action that can overwrite data, so the dialog
+	 * always starts with a dry run: the user confirms a measured plan, not a
+	 * promise. `merge` (add missing only) is the default; `replace` has to be
+	 * switched on deliberately.
+	 */
+	let restoreTarget = $state<BackupSummary | null>(null);
+	let restoreMode = $state<RestoreMode>('merge');
+	let restorePlan = $state<RestoreResult | null>(null);
+	let restoreChecking = $state(false);
+	let restoring = $state(false);
 
 	import { network } from '$lib/stores/network.svelte';
 
@@ -325,6 +347,59 @@
 			});
 		} finally {
 			backingUp = false;
+		}
+	}
+
+	async function openRestore(backup: BackupSummary) {
+		if (!online || restoring) return;
+		restoreTarget = backup;
+		restoreMode = 'merge';
+		restorePlan = null;
+		await previewRestore();
+	}
+
+	/** Refresh the dry-run counts. Stale responses for a closed dialog are dropped. */
+	async function previewRestore() {
+		const target = restoreTarget;
+		if (!target) return;
+		restoreChecking = true;
+		try {
+			const plan = await restoreBackup(target.name, { mode: restoreMode, dryRun: true });
+			if (restoreTarget?.name === target.name) restorePlan = plan;
+		} catch {
+			if (restoreTarget?.name === target.name) {
+				restorePlan = null;
+				toast.error(t('restore_preview_failed'));
+			}
+		} finally {
+			restoreChecking = false;
+		}
+	}
+
+	async function setRestoreMode(replace: boolean) {
+		restoreMode = replace ? 'replace' : 'merge';
+		await previewRestore();
+	}
+
+	async function confirmRestore() {
+		const target = restoreTarget;
+		if (!target || restoring) return;
+		restoring = true;
+		try {
+			const result = await restoreBackup(target.name, { mode: restoreMode });
+			toast.success(
+				t('restore_done', {
+					docs: String(result.restored.documents),
+					files: String(result.restored.attachments)
+				})
+			);
+			restoreTarget = null;
+			restorePlan = null;
+			await loadBackups();
+		} catch {
+			toast.error(t('restore_failed'));
+		} finally {
+			restoring = false;
 		}
 	}
 
@@ -574,6 +649,17 @@
 								class="max-w-full shrink-0 break-all font-mono text-[0.7rem] text-ink-muted sm:max-w-[12rem] sm:truncate sm:break-normal"
 								>{b.name}</span
 							>
+							<Button
+								variant="ghost"
+								size="sm"
+								class="self-start sm:self-auto"
+								onclick={() => openRestore(b)}
+								disabled={!online || restoring}
+								aria-label="{t('restore_action')}: {b.name}"
+							>
+								<RotateCcw class="size-4" />
+								{t('restore_action')}
+							</Button>
 						</li>
 					{/each}
 				</ul>
@@ -637,7 +723,7 @@
 		It makes no network call of its own — every value is already loaded above,
 		or comes from the sync store the header pill reads.
 	-->
-	<section class="mt-4 rounded-lg border border-border bg-surface p-5">
+	<section id="data-safety" class="mt-4 rounded-lg border border-border bg-surface p-5">
 		<div class="flex items-center gap-2">
 			<ShieldCheck class="size-4 text-primary-700" />
 			<h2 class="text-base font-semibold">{t('data_safety_title')}</h2>
@@ -808,6 +894,88 @@
 		<Button variant="ghost" onclick={() => (removeTarget = null)}>{t('cancel')}</Button>
 		<Button variant="destructive" onclick={() => removeTarget && removeTemplate(removeTarget)}>
 			{t('delete')}
+		</Button>
+	{/snippet}
+</Dialog>
+
+<Dialog
+	open={restoreTarget != null}
+	title={t('restore_title')}
+	description={t('restore_body')}
+	onclose={() => {
+		if (restoring) return;
+		restoreTarget = null;
+		restorePlan = null;
+	}}
+>
+	{#if restoreTarget}
+		<p class="text-sm font-medium text-ink">
+			{restoreTarget.createdAt ? relativeTime(restoreTarget.createdAt) : restoreTarget.name}
+		</p>
+		<p class="mt-0.5 break-all font-mono text-xs text-ink-muted">{restoreTarget.name}</p>
+
+		<Checkbox
+			class="mt-4"
+			checked={restoreMode === 'replace'}
+			disabled={restoring || restoreChecking}
+			label={t('restore_replace')}
+			description={t('restore_replace_desc')}
+			onchange={(event) => setRestoreMode(event.currentTarget.checked)}
+		/>
+
+		<div
+			class="mt-4 rounded-md bg-surface-sunken px-3 py-2 text-sm text-ink-muted"
+			aria-live="polite"
+		>
+			{#if restoreChecking}
+				<p>{t('restore_checking')}</p>
+			{:else if restorePlan}
+				<p>
+					{t('restore_plan', {
+						docs: String(restorePlan.planned.create),
+						files: String(restorePlan.planned.attachments),
+						untouched: String(restorePlan.planned.untouched)
+					})}
+				</p>
+				{#if restorePlan.planned.create + restorePlan.planned.replace === 0}
+					<p class="mt-1">{t('restore_plan_none')}</p>
+				{/if}
+				{#if restoreMode === 'replace' && restorePlan.planned.replace > 0}
+					<p class="mt-1 font-medium text-ink">
+						{t('restore_plan_replace', { n: String(restorePlan.planned.replace) })}
+					</p>
+				{/if}
+				{#if restorePlan.planned.missingAttachmentFiles.length > 0}
+					<p class="mt-1 text-warning">
+						{t('restore_missing_files', {
+							n: String(restorePlan.planned.missingAttachmentFiles.length)
+						})}
+					</p>
+				{/if}
+			{/if}
+		</div>
+	{/if}
+
+	{#snippet footer()}
+		<Button
+			variant="ghost"
+			onclick={() => {
+				restoreTarget = null;
+				restorePlan = null;
+			}}
+			disabled={restoring}
+		>
+			{t('cancel')}
+		</Button>
+		<Button
+			variant={restoreMode === 'replace' ? 'destructive' : 'primary'}
+			onclick={confirmRestore}
+			disabled={restoring ||
+				restoreChecking ||
+				!restorePlan ||
+				restorePlan.planned.create + restorePlan.planned.replace === 0}
+		>
+			{restoring ? t('restore_running') : t('restore_confirm')}
 		</Button>
 	{/snippet}
 </Dialog>

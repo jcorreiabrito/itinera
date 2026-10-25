@@ -3,6 +3,7 @@
 	import { flagEmoji, formatDateRange } from '$lib/format';
 	import { CalendarDays, MapPin, Pencil } from 'lucide-svelte';
 	import { Card } from '$lib/components/ui';
+	import { t } from '$lib/i18n.svelte';
 
 	interface Props {
 		destinations: Destination[];
@@ -17,7 +18,8 @@
 		const d = new Date(depart);
 		if (isNaN(a.getTime()) || isNaN(d.getTime())) return null;
 		const diff = Math.round((d.getTime() - a.getTime()) / (1000 * 3600 * 24)) + 1;
-		return diff > 0 ? `${diff} ${diff === 1 ? 'day' : 'days'}` : null;
+		if (diff <= 0) return null;
+		return diff === 1 ? t('day') : t('days_plural', { n: String(diff) });
 	}
 </script>
 
@@ -28,7 +30,7 @@
 				<MapPin class="size-4" />
 			</span>
 			<h2 class="font-serif text-base font-semibold text-ink">
-				Trip Route & Destinations ({destinations.length})
+				{t('home_trip_route', { n: String(destinations.length) })}
 			</h2>
 		</div>
 		{#if onedit}
@@ -37,13 +39,14 @@
 				onclick={onedit}
 				class="inline-flex items-center gap-1 rounded-md px-2 py-1 text-xs font-medium text-ink-muted hover:bg-surface-sunken hover:text-ink"
 			>
-				<Pencil class="size-3" /> Edit
+				<Pencil class="size-3" />
+				{t('edit')}
 			</button>
 		{/if}
 	</div>
 
 	{#if destinations.length === 0}
-		<p class="text-sm text-ink-muted">No destinations specified for this trip yet.</p>
+		<p class="text-sm text-ink-muted">{t('no_destinations_yet')}</p>
 	{:else}
 		<div class="relative flex flex-col gap-3 pl-2">
 			{#each destinations as dest, index (dest.id || index)}

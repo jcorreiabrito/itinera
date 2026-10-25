@@ -26,6 +26,7 @@
 import PouchDBBrowser from 'pouchdb-browser';
 import find from 'pouchdb-find';
 
+import { getRuntimeConfig } from '../config';
 import { DB_NAME, REMOTE_URL } from './constants';
 
 // Register the Mongo query plugin on the default browser implementation.
@@ -50,9 +51,15 @@ export interface DbOptions {
 }
 
 let impl: PouchStatic = PouchDBBrowser as unknown as PouchStatic;
-let localName = DB_NAME;
+/*
+ * Deployment values come from `config.js` when it is present. They are read once,
+ * here, so the rest of the data layer keeps using the same plain module state it
+ * always has; `configureDb` still overrides them for tests.
+ */
+const runtime = getRuntimeConfig();
+let localName = runtime.dbName || DB_NAME;
 let adapter: string | undefined;
-let remoteUrl = REMOTE_URL;
+let remoteUrl = runtime.remoteUrl || REMOTE_URL;
 let local: Database | null = null;
 
 /**

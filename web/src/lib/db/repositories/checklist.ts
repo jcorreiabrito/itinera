@@ -8,7 +8,7 @@
  * (`apply / save-as / default`).
  */
 
-import { CHECKLIST_PRESET_GROUPS } from '../constants';
+import { CHECKLIST_PRESET_GROUPS, SCHEMA_VERSION } from '../constants';
 import { nowIso } from '../base';
 import {
 	bulkPut,
@@ -66,6 +66,42 @@ export function create(tripid: string, input: NewChecklistItemInput): Promise<Ch
 		important: input.important,
 		order: input.order ?? 0
 	});
+}
+
+/**
+ * Create several checklist items in one round trip.
+ *
+ * The batch counterpart to `create`: same defaults, same id scheme, one
+ * `bulkDocs` call so a generated list lands atomically. `order` follows the
+ * input when the caller does not choose one.
+ */
+export async function createMany(
+	tripid: string,
+	inputs: NewChecklistItemInput[]
+): Promise<ChecklistItem[]> {
+	if (inputs.length === 0) return [];
+	const now = nowIso();
+	const docs: ChecklistItem[] = inputs.map((input, index) => ({
+		_id: checklistItemId(tripid),
+		type: 'checklistItem',
+		tripid: fullTripid(tripid),
+		text: input.text,
+		group: input.group ?? 'Packing',
+		done: input.done ?? false,
+		doneAt: input.done ? now : null,
+		dueDate: input.dueDate ?? null,
+		date: input.date ?? null,
+		note: input.note,
+		quantity: input.quantity,
+		important: input.important,
+		order: input.order ?? index,
+		createdAt: now,
+		updatedAt: now,
+		deletedAt: null,
+		schemaVersion: SCHEMA_VERSION
+	}));
+	await bulkPut(docs);
+	return docs;
 }
 
 /** Patch a checklist item. */

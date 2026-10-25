@@ -58,6 +58,8 @@
 		MoveToGroupDialog,
 		SaveTemplateDialog
 	} from '$lib/components/checklist';
+	import { PackingDialog } from '$lib/components/packing';
+	import { flagEnabled } from '$lib/config';
 	import { formatWeekdayDate } from '$lib/format';
 	import { getTripShellContext } from '$lib/trip-context';
 	import { startLive } from '$lib/live';
@@ -107,6 +109,10 @@
 	let activeGroup = $state<string>('Packing');
 	let moveDialogOpen = $state(false);
 	let applyDialogOpen = $state(false);
+	let packingDialogOpen = $state(false);
+	// Read once: a deployment switch is not reactive, and the entry points below
+	// must disappear together.
+	const packingEnabled = flagEnabled('packing');
 	let saveDialogOpen = $state(false);
 	let actionsMenuOpen = $state(false);
 	let confirmResetOpen = $state(false);
@@ -470,6 +476,17 @@
 					>
 						{t('apply_template_ellipsis')}
 					</MenuItem>
+					{#if packingEnabled}
+						<MenuItem
+							icon={Luggage}
+							onclick={() => {
+								actionsMenuOpen = false;
+								packingDialogOpen = true;
+							}}
+						>
+							{t('packing_option')}
+						</MenuItem>
+					{/if}
 					<MenuItem
 						icon={Upload}
 						onclick={() => {
@@ -555,6 +572,12 @@
 							<Button variant="secondary" onclick={() => (applyDialogOpen = true)}>
 								{t('browse_all_templates')}
 							</Button>
+							{#if packingEnabled}
+								<Button variant="secondary" onclick={() => (packingDialogOpen = true)}>
+									<Luggage class="size-4" />
+									{t('packing_empty_cta')}
+								</Button>
+							{/if}
 						</div>
 					</div>
 
@@ -696,6 +719,8 @@
 />
 
 <ApplyTemplateDialog bind:open={applyDialogOpen} tripId={id} onapplied={() => loadAll(id)} />
+
+<PackingDialog bind:open={packingDialogOpen} tripId={id} {trip} onadded={() => loadAll(id)} />
 
 <SaveTemplateDialog
 	bind:open={saveDialogOpen}
