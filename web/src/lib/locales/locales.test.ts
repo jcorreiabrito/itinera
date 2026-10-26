@@ -9,12 +9,17 @@ import { conflictsEn, conflictsPt } from './features/conflicts';
 import { densityEn, densityPt } from './features/density';
 import { exportCenterEn, exportCenterPt } from './features/export-center';
 import { feasibilityEn, feasibilityPt } from './features/feasibility';
+import { gesturesEn, gesturesPt } from './features/gestures';
+import { horizonEn, horizonPt } from './features/horizon';
 import { packingEn, packingPt } from './features/packing';
+import { pasteEn, pastePt } from './features/paste';
 import { printDocEn, printDocPt } from './features/print-doc';
 import { readinessEn, readinessPt } from './features/readiness';
 import { restoreEn, restorePt } from './features/restore';
+import { routeEn, routePt } from './features/route';
 import { todayEn, todayPt } from './features/today';
 import { walletEn, walletPt } from './features/wallet';
+import { weatherEn, weatherPt } from './features/weather';
 import { workspaceEn, workspacePt } from './features/workspace';
 
 /**
@@ -33,12 +38,17 @@ const SLICES: ReadonlyArray<readonly [string, Record<string, string>, Record<str
 	['density', densityEn, densityPt],
 	['export-center', exportCenterEn, exportCenterPt],
 	['feasibility', feasibilityEn, feasibilityPt],
+	['gestures', gesturesEn, gesturesPt],
+	['horizon', horizonEn, horizonPt],
 	['packing', packingEn, packingPt],
+	['paste', pasteEn, pastePt],
 	['print-doc', printDocEn, printDocPt],
 	['readiness', readinessEn, readinessPt],
 	['restore', restoreEn, restorePt],
+	['route', routeEn, routePt],
 	['today', todayEn, todayPt],
 	['wallet', walletEn, walletPt],
+	['weather', weatherEn, weatherPt],
 	['workspace', workspaceEn, workspacePt]
 ];
 

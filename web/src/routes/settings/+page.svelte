@@ -18,6 +18,8 @@
 		type RestoreResult
 	} from '$lib/api';
 	import { t, setLanguage, type Language, type TranslationKey } from '$lib/i18n.svelte';
+	import { parseDensity, type Density } from '$lib/density';
+	import { DensityControl } from '$lib/components/settings';
 	import {
 		ArrowLeft,
 		Database,
@@ -84,12 +86,13 @@
 	/** The settings fields this page writes; everything else in the doc is not ours. */
 	type PageSettings = Pick<
 		Settings,
-		'homeCurrencyDefault' | 'firstDayOfWeek' | 'language' | 'cartoApiKey'
+		'homeCurrencyDefault' | 'firstDayOfWeek' | 'language' | 'cartoApiKey' | 'density'
 	>;
 
 	let homeCurrency = $state('EUR');
 	let firstDayOfWeek = $state(1);
 	let language = $state<Language>('en');
+	let density = $state<Density>('comfortable');
 	let cartoApiKey = $state('');
 
 	/** The key as last written to the settings doc, so an unchanged field is not re-saved. */
@@ -185,6 +188,7 @@
 			homeCurrency = s.homeCurrencyDefault ?? 'EUR';
 			firstDayOfWeek = s.firstDayOfWeek ?? 1;
 			language = (s.language as Language) ?? 'en';
+			density = parseDensity(s.density);
 			cartoApiKey =
 				s.cartoApiKey ??
 				(typeof localStorage !== 'undefined'
@@ -267,6 +271,15 @@
 
 	/** Writing per keystroke would put a document revision behind every character. */
 	const CARTO_KEY_DEBOUNCE_MS = 400;
+
+	/**
+	 * Density is a display preference, so it is written the moment it is picked —
+	 * same model as the theme toggle — and the repository applies it to <html>.
+	 */
+	function setDensity(next: Density) {
+		density = next;
+		void persist({ density: next });
+	}
 
 	function onCartoKeyInput(value: string) {
 		cartoApiKey = value;
@@ -541,6 +554,10 @@
 					<option value="pt-BR">Português (Brasil)</option>
 				</Select>
 			</Field>
+
+			<div class="sm:col-span-2">
+				<DensityControl value={density} onchange={setDensity} />
+			</div>
 
 			<div class="border-t border-border pt-4 sm:col-span-2">
 				<Field label={t('carto_api_key')} for="settings-carto-key">

@@ -33,6 +33,7 @@
 		"luxon": "^3.5.0",
 		"pouchdb-browser": "^7.3.1",
 		"pouchdb-find": "^7.3.1",
+		"qrcode": "1.5.4",
 		"tailwind-merge": "^2.6.0",
 		"ulid": "^2.3.0",
 		"zod": "^3.24.1"
@@ -51,6 +52,7 @@
 		"@types/luxon": "^3.4.2",
 		"@types/node": "^26.6.5",
 		"@types/pouchdb": "^6.4.2",
+		"@types/qrcode": "1.5.5",
 		"@vitest/coverage-v8": "2.1.9",
 		"autoprefixer": "^10.4.20",
 		"eslint": "^9.17.0",

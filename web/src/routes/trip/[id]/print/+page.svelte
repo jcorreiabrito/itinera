@@ -13,6 +13,10 @@
 	 * `printHref`: `doc` selects the sections, `paper` the sheet, `lang` the
 	 * dictionary (and the language handed to the server PDF link).
 	 *
+	 * The cover is the sheet a check-in desk reads: stored references, addresses
+	 * and phones, plus QR codes drawn locally by `qrcode` as data URIs, so
+	 * nothing is fetched when the page loads or when the paper prints.
+	 *
 	 * Layout is decided by `@media print` in `src/app.css` plus the helpers it
 	 * exposes: `.no-print` for chrome that must not reach paper, `.page-break` for
 	 * the major sections that should start a new sheet, and the `print-document`
@@ -42,6 +46,11 @@
 	} from '$lib/export-center';
 	import { startLive } from '$lib/live';
 	import { computeFlight } from '$lib/db/repositories/flights';
+	import { toDataURL } from 'qrcode';
+	import { coverFacts, qrCodes, type PrintQrImage } from '$lib/print-extras';
+	import CoverExtras from '$lib/components/print/CoverExtras.svelte';
+	import ChecklistSheet from '$lib/components/print/ChecklistSheet.svelte';
+	import CostsSheet from '$lib/components/print/CostsSheet.svelte';
 
 	const id = $derived(page.params.id ?? '');
 
@@ -105,6 +114,8 @@
 	let resList = $state<Reservation[]>([]);
 	let checkItems = $state<ChecklistItem[]>([]);
 	let budget = $state<expenses.BudgetSummary | null>(null);
+	let categoryBudget = $state<expenses.CategoryBudgetRow[]>([]);
+	let qrImages = $state<PrintQrImage[]>([]);
 	let loaded = $state(false);
 	let loadError = $state(false);
 
@@ -112,13 +123,14 @@
 		if (!tripId) return;
 		loadError = false;
 		try {
-			const [tr, tl, fl, rl, cl, b] = await Promise.all([
+			const [tr, tl, fl, rl, cl, b, cb] = await Promise.all([
 				trips.get(tripId),
 				itinerary.tripTimeline(tripId),
 				flights.byTrip(tripId),
 				reservations.byTrip(tripId),
 				checklist.byTrip(tripId),
-				expenses.summary(tripId)
+				expenses.summary(tripId),
+				expenses.byCategoryRollup(tripId)
 			]);
 			trip = tr;
 			timeline = tl;
@@ -126,11 +138,42 @@
 			resList = rl;
 			checkItems = cl;
 			budget = b;
+			categoryBudget = cb.categories;
+			qrImages = await buildQrImages(fl, rl);
 		} catch {
 			loadError = true;
 		} finally {
 			loaded = true;
 		}
+	}
+
+	/**
+	 * Draw every cover code before the sheet renders.
+	 *
+	 * `toDataURL` is asynchronous, so the whole set is awaited here during page
+	 * load and the cover then renders plain `<img>` tags: pressing Print never
+	 * starts a job that could finish after the paper does. A code that fails to
+	 * draw is dropped rather than failing the document.
+	 */
+	async function buildQrImages(
+		flightRows: readonly Flight[],
+		reservationRows: readonly Reservation[]
+	): Promise<PrintQrImage[]> {
+		const images = await Promise.all(
+			qrCodes(flightRows, reservationRows).map(async (code) => {
+				try {
+					const dataUrl = await toDataURL(code.payload, {
+						margin: 1,
+						width: 240,
+						errorCorrectionLevel: 'M'
+					});
+					return { ...code, dataUrl };
+				} catch {
+					return null;
+				}
+			})
+		);
+		return images.filter((image): image is PrintQrImage => image !== null);
 	}
 
 	$effect(() => {
@@ -223,6 +266,8 @@
 	const travelerCount = $derived(trip?.travelerCount ?? 1);
 	const days = $derived(timeline?.days ?? []);
 	const unscheduled = $derived(timeline?.unscheduled ?? null);
+	/** The check-in facts and QR captions the cover prints, from stored fields. */
+	const coverData = $derived(coverFacts(flightList, resList));
 
 	/** Checklist grouped the way the checklist screen groups it, in first-seen order. */
 	const checklistGroups = $derived.by(() => {
@@ -268,7 +313,13 @@
 	 * heading. `visibleSections` is the document order both the body and the
 	 * cover's contents list follow.
 	 */
-	const hasCosts = $derived(budget !== null && (budget.spent > 0 || budget.budgetTotal != null));
+	const hasCosts = $derived(
+		budget !== null &&
+			(budget.spent > 0 ||
+				budget.budgetTotal != null ||
+				budget.missingRateCount > 0 ||
+				categoryBudget.some((row) => row.cap != null))
+	);
 	const hasFlights = $derived(flightList.length > 0);
 	const hasReservations = $derived(resList.length > 0);
 	const hasItinerary = $derived(days.length > 0);
@@ -448,6 +499,8 @@
 					</dl>
 				</header>
 
+				<CoverExtras facts={coverData} codes={qrImages} />
+
 				{#if visibleSections.length}
 					<section class="mt-8" aria-labelledby="print-contents-heading">
 						<h2 id="print-contents-heading" class="font-serif text-xl font-semibold">
@@ -510,44 +563,7 @@
 		{#if showsCosts && budget}
 			<section id="print-costs" class="mt-6" class:page-break={startsPage('costs')}>
 				<h2 class="font-serif text-xl font-semibold">{t('costs')}</h2>
-				<table class="mt-3 w-full border-collapse text-sm">
-					<tbody>
-						{#if budget.budgetTotal != null}
-							<tr class="border-b border-border">
-								<th scope="row" class="py-1.5 text-left font-medium text-ink-muted"
-									>{t('budget_total')}</th
-								>
-								<td class="py-1.5 text-right tabular-nums"
-									>{formatMoney(budget.budgetTotal, homeCurrency, { decimals: true })}</td
-								>
-							</tr>
-						{/if}
-						<tr class="border-b border-border">
-							<th scope="row" class="py-1.5 text-left font-medium text-ink-muted">{t('spent')}</th>
-							<td class="py-1.5 text-right tabular-nums"
-								>{formatMoney(budget.spent, homeCurrency, { decimals: true })}</td
-							>
-						</tr>
-						{#if budget.remaining != null}
-							<tr class="border-b border-border">
-								<th scope="row" class="py-1.5 text-left font-medium text-ink-muted"
-									>{budget.remaining < 0 ? t('over_budget') : t('remaining')}</th
-								>
-								<td class="py-1.5 text-right tabular-nums"
-									>{formatMoney(Math.abs(budget.remaining), homeCurrency, {
-										decimals: true
-									})}</td
-								>
-							</tr>
-						{/if}
-					</tbody>
-				</table>
-				{#if budget.missingRateCount > 0}
-					<p class="mt-2 text-xs text-ink-muted">
-						{budget.missingRateCount}
-						{budget.missingRateCount === 1 ? t('cost_excluded_one') : t('costs_excluded_many')}
-					</p>
-				{/if}
+				<CostsSheet summary={budget} categories={categoryBudget} {homeCurrency} {travelerCount} />
 			</section>
 		{/if}
 
@@ -828,40 +844,8 @@
 		<!-- Checklist -->
 		{#if showsChecklist}
 			<section id="print-checklist" class="mt-8" class:page-break={startsPage('checklist')}>
-				<h2 class="font-serif text-xl font-semibold">{t('checklist')}</h2>
-				<div class="mt-3 grid gap-4 sm:grid-cols-2">
-					{#each checklistGroups as group (group.name)}
-						<div class="break-inside-avoid">
-							<h3 class="text-xs font-semibold uppercase tracking-wide text-ink-muted">
-								{group.name}
-							</h3>
-							<ul class="mt-1 space-y-0.5 text-sm">
-								{#each group.items as item (item._id)}
-									<li class="flex items-baseline gap-2">
-										<!--
-											A real checkbox box rather than a glyph: paper has no
-											toggle, so the point of printing a checklist is to have
-											something to tick with a pen. The state is still shown, by
-											filling the box.
-										-->
-										<span
-											class="mt-0.5 inline-block size-3 shrink-0 rounded-sm border border-ink/60"
-											class:bg-ink={item.done}
-											aria-hidden="true"
-										></span>
-										<span class={item.done ? 'text-ink-muted line-through' : ''}>
-											{item.text}
-											{#if item.quantity && item.quantity > 1}
-												<span class="text-ink-muted">×{item.quantity}</span>
-											{/if}
-										</span>
-										<span class="sr-only">{item.done ? t('done') : t('not_done')}</span>
-									</li>
-								{/each}
-							</ul>
-						</div>
-					{/each}
-				</div>
+				<h2 class="font-serif text-xl font-semibold">{t('print_checklist_title')}</h2>
+				<ChecklistSheet groups={checklistGroups} tearOff={doc === 'checklist'} />
 			</section>
 		{/if}
 

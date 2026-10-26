@@ -97,7 +97,7 @@
 </script>
 
 <li class="border-b border-border/60 last:border-b-0">
-	<div class="flex items-start gap-2.5 py-1.5">
+	<div class="density-row flex items-start gap-2.5 py-1.5">
 		<label
 			for={cbId}
 			class="-my-2 -ml-2 grid min-h-touch min-w-touch shrink-0 cursor-pointer place-items-center"

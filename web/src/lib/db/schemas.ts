@@ -56,6 +56,10 @@ export const THEME_PREFS = ['system', 'light', 'dark'] as const;
 export const themePrefSchema = z.enum(THEME_PREFS);
 export type ThemePref = (typeof THEME_PREFS)[number];
 
+export const DENSITY_PREFS = ['comfortable', 'compact'] as const;
+export const densityPrefSchema = z.enum(DENSITY_PREFS);
+export type DensityPref = (typeof DENSITY_PREFS)[number];
+
 /** Kinds of document an expense / itinerary item / attachment can link to. */
 export const LINKED_TYPES = ['flight', 'reservation', 'itineraryItem', 'trip'] as const;
 export type LinkedType = (typeof LINKED_TYPES)[number];
@@ -374,6 +378,12 @@ export const settingsSchema = z
 		homeCurrencyDefault: z.string().optional(),
 		defaultChecklistTemplateId: z.string().nullable().optional(),
 		theme: themePrefSchema.optional(),
+		/**
+		 * List density. Defaulted here as well as in the repository so a settings
+		 * document written before this field existed still reads as a complete
+		 * preference rather than leaving every reader to guess.
+		 */
+		density: densityPrefSchema.default('comfortable'),
 		firstDayOfWeek: z.number().int().optional(),
 		language: z.string().optional(),
 		cartoApiKey: z.string().optional(),

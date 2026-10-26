@@ -3,9 +3,10 @@
 	import { goto, pushState, replaceState } from '$app/navigation';
 	import { resolve } from '$app/paths';
 	import { page } from '$app/state';
-	import { bareTripUid, settings, trips } from '$lib/db';
-	import type { Trip } from '$lib/db';
+	import { bareTripUid, prefixScan, settings, todayIso, trips } from '$lib/db';
+	import type { ChecklistItem, ItineraryItem, Reservation, Trip } from '$lib/db';
 	import { t, type TranslationKey } from '$lib/i18n.svelte';
+	import { countPlanning, type HorizonCounts } from '$lib/horizon';
 	import {
 		ChevronDown,
 		History,
@@ -30,6 +31,7 @@
 	import IosStorageNotice from '$lib/components/ui/IosStorageNotice.svelte';
 	import TripTemplateModal from '$lib/components/trip/TripTemplateModal.svelte';
 	import { DuplicateTripSheet, NewTripSheet, TripCard, TripFormSheet } from '$lib/components/trip';
+	import { HorizonTimeline } from '$lib/components/horizon';
 	import ItineraLogo from '$lib/components/brand/ItineraLogo.svelte';
 	import { startLive } from '$lib/live';
 	import {
@@ -58,6 +60,10 @@
 	let filterTab = $state<TripsFilter>(fromUrl.filter);
 	let reloadKey = $state(0);
 	let defaultCurrency = $state('EUR');
+	// Child-document counts for the horizon, keyed by trip id. Read once for all
+	// trips in `load()` rather than one query per trip.
+	let horizonCounts = $state<HorizonCounts>({});
+	let horizonToday = $state(todayIso());
 	// A disclosure inside one section, not a filter over the list: left out of the
 	// URL, where it would only add noise to every shared link.
 	let archiveOpen = $state(false);
@@ -144,7 +150,22 @@
 	async function load() {
 		loadError = false;
 		try {
-			sectionsData = await trips.sections();
+			/*
+			 * The horizon needs each trip's itinerary, checklist and lodging
+			 * counts. `sections()` already loads every trip, so the counts ride
+			 * the same pass: three prefix scans cover all trips at once, where
+			 * asking each repository per trip would be three queries per card.
+			 */
+			const today = todayIso();
+			const [sections, itineraryDocs, checklistDocs, reservationDocs] = await Promise.all([
+				trips.sections(today),
+				prefixScan<ItineraryItem>('itin:'),
+				prefixScan<ChecklistItem>('chk:'),
+				prefixScan<Reservation>('res:')
+			]);
+			sectionsData = sections;
+			horizonCounts = countPlanning(itineraryDocs, checklistDocs, reservationDocs);
+			horizonToday = today;
 		} catch {
 			loadError = true;
 			toast.error(t('could_not_load_trips'));
@@ -235,6 +256,22 @@
 					...sectionsData.planning,
 					...sectionsData.past,
 					...sectionsData.archived
+				]
+			: []
+	);
+
+	/*
+	 * The horizon covers every non-archived trip, not just the cards matching
+	 * the search box or the stage filter: a trip the filter hides still needs
+	 * its gap flagged. Archived trips are excluded, like the horizon model.
+	 */
+	const horizonTrips = $derived<Trip[]>(
+		sectionsData
+			? [
+					...sectionsData.active,
+					...sectionsData.upcoming,
+					...sectionsData.planning,
+					...sectionsData.past
 				]
 			: []
 	);
@@ -475,6 +512,13 @@
 			</section>
 		{:else}
 			<div class="space-y-8">
+				<HorizonTimeline
+					trips={horizonTrips}
+					counts={horizonCounts}
+					today={horizonToday}
+					onedit={openEdit}
+				/>
+
 				{#if filtered}
 					{#if filterTab === 'all' || filterTab === 'planning'}
 						{#if filtered.planning.length}

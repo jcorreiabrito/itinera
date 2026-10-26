@@ -3,8 +3,8 @@
 </script>
 
 <script lang="ts">
-	import { flights } from '$lib/db';
-	import type { Attachment, Flight, FlightSegment } from '$lib/db';
+	import { flights, getAirport, toSegmentAirport } from '$lib/db';
+	import type { Attachment, AirportSnapshot, Flight, FlightSegment } from '$lib/db';
 	import { untrack } from 'svelte';
 	import { Button, Field, Input, Select, Sheet, Textarea, toast } from '$lib/components/ui';
 	import { AttachmentField } from '$lib/components/attachments';
@@ -12,6 +12,8 @@
 	import FlightLegFields, { type FormLeg } from './FlightLegFields.svelte';
 	import { endpointCode } from './labels';
 	import { t } from '$lib/i18n.svelte';
+	import type { ParsedFieldKey } from '$lib/parse-confirmation';
+	import PasteConfirmation from '../reservations/PasteConfirmation.svelte';
 	import { isDirty, snapshot } from '$lib/utils/form-dirty';
 
 	interface Props {
@@ -170,6 +172,49 @@
 		};
 	}
 
+	/** The bundled dataset gives the segment its timezone; an unknown code stays editable. */
+	async function resolveAirport(code: string): Promise<AirportSnapshot> {
+		try {
+			const record = await getAirport(code);
+			return record ? toSegmentAirport(record) : { code };
+		} catch {
+			return { code };
+		}
+	}
+
+	function localDateTime(date: string, time: string): string {
+		return date ? `${date}T${time || '00:00'}` : '';
+	}
+
+	/** Write the first leg and booking fields, then keep text the parser could not read. */
+	async function applyPaste(values: Partial<Record<ParsedFieldKey, string>>, leftover: string) {
+		const first = legs[0] ?? blankLeg();
+		const next: FormLeg = { ...first };
+		if (values.flightNumber) next.flightNumber = values.flightNumber;
+		if (values.departureAirport) next.from = await resolveAirport(values.departureAirport);
+		if (values.arrivalAirport) next.to = await resolveAirport(values.arrivalAirport);
+
+		const departDate = values.startDate || next.departLocal.slice(0, 10);
+		const departTime = values.startTime || next.departLocal.slice(11, 16);
+		if (departDate) next.departLocal = localDateTime(departDate, departTime);
+
+		const arriveDate = values.endDate || next.arriveLocal.slice(0, 10) || departDate;
+		const arriveTime = values.endTime || next.arriveLocal.slice(11, 16);
+		if (arriveDate) next.arriveLocal = localDateTime(arriveDate, arriveTime);
+
+		if (values.bookingRef) bookingRef = values.bookingRef;
+
+		const kept: string[] = [];
+		if (values.passenger) kept.push(`${t('paste_field_passenger')}: ${values.passenger}`);
+		if (leftover.trim()) kept.push(leftover.trim());
+		if (kept.length > 0) {
+			const text = kept.join('\n');
+			notes = notes.trim() ? `${notes.trim()}\n\n${text}` : text;
+		}
+
+		legs = legs.length > 0 ? [next, ...legs.slice(1)] : [next];
+	}
+
 	const liveSegments = $derived(legs.map(toSegment));
 	// All derived display (durations, layovers, "n+1") comes from computeFlight.
 	const computed = $derived(flights.computeFlight({ segments: liveSegments } as Flight));
@@ -294,6 +339,21 @@
 			save();
 		}}
 	>
+		<PasteConfirmation
+			target="flight"
+			current={{
+				flightNumber: legs[0]?.flightNumber ?? '',
+				departureAirport: legs[0]?.from?.code ?? '',
+				arrivalAirport: legs[0]?.to?.code ?? '',
+				startDate: legs[0]?.departLocal.slice(0, 10) ?? '',
+				startTime: legs[0]?.departLocal.slice(11, 16) ?? '',
+				endDate: legs[0]?.arriveLocal.slice(0, 10) ?? '',
+				endTime: legs[0]?.arriveLocal.slice(11, 16) ?? '',
+				bookingRef
+			}}
+			onapply={applyPaste}
+		/>
+
 		<!-- Booking-level fields -->
 		<div class="grid grid-cols-1 gap-3 sm:grid-cols-2">
 			<Field label={t('booking_ref_pnr')} for={fid('ref')}>

@@ -42,7 +42,7 @@
 	<button
 		type="button"
 		onclick={onedit}
-		class="flex flex-1 items-center gap-3 px-3.5 py-3 text-left transition-colors hover:bg-surface-sunken/60 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary-600 active:scale-[0.99]"
+		class="density-row flex flex-1 items-center gap-3 px-3.5 py-3 text-left transition-colors hover:bg-surface-sunken/60 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary-600 active:scale-[0.99]"
 	>
 		<span
 			class="grid size-9 shrink-0 place-items-center rounded-full bg-primary-100 text-primary-700 [&_svg]:size-4"
@@ -65,7 +65,8 @@
 						</Badge>
 					{/if}
 				</span>
-				<span class="mt-0.5 block text-xs text-ink-muted">
+				<!-- The edit sheet carries date, category and per-person basis; compact lists drop the repeat. -->
+				<span class="density-secondary mt-0.5 block text-xs text-ink-muted">
 					{expense.date ? formatWeekdayDate(expense.date) : t('costs_whole_trip_label')}
 					<span aria-hidden="true"> · </span>
 					{categoryLabel(expense.category ?? 'other')}

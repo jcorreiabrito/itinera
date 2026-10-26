@@ -20,12 +20,17 @@ import { conflictsEn } from './features/conflicts';
 import { densityEn } from './features/density';
 import { exportCenterEn } from './features/export-center';
 import { feasibilityEn } from './features/feasibility';
+import { gesturesEn } from './features/gestures';
+import { horizonEn } from './features/horizon';
 import { packingEn } from './features/packing';
+import { pasteEn } from './features/paste';
 import { printDocEn } from './features/print-doc';
 import { readinessEn } from './features/readiness';
 import { restoreEn } from './features/restore';
+import { routeEn } from './features/route';
 import { todayEn } from './features/today';
 import { walletEn } from './features/wallet';
+import { weatherEn } from './features/weather';
 import { workspaceEn } from './features/workspace';
 
 export const baseEn = {
@@ -1206,11 +1211,16 @@ export const en = {
 	...densityEn,
 	...exportCenterEn,
 	...feasibilityEn,
+	...gesturesEn,
+	...horizonEn,
 	...packingEn,
+	...pasteEn,
 	...printDocEn,
 	...readinessEn,
 	...restoreEn,
+	...routeEn,
 	...todayEn,
 	...walletEn,
+	...weatherEn,
 	...workspaceEn
 } satisfies Record<string, string>;

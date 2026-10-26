@@ -275,7 +275,8 @@
 					<p class="mt-0.5 text-sm font-medium text-primary-700">{day.day.title}</p>
 				{/if}
 				{#if day.day?.notes}
-					<div class="mt-1.5 space-y-1.5 text-sm text-ink-muted">
+					<!-- Compact rows hide the day's note preview; Edit day still shows it. -->
+					<div class="density-secondary mt-1.5 space-y-1.5 text-sm text-ink-muted">
 						<!-- eslint-disable-next-line svelte/no-at-html-tags -- renderMarkdown escapes all user text before adding allowlisted tags (see $lib/markdown.ts) -->
 						{@html renderMarkdown(day.day.notes)}
 					</div>
@@ -324,7 +325,7 @@
 					{#each day.todos as todo (todo._id)}
 						<li>
 							<label
-								class="flex min-h-touch cursor-pointer items-center gap-2.5 rounded-md px-1 py-1 text-sm hover:bg-surface"
+								class="density-row flex min-h-touch cursor-pointer items-center gap-2.5 rounded-md px-1 py-1 text-sm hover:bg-surface"
 							>
 								<input
 									type="checkbox"

@@ -6,12 +6,17 @@ import { conflictsPt } from './features/conflicts';
 import { densityPt } from './features/density';
 import { exportCenterPt } from './features/export-center';
 import { feasibilityPt } from './features/feasibility';
+import { gesturesPt } from './features/gestures';
+import { horizonPt } from './features/horizon';
 import { packingPt } from './features/packing';
+import { pastePt } from './features/paste';
 import { printDocPt } from './features/print-doc';
 import { readinessPt } from './features/readiness';
 import { restorePt } from './features/restore';
+import { routePt } from './features/route';
 import { todayPt } from './features/today';
 import { walletPt } from './features/wallet';
+import { weatherPt } from './features/weather';
 import { workspacePt } from './features/workspace';
 
 /**
@@ -1212,11 +1217,16 @@ export const ptBR: Record<string, string> = {
 	...densityPt,
 	...exportCenterPt,
 	...feasibilityPt,
+	...gesturesPt,
+	...horizonPt,
 	...packingPt,
+	...pastePt,
 	...printDocPt,
 	...readinessPt,
 	...restorePt,
+	...routePt,
 	...todayPt,
 	...walletPt,
+	...weatherPt,
 	...workspacePt
 };

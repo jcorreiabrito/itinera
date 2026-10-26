@@ -44,6 +44,16 @@
 					} else if ((navigator.language || '').toLowerCase().indexOf('pt') === 0) {
 						document.documentElement.lang = 'pt-BR';
 					}
+					/*
+					 * Seed the list density before first paint. The compact rules are
+					 * keyed on html[data-density], so applying the preference only after
+					 * the settings document loads would reflow every list on screen.
+					 * Anything but 'compact' renders the comfortable default. Must stay
+					 * in sync with DENSITY_STORAGE_KEY in src/lib/density.ts.
+					 */
+					var density = localStorage.getItem('itinera_density');
+					document.documentElement.dataset.density =
+						density === 'compact' ? 'compact' : 'comfortable';
 				} catch (e) {}
 			})();
 		</script>

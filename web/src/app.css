@@ -824,3 +824,29 @@
 		}
 	}
 }
+
+/*
+ * Display density (Settings → Display density).
+ *
+ * `html[data-density='compact']` is written by the inline seed in app.html and
+ * kept in step by `$lib/density.ts`. These rules sit outside @layer base on
+ * purpose: Tailwind utilities live in the later `utilities` layer, and a layered
+ * rule cannot beat them however specific it looks.
+ *
+ * Only rows carrying `.density-row` tighten. A generic `py-*` override would
+ * compact things that are not lists — forms, cards, dialogs — and rows keep a
+ * 44px minimum so compacting never shrinks a touch target. `.density-secondary`
+ * marks a line repeated in that row's detail sheet: the list may drop it, but
+ * the sheet still shows it, which is why this never applies to paper.
+ */
+@media screen {
+	html[data-density='compact'] .density-row {
+		min-height: 44px;
+		padding-top: 0.25rem;
+		padding-bottom: 0.25rem;
+	}
+
+	html[data-density='compact'] .density-secondary {
+		display: none;
+	}
+}

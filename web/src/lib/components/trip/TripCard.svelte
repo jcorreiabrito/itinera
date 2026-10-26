@@ -167,7 +167,7 @@
 			</div>
 		</div>
 
-		<div class="flex flex-1 flex-col gap-3 p-3">
+		<div class="density-row flex flex-1 flex-col gap-3 p-3">
 			<div class="flex items-center justify-between gap-2">
 				<span class="text-sm text-ink-muted">
 					{formatDateRange(trip.startDate, trip.endDate)}

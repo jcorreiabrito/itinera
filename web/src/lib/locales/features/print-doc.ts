@@ -25,7 +25,18 @@ export const printDocEn = {
 	print_doc_checklist: 'Checklist',
 	print_doc_bookings: 'Bookings & tickets',
 	print_empty: 'This document has nothing to print yet.',
-	print_server_pdf: 'Download server PDF'
+	print_server_pdf: 'Download server PDF',
+	print_cover_check_in: 'Check-in details',
+	print_cover_flights: 'Flights',
+	print_cover_stays: 'Stays',
+	print_address: 'Address',
+	print_phone: 'Phone',
+	print_qr_caption: 'Scan at check-in',
+	print_cut_here: 'Cut here',
+	print_checklist_title: 'Trip checklist',
+	print_per_person: 'Per person',
+	print_missing_rate_one: 'One amount needs an exchange rate and is not included in these totals.',
+	print_missing_rate_many: '{n} amounts need an exchange rate and are not included in these totals.'
 } satisfies Record<string, string>;
 
 export const printDocPt = {
@@ -41,5 +52,18 @@ export const printDocPt = {
 	print_doc_checklist: 'Lista de verificação',
 	print_doc_bookings: 'Reservas e bilhetes',
 	print_empty: 'Este documento ainda não tem nada para imprimir.',
-	print_server_pdf: 'Descarregar PDF do servidor'
+	print_server_pdf: 'Descarregar PDF do servidor',
+	print_cover_check_in: 'Detalhes do check-in',
+	print_cover_flights: 'Voos',
+	print_cover_stays: 'Estadias',
+	print_address: 'Morada',
+	print_phone: 'Telefone',
+	print_qr_caption: 'Digitalizar no check-in',
+	print_cut_here: 'Cortar aqui',
+	print_checklist_title: 'Lista de verificação da viagem',
+	print_per_person: 'Por pessoa',
+	print_missing_rate_one:
+		'Um montante precisa de uma taxa de câmbio e não está incluído nestes totais.',
+	print_missing_rate_many:
+		'{n} montantes precisam de uma taxa de câmbio e não estão incluídos nestes totais.'
 } satisfies Record<string, string>;

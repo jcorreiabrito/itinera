@@ -163,7 +163,7 @@
 				if ((e.target as HTMLElement)?.closest('button, a')) return;
 				onedit(item);
 			}}
-			class="min-w-0 flex-1 cursor-pointer rounded-lg border border-border bg-surface p-3 shadow-soft transition-colors hover:border-primary-600/40 active:scale-[0.99]"
+			class="density-row min-w-0 flex-1 cursor-pointer rounded-lg border border-border bg-surface p-3 shadow-soft transition-colors hover:border-primary-600/40 active:scale-[0.99]"
 		>
 			<div class="flex items-start justify-between gap-2">
 				<div class="min-w-0 flex-1">
@@ -186,7 +186,8 @@
 						{/if}
 						{#if item.location?.name}
 							<span aria-hidden="true">·</span>
-							<span class="inline-flex items-center gap-1">
+							<!-- The edit sheet shows the address; compact rows keep the activity. -->
+							<span class="density-secondary inline-flex items-center gap-1">
 								<MapPin class="size-3" />
 								<span class="max-w-[10rem] truncate">{item.location.name}</span>
 							</span>
@@ -279,7 +280,7 @@
 		</span>
 		<a
 			href={links.flights}
-			class="group min-w-0 flex-1 rounded-lg border border-border bg-surface-sunken p-3 transition-colors hover:bg-surface active:scale-[0.99]"
+			class="density-row group min-w-0 flex-1 rounded-lg border border-border bg-surface-sunken p-3 transition-colors hover:bg-surface active:scale-[0.99]"
 		>
 			<div class="flex items-center gap-2">
 				<div class="min-w-0 flex-1">
@@ -341,7 +342,7 @@
 		<a
 			href={links.reservations}
 			class={cn(
-				'group min-w-0 flex-1 rounded-lg border border-border p-3 transition-colors active:scale-[0.99]',
+				'density-row group min-w-0 flex-1 rounded-lg border border-border p-3 transition-colors active:scale-[0.99]',
 				staying ? 'bg-transparent hover:bg-surface-sunken' : 'bg-surface-sunken hover:bg-surface'
 			)}
 		>

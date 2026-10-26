@@ -19,6 +19,8 @@
 	import { AttachmentField } from '$lib/components/attachments';
 	import { Trash2 } from 'lucide-svelte';
 	import { formatNights } from '$lib/format';
+	import type { ParsedFieldKey } from '$lib/parse-confirmation';
+	import PasteConfirmation from './PasteConfirmation.svelte';
 	import { KIND_META, KIND_ORDER, kindMeta } from './kinds';
 
 	interface Props {
@@ -236,6 +238,22 @@
 		return time ? `${date}T${time}` : date;
 	}
 
+	/** Write the fields the paste sheet offered, then keep any text it could not read. */
+	function applyPaste(values: Partial<Record<ParsedFieldKey, string>>, leftover: string) {
+		if (values.name) form.name = values.name;
+		if (values.address) form.locAddress = values.address;
+		if (values.phone) form.phone = values.phone;
+		if (values.email) form.email = values.email;
+		if (values.bookingRef) form.confirmation = values.bookingRef;
+		if (values.startDate) form.startDate = values.startDate;
+		if (values.startTime) form.startTime = values.startTime;
+		if (values.endDate) form.endDate = values.endDate;
+		if (values.endTime) form.endTime = values.endTime;
+		if (values.partySize) form.partySize = values.partySize;
+		const kept = leftover.trim();
+		if (kept) form.notes = form.notes.trim() ? `${form.notes.trim()}\n\n${kept}` : kept;
+	}
+
 	function buildDetails(): ReservationDetails {
 		const t = (v: string) => v.trim();
 		const out: Record<string, unknown> = {};
@@ -395,6 +413,23 @@
 			save();
 		}}
 	>
+		<PasteConfirmation
+			target="reservation"
+			current={{
+				name: form.name,
+				address: form.locAddress,
+				phone: form.phone,
+				email: form.email,
+				bookingRef: form.confirmation,
+				startDate: form.startDate,
+				startTime: form.startTime,
+				endDate: form.endDate,
+				endTime: form.endTime,
+				partySize: form.partySize
+			}}
+			onapply={applyPaste}
+		/>
+
 		<Field label={t('category')} for={fid('kind')}>
 			<Select
 				id={fid('kind')}
