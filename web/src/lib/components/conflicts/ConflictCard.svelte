@@ -11,7 +11,7 @@
 	 */
 	import { listConflicts, markConflictReviewed, restoreConflictFields } from '$lib/db';
 	import { t, type TranslationKey } from '$lib/i18n.svelte';
-	import { Badge, Button, toast } from '$lib/components/ui';
+	import { Badge, Button, Dialog, toast } from '$lib/components/ui';
 	import { relativeTime } from '$lib/format';
 
 	type Report = Awaited<ReturnType<typeof listConflicts>>[number];
@@ -132,11 +132,20 @@
 		}
 	}
 
-	async function dismiss(): Promise<void> {
+	/*
+	 * Discarding is irreversible: the retained losing bodies live only in the
+	 * device-local log, and `markConflictReviewed` deletes that entry. The help
+	 * text promises the replaced versions are kept, so the button says what it
+	 * destroys and a confirmation stands between it and the deletion.
+	 */
+	let confirmDiscardOpen = $state(false);
+
+	async function discard(): Promise<void> {
+		confirmDiscardOpen = false;
 		busy = true;
 		try {
 			await markConflictReviewed(report.id);
-			toast.success(t('marked_as_reviewed'));
+			toast.success(t('saved_versions_discarded'));
 			onresolved();
 		} catch {
 			toast.error(t('could_not_update_retry'));
@@ -164,8 +173,13 @@
 				})}
 			</p>
 		</div>
-		<Button variant="secondary" size="sm" onclick={dismiss} disabled={busy}>
-			{busy ? t('saving') : t('mark_reviewed')}
+		<Button
+			variant="secondary"
+			size="sm"
+			onclick={() => (confirmDiscardOpen = true)}
+			disabled={busy}
+		>
+			{t('discard_saved_versions')}
 		</Button>
 	</div>
 
@@ -244,3 +258,11 @@
 		{/each}
 	</div>
 </article>
+
+<Dialog bind:open={confirmDiscardOpen} title={t('discard_saved_versions')}>
+	<p class="text-sm text-ink-muted">{t('discard_saved_versions_confirm')}</p>
+	{#snippet footer()}
+		<Button variant="ghost" onclick={() => (confirmDiscardOpen = false)}>{t('cancel')}</Button>
+		<Button variant="destructive" onclick={discard}>{t('discard')}</Button>
+	{/snippet}
+</Dialog>

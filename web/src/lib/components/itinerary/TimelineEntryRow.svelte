@@ -10,6 +10,7 @@
 		CalendarDays,
 		Car,
 		ChevronRight,
+		GripVertical,
 		Link2,
 		Link2Off,
 		MapPin,
@@ -39,6 +40,11 @@
 		reservationsById?: Map<string, Reservation>;
 		homeCurrency?: string;
 		travelerCount?: number;
+		/** Reorderable lane row: renders the drag handle. */
+		draggable?: boolean;
+		/** The lane the row belongs to, exposed as a drop-target contract. */
+		dragLane?: 'allDay' | 'untimed';
+		ondragpointerdown?: (event: PointerEvent, item: ItineraryItem) => void;
 		canMoveUp?: boolean;
 		canMoveDown?: boolean;
 		onedit: (item: ItineraryItem) => void;
@@ -56,6 +62,9 @@
 		reservationsById,
 		homeCurrency = 'EUR',
 		travelerCount = 1,
+		draggable = false,
+		dragLane,
+		ondragpointerdown,
 		canMoveUp = false,
 		canMoveDown = false,
 		onedit,
@@ -104,6 +113,20 @@
 		menuOpen = false;
 		if (entry.item) fn?.(entry.item);
 	}
+
+	/*
+	 * Arrow keys on the handle go through the same `move()` path as the row
+	 * menu, so a keyboard user who finds the drag affordance is not left holding
+	 * a control that only works with a pointer.
+	 */
+	function onHandleKeyDown(event: KeyboardEvent, item: ItineraryItem) {
+		if (event.key !== 'ArrowUp' && event.key !== 'ArrowDown') return;
+		if (event.altKey || event.ctrlKey || event.metaKey) return;
+		event.preventDefault();
+		event.stopPropagation();
+		if (event.key === 'ArrowUp' && canMoveUp) onmoveup?.(item);
+		else if (event.key === 'ArrowDown' && canMoveDown) onmovedown?.(item);
+	}
 </script>
 
 {#snippet activityMenu(item: ItineraryItem)}
@@ -142,7 +165,7 @@
 	{@const item = entry.item}
 	{@const meta = categoryMeta(item.category)}
 	{@const Icon = meta.icon}
-	<li class="relative flex items-start gap-2 sm:gap-3">
+	<li class="relative flex items-start gap-2 sm:gap-3" data-drag-lane={dragLane}>
 		<span
 			class="w-10 shrink-0 pt-2 text-right text-[0.7rem] font-medium tabular-nums leading-tight text-ink-muted sm:w-12"
 			aria-hidden={!!gutterLabel}
@@ -166,6 +189,19 @@
 			class="density-row min-w-0 flex-1 cursor-pointer rounded-lg border border-border bg-surface p-3 shadow-soft transition-colors hover:border-primary-600/40 active:scale-[0.99]"
 		>
 			<div class="flex items-start justify-between gap-2">
+				{#if draggable}
+					<button
+						type="button"
+						data-drag-handle
+						aria-label={t('gestures_drag_item', { title: item.title ?? t('untitled') })}
+						aria-keyshortcuts="ArrowUp ArrowDown"
+						onpointerdown={(e) => ondragpointerdown?.(e, item)}
+						onkeydown={(e) => onHandleKeyDown(e, item)}
+						class="-ml-1.5 -mt-1.5 grid size-11 min-h-[44px] min-w-[44px] shrink-0 touch-none place-items-center rounded-md text-ink-muted transition-colors hover:bg-surface-sunken hover:text-ink focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary-600 focus-visible:ring-offset-2 focus-visible:ring-offset-surface active:scale-95"
+					>
+						<GripVertical class="size-5" aria-hidden="true" />
+					</button>
+				{/if}
 				<div class="min-w-0 flex-1">
 					<p class="font-medium text-ink">
 						{#if gutterLabel}<span class="sr-only">{gutterLabel} – </span>{/if}{item.title ??

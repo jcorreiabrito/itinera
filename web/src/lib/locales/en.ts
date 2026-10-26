@@ -48,6 +48,8 @@ export const baseEn = {
 	trip_not_found_desc: 'It may have been deleted on another device.',
 	retry: 'Try again',
 	retrying: 'Trying again…',
+	skip_to_content: 'Skip to main content',
+	could_not_open_storage: 'Could not open local storage. Some features may be unavailable.',
 	error_title: 'Something went wrong',
 	error_heading: 'Something went wrong',
 	error_section: 'Something went wrong in this section',
@@ -287,14 +289,16 @@ export const baseEn = {
 	// Trash & Conflicts
 	review_changes_title: 'Review changes – Itinera',
 	conflicts_help_text:
-		'When the same thing is edited on two devices offline, Itinera automatically keeps the most recent version. The replaced versions are saved here so nothing is ever lost.',
+		'When the same thing is edited on two devices offline, Itinera keeps the most recent version. The replaced versions are saved here so you can restore any field; discarding them deletes those copies for good.',
 	no_conflicts_title: "No conflicts – everything's in sync.",
 	no_conflicts_desc:
 		'If two devices ever disagree after editing offline, the replaced versions will show up here for you to review.',
 	kept_version_saved: 'Kept the version saved {time}.',
 	most_recently: 'most recently',
-	mark_reviewed: 'Mark reviewed',
-	marked_as_reviewed: 'Marked as reviewed.',
+	discard_saved_versions: 'Discard saved versions',
+	discard_saved_versions_confirm:
+		'This permanently deletes the replaced versions kept for this record. Restore any field you want to keep first.',
+	saved_versions_discarded: 'Saved versions discarded.',
 	set_aside: 'Set aside',
 	edited_at: 'edited {time}',
 	differs_in: 'differs in {fields}',
@@ -370,6 +374,7 @@ export const baseEn = {
 	apply_template_ellipsis: 'Apply template...',
 	save_as_template_ellipsis: 'Save as template...',
 	reset_checklist: 'Reset checklist',
+	reset_checklist_confirm: 'Uncheck every item in this checklist?',
 	clear_completed: 'Clear completed',
 	progress: 'Progress',
 	checklist_overall_progress: 'Checklist overall progress',

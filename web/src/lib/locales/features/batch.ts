@@ -29,6 +29,9 @@ export const batchEn = {
 	batch_duplicated_many: 'Duplicated {n} items.',
 	batch_deleted_one: 'Moved {n} item to Trash.',
 	batch_deleted_many: 'Moved {n} items to Trash.',
+	batch_category: 'Change category',
+	batch_categorised_one: 'Changed the category of {n} item.',
+	batch_categorised_many: 'Changed the category of {n} items.',
 	batch_partial: 'Done: {succeeded} of {total}; failed: {failed}.',
 	batch_copy_suffix: '(copy)'
 } satisfies Record<string, string>;
@@ -50,6 +53,9 @@ export const batchPt = {
 	batch_duplicated_many: '{n} itens duplicados.',
 	batch_deleted_one: '{n} item movido para a Lixeira.',
 	batch_deleted_many: '{n} itens movidos para a Lixeira.',
+	batch_category: 'Alterar categoria',
+	batch_categorised_one: 'Categoria de {n} item alterada.',
+	batch_categorised_many: 'Categoria de {n} itens alterada.',
 	batch_partial: 'Concluídos: {succeeded} de {total}; falhas: {failed}.',
 	batch_copy_suffix: '(cópia)'
 } satisfies Record<string, string>;

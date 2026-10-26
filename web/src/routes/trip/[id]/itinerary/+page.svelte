@@ -1,5 +1,5 @@
 <script lang="ts">
-	import { onMount } from 'svelte';
+	import { onDestroy, onMount } from 'svelte';
 	import { replaceState } from '$app/navigation';
 	import { page } from '$app/state';
 	import { resolve } from '$app/paths';
@@ -24,6 +24,7 @@
 	import { cn } from '$lib/utils';
 	import { itineraryUrl, readItineraryParams } from '$lib/utils/url-state';
 	import { matchShortcut } from '$lib/shortcuts';
+	import { clampSwipeOffset, swipeDirection, type SwipeDirection } from '$lib/gestures';
 	import { viewport } from '$lib/stores/viewport.svelte';
 
 	const shell = getTripShellContext();
@@ -292,6 +293,127 @@
 		if (next < 0 || next >= keys.length) return;
 		selectedDate = keys[next];
 	}
+
+	/*
+	 * Swipe between days on the day view, for the phone layout where the rail is
+	 * not mounted. Left goes forward, right goes back, matching a carousel and
+	 * the reading direction. The day strip remains the discoverable control: this
+	 * is an accelerator, so it is allowed to be undiscoverable, but never the
+	 * only way to change day.
+	 *
+	 * Ignored starts: the drag handle (it owns horizontal movement too), links,
+	 * buttons and form controls (a slider must keep its own gesture), and the
+	 * Leaflet canvas (panning the map is not paging the day).
+	 */
+	const DAY_SWIPE_THRESHOLD = 64;
+	const DAY_SWIPE_MAX = 80;
+	let daySwipeX = $state(0);
+	let daySwiping = $state(false);
+	let daySwipeStart: { id: number; x: number; y: number } | null = null;
+	/** Swallow the click a completed swipe would otherwise deliver to a card. */
+	let swallowNextClick = false;
+	let swallowTimer = 0;
+
+	function daySwipeKeys(): (string | null)[] {
+		return ideasCount > 0 ? [...dates, null] : dates;
+	}
+
+	function canStep(direction: SwipeDirection): boolean {
+		const keys = daySwipeKeys();
+		const index = keys.findIndex((key) => key === selectedDate);
+		if (index < 0) return false;
+		const next = index + (direction === 'left' ? 1 : -1);
+		return next >= 0 && next < keys.length;
+	}
+
+	function onDayPointerDown(event: PointerEvent) {
+		if (wide || viewMode !== 'day' || sheetOpen || !hasDays) return;
+		if (event.pointerType === 'mouse' && event.button !== 0) return;
+		if (event.isPrimary === false || daySwipeStart) return;
+		const target = event.target as HTMLElement | null;
+		if (
+			target?.closest(
+				'[data-drag-handle], a, button, input, textarea, select, [contenteditable], .leaflet-container'
+			)
+		)
+			return;
+
+		daySwipeStart = { id: event.pointerId, x: event.clientX, y: event.clientY };
+		daySwiping = false;
+		window.addEventListener('pointermove', onDayPointerMove, { passive: true });
+		window.addEventListener('pointerup', onDayPointerUp);
+		window.addEventListener('pointercancel', onDayPointerCancel);
+	}
+
+	function onDayPointerMove(event: PointerEvent) {
+		const start = daySwipeStart;
+		if (!start || event.pointerId !== start.id) return;
+		const dx = event.clientX - start.x;
+		const dy = event.clientY - start.y;
+		if (!daySwiping) {
+			// The browser normally cancels a vertical scroll; this covers the
+			// browsers and synthetic events that do not.
+			if (Math.abs(dy) > 14 && Math.abs(dy) >= Math.abs(dx)) {
+				finishDaySwipe();
+				return;
+			}
+			if (Math.abs(dx) < 14 || Math.abs(dx) <= Math.abs(dy)) return;
+			daySwiping = true;
+		}
+		const direction: SwipeDirection = dx > 0 ? 'right' : 'left';
+		daySwipeX = clampSwipeOffset(canStep(direction) ? dx : dx * 0.25, DAY_SWIPE_MAX);
+	}
+
+	function onDayPointerUp(event: PointerEvent) {
+		const start = daySwipeStart;
+		if (!start || event.pointerId !== start.id) return;
+		const dx = event.clientX - start.x;
+		const dy = event.clientY - start.y;
+		const wasSwiping = daySwiping;
+		finishDaySwipe();
+		if (!wasSwiping) return;
+
+		const direction = swipeDirection(dx, dy, DAY_SWIPE_THRESHOLD);
+		if (!direction) return;
+		swallowClick();
+		if (!canStep(direction)) return;
+		stepDay(direction === 'left' ? 1 : -1);
+	}
+
+	function onDayPointerCancel() {
+		finishDaySwipe();
+	}
+
+	function finishDaySwipe() {
+		if (daySwipeStart) {
+			window.removeEventListener('pointermove', onDayPointerMove);
+			window.removeEventListener('pointerup', onDayPointerUp);
+			window.removeEventListener('pointercancel', onDayPointerCancel);
+		}
+		daySwipeStart = null;
+		daySwiping = false;
+		daySwipeX = 0;
+	}
+
+	function swallowClick() {
+		swallowNextClick = true;
+		clearTimeout(swallowTimer);
+		swallowTimer = window.setTimeout(() => {
+			swallowNextClick = false;
+		}, 0);
+	}
+
+	function onDayClickCapture(event: MouseEvent) {
+		if (!swallowNextClick) return;
+		swallowNextClick = false;
+		event.preventDefault();
+		event.stopPropagation();
+	}
+
+	onDestroy(() => {
+		finishDaySwipe();
+		clearTimeout(swallowTimer);
+	});
 
 	function onShortcut(event: KeyboardEvent) {
 		/*
@@ -614,7 +736,19 @@
 				{/if}
 
 				{#if viewMode === 'day'}
-					{@render dayTimeline()}
+					<!-- Swipe is an accelerator for the day strip, not a control of its own. -->
+					<!-- svelte-ignore a11y_no_static_element_interactions -->
+					<div
+						class={cn(
+							'touch-pan-y will-change-transform',
+							!daySwiping && 'transition-transform duration-200'
+						)}
+						style:transform={daySwipeX ? `translateX(${daySwipeX}px)` : undefined}
+						onpointerdown={onDayPointerDown}
+						onclickcapture={onDayClickCapture}
+					>
+						{@render dayTimeline()}
+					</div>
 				{:else if timeline}
 					<WholeTripOverview
 						days={timeline.days}

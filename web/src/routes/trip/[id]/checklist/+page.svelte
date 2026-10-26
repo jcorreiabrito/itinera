@@ -60,6 +60,7 @@
 	} from '$lib/components/checklist';
 	import { PackingDialog } from '$lib/components/packing';
 	import { flagEnabled } from '$lib/config';
+	import type { SwipeDirection } from '$lib/gestures';
 	import { formatWeekdayDate } from '$lib/format';
 	import { getTripShellContext } from '$lib/trip-context';
 	import { startLive } from '$lib/live';
@@ -339,6 +340,40 @@
 	}
 
 	/*
+	 * The swipe is irreversible-looking (the row moves and the checkbox flips),
+	 * so it always gets an Undo. `checklist.toggle` flips whatever the stored
+	 * state is, and the Undo flips it back — the same operation, explained.
+	 */
+	async function swipeToggle(item: ChecklistItem, direction: SwipeDirection) {
+		const targetDone = direction === 'right';
+		if (item.done === targetDone) return;
+		try {
+			await checklist.toggle(item._id);
+			loadAll(id);
+			toast.success(
+				t(targetDone ? 'gestures_item_done' : 'gestures_item_reopened', {
+					title: item.text ?? t('untitled')
+				}),
+				{
+					action: {
+						label: t('undo'),
+						onClick: async () => {
+							try {
+								await checklist.toggle(item._id);
+								loadAll(id);
+							} catch {
+								toast.error(t('could_not_toggle_item'));
+							}
+						}
+					}
+				}
+			);
+		} catch {
+			toast.error(t('could_not_toggle_item'));
+		}
+	}
+
+	/*
 	 * Deleting here is a soft delete — the item goes to the Trash — so the toast
 	 * offers the same undo the Trash does, without the trip through Settings.
 	 * An item deleted from a group inside a completed group is restored to the
@@ -547,6 +582,7 @@
 							onedit={handleEdit}
 							onmovegroup={handleMoveGroup}
 							onchanged={() => loadAll(id)}
+							onswipe={swipeToggle}
 						/>
 					{/each}
 				</div>
@@ -652,6 +688,7 @@
 										onedit={handleEdit}
 										onmovegroup={handleMoveGroup}
 										ondelete={deleteItem}
+										onswipe={swipeToggle}
 									/>
 								{/each}
 							</ul>
@@ -674,6 +711,7 @@
 								onedit={handleEdit}
 								onmovegroup={handleMoveGroup}
 								ondelete={deleteItem}
+								onswipe={swipeToggle}
 							/>
 						{/each}
 					</ul>
@@ -730,9 +768,7 @@
 />
 
 <Dialog bind:open={confirmResetOpen} title={t('reset_checklist')}>
-	<p class="text-sm text-ink-muted">
-		Are you sure you want to uncheck all items in this checklist?
-	</p>
+	<p class="text-sm text-ink-muted">{t('reset_checklist_confirm')}</p>
 	<div class="mt-4 flex justify-end gap-2">
 		<Button variant="ghost" onclick={() => (confirmResetOpen = false)}>{t('cancel')}</Button>
 		<Button

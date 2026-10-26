@@ -151,6 +151,7 @@
 		<button
 			type="button"
 			onclick={() => onselect(today)}
+			data-drop-date={today}
 			class={cn(
 				'min-h-touch shrink-0 rounded-full border px-3 py-1.5 text-xs font-medium transition-colors sm:min-h-0 sm:text-sm',
 				selected === today
@@ -179,6 +180,7 @@
 				type="button"
 				aria-pressed={isSelected}
 				data-key={date}
+				data-drop-date={date}
 				tabindex={tabStopKey === date ? 0 : -1}
 				onclick={() => onselect(date)}
 				class={cn(
@@ -202,6 +204,7 @@
 				type="button"
 				aria-pressed={selected === null}
 				data-key="ideas"
+				data-drop-date="ideas"
 				tabindex={tabStopKey === null ? 0 : -1}
 				onclick={() => onselect(null)}
 				class={cn(

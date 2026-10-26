@@ -51,11 +51,18 @@ describe('batch selection UI', () => {
 
 	it('labels the action toolbar and its buttons', () => {
 		const { getByRole } = render(BatchActionBar, {
-			props: { count: 2, onmove: vi.fn(), onduplicate: vi.fn(), ondelete: vi.fn() }
+			props: {
+				count: 2,
+				onmove: vi.fn(),
+				oncategorise: vi.fn(),
+				onduplicate: vi.fn(),
+				ondelete: vi.fn()
+			}
 		});
 
 		expect(getByRole('toolbar', { name: 'Batch actions' })).toBeTruthy();
 		expect(getByRole('button', { name: /Move to day/ })).toBeTruthy();
+		expect(getByRole('button', { name: /Change category/ })).toBeTruthy();
 		expect(getByRole('button', { name: 'Duplicate' })).toBeTruthy();
 		expect(getByRole('button', { name: 'Delete' })).toBeTruthy();
 	});

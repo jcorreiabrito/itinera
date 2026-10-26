@@ -79,7 +79,9 @@ const under = (pathname: string, tripId: string, segment: string) =>
  * does not delete data the self-hoster may have put there.
  */
 const enabled = (id: TripSectionId) =>
-	(id !== 'today' || flagEnabled('today')) && (id !== 'wallet' || flagEnabled('wallet'));
+	(id !== 'today' || flagEnabled('today')) &&
+	(id !== 'wallet' || flagEnabled('wallet')) &&
+	(id !== 'export' || flagEnabled('exportCenter'));
 
 /** Sidebar order. Mobile order is declared separately below. */
 const ALL_SECTIONS: TripSection[] = [

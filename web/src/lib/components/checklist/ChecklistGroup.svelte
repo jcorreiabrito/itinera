@@ -16,6 +16,7 @@
 		Shirt,
 		ShoppingCart
 	} from 'lucide-svelte';
+	import type { SwipeDirection } from '$lib/gestures';
 	import { Button, Input, ProgressBar, toast } from '$lib/components/ui';
 	import { t } from '$lib/i18n.svelte';
 	import { cn } from '$lib/utils';
@@ -30,9 +31,19 @@
 		onedit: (item: ChecklistItem) => void;
 		onmovegroup: (item: ChecklistItem) => void;
 		onchanged: () => void;
+		/** Passed through to each row; the page owns the undo toast. */
+		onswipe?: (item: ChecklistItem, direction: SwipeDirection) => void;
 	}
 
-	let { group, tripId, hideCompleted = false, onedit, onmovegroup, onchanged }: Props = $props();
+	let {
+		group,
+		tripId,
+		hideCompleted = false,
+		onedit,
+		onmovegroup,
+		onchanged,
+		onswipe
+	}: Props = $props();
 
 	let open = $state(true);
 	let qText = $state('');
@@ -186,6 +197,7 @@
 							onmovedown={(i) => move(i, 'down')}
 							{onmovegroup}
 							ondelete={remove}
+							{onswipe}
 						/>
 					{/each}
 				</ul>

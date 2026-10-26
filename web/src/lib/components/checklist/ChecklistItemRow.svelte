@@ -1,4 +1,5 @@
 <script lang="ts">
+	import { onDestroy } from 'svelte';
 	import type { ChecklistItem } from '$lib/db';
 	import { dayDelta, todayIso } from '$lib/db/datetime';
 	import {
@@ -7,15 +8,18 @@
 		ArrowUp,
 		CalendarClock,
 		CalendarDays,
+		Check,
 		Info,
 		MoreVertical,
 		Pencil,
+		RotateCcw,
 		Star,
 		Trash2
 	} from 'lucide-svelte';
 	import { DateTime } from 'luxon';
 	import { Badge, MenuItem, Popover } from '$lib/components/ui';
 	import { formatDate } from '$lib/format';
+	import { clampSwipeOffset, swipeDirection, type SwipeDirection } from '$lib/gestures';
 	import { cn } from '$lib/utils';
 	import { t } from '$lib/i18n.svelte';
 	import { resolve } from '$app/paths';
@@ -34,6 +38,11 @@
 		onmovedown?: (item: ChecklistItem) => void;
 		onmovegroup?: (item: ChecklistItem) => void;
 		ondelete: (item: ChecklistItem) => void;
+		/**
+		 * Swipe right marks an open item done; swipe left reopens a done one.
+		 * Omit on surfaces where a horizontal gesture means something else.
+		 */
+		onswipe?: (item: ChecklistItem, direction: SwipeDirection) => void;
 	}
 
 	let {
@@ -47,7 +56,8 @@
 		onmoveup,
 		onmovedown,
 		onmovegroup,
-		ondelete
+		ondelete,
+		onswipe
 	}: Props = $props();
 
 	let menuOpen = $state(false);
@@ -94,10 +104,146 @@
 		localDone = !localDone;
 		ontoggle({ ...item, done: localDone });
 	}
+
+	/*
+	 * Swipe is a shortcut, never the only way to do something: the checkbox is
+	 * still the accessible, discoverable control and keeps its label. The row
+	 * translates under the pointer only after the gesture is clearly horizontal,
+	 * so a vertical drag still scrolls the list and a tap still edits the item.
+	 */
+	const SWIPE_THRESHOLD = 56;
+	const SWIPE_MAX = 96;
+	let swipeX = $state(0);
+	let swiping = $state(false);
+	let swipeStart: { id: number; x: number; y: number } | null = null;
+	let clickGuard: { handler: (event: Event) => void; timer: number } | null = null;
+
+	function onPointerDown(event: PointerEvent) {
+		if (!onswipe) return;
+		if (event.pointerType === 'mouse' && event.button !== 0) return;
+		if (event.isPrimary === false || swipeStart) return;
+		swipeStart = { id: event.pointerId, x: event.clientX, y: event.clientY };
+		swiping = false;
+		window.addEventListener('pointermove', onPointerMove, { passive: true });
+		window.addEventListener('pointerup', onPointerUp);
+		window.addEventListener('pointercancel', onPointerCancel);
+	}
+
+	/**
+	 * Translation before release, with the direction the gesture is heading.
+	 * A no-op direction (swiping an already-done item right) is damped rather
+	 * than blocked, so the row says "nothing to do here" before the finger
+	 * leaves the screen.
+	 */
+	function onPointerMove(event: PointerEvent) {
+		const start = swipeStart;
+		if (!start || event.pointerId !== start.id) return;
+		const dx = event.clientX - start.x;
+		const dy = event.clientY - start.y;
+		if (!swiping) {
+			// The browser has not cancelled us: the gesture is still in play.
+			if (Math.abs(dy) > 14 && Math.abs(dy) >= Math.abs(dx)) {
+				finishSwipe();
+				return;
+			}
+			if (Math.abs(dx) < 14 || Math.abs(dx) <= Math.abs(dy)) return;
+			swiping = true;
+		}
+		const noop = dx > 0 === localDone;
+		swipeX = clampSwipeOffset(noop ? dx * 0.25 : dx, SWIPE_MAX);
+	}
+
+	function onPointerUp(event: PointerEvent) {
+		const start = swipeStart;
+		if (!start || event.pointerId !== start.id) return;
+		const dx = event.clientX - start.x;
+		const dy = event.clientY - start.y;
+		const wasSwiping = swiping;
+		finishSwipe();
+		if (!wasSwiping) return;
+
+		const direction = swipeDirection(dx, dy, SWIPE_THRESHOLD);
+		if (!direction) return;
+		suppressNextClick();
+		if (direction === 'right' ? localDone : !localDone) return;
+		onswipe?.(item, direction);
+	}
+
+	function onPointerCancel() {
+		finishSwipe();
+	}
+
+	function finishSwipe() {
+		if (swipeStart) {
+			window.removeEventListener('pointermove', onPointerMove);
+			window.removeEventListener('pointerup', onPointerUp);
+			window.removeEventListener('pointercancel', onPointerCancel);
+		}
+		swipeStart = null;
+		swiping = false;
+		swipeX = 0;
+	}
+
+	/*
+	 * A completed swipe still produces a click on whatever was under the finger.
+	 * One capture-phase listener swallows exactly that click and removes itself
+	 * in the same task; the timer is the fallback for browsers that never send it.
+	 */
+	function suppressNextClick() {
+		releaseClickGuard();
+		const handler = (event: Event) => {
+			event.preventDefault();
+			event.stopPropagation();
+			releaseClickGuard();
+		};
+		document.addEventListener('click', handler, true);
+		const timer = window.setTimeout(() => {
+			if (clickGuard?.handler === handler) releaseClickGuard();
+		}, 0);
+		clickGuard = { handler, timer };
+	}
+
+	function releaseClickGuard() {
+		if (!clickGuard) return;
+		document.removeEventListener('click', clickGuard.handler, true);
+		clearTimeout(clickGuard.timer);
+		clickGuard = null;
+	}
+
+	onDestroy(() => {
+		finishSwipe();
+		releaseClickGuard();
+	});
 </script>
 
-<li class="border-b border-border/60 last:border-b-0">
-	<div class="density-row flex items-start gap-2.5 py-1.5">
+<li class="relative overflow-hidden border-b border-border/60 last:border-b-0">
+	{#if onswipe}
+		<!-- Revealed by translating the row: right = done, left = reopen. -->
+		<div
+			class="pointer-events-none absolute inset-0 flex items-center justify-between bg-surface-sunken px-4"
+			aria-hidden="true"
+		>
+			<span class="inline-flex items-center gap-1.5 text-sm font-medium capitalize text-success">
+				<Check class="size-4" />
+				{t('done')}
+			</span>
+			<span class="inline-flex items-center gap-1.5 text-sm font-medium capitalize text-ink-muted">
+				<RotateCcw class="size-4" />
+				{t('not_done')}
+			</span>
+		</div>
+	{/if}
+	<!-- The gesture duplicates the checkbox; it adds no interaction of its own. -->
+	<!-- svelte-ignore a11y_no_static_element_interactions -->
+	<div
+		class={cn(
+			'density-row relative flex items-start gap-2.5 py-1.5',
+			onswipe && 'touch-pan-y bg-surface',
+			swiping ? 'select-none' : 'transition-transform duration-150'
+		)}
+		style:transform={swipeX ? `translateX(${swipeX}px)` : undefined}
+		onpointerdown={onPointerDown}
+	>
 		<label
 			for={cbId}
 			class="-my-2 -ml-2 grid min-h-touch min-w-touch shrink-0 cursor-pointer place-items-center"

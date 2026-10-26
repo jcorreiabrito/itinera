@@ -8,7 +8,7 @@
 	import type { Snippet } from 'svelte';
 	import { onMount } from 'svelte';
 	import { initDb } from '$lib/db';
-	import { initLanguage } from '$lib/i18n.svelte';
+	import { initLanguage, t } from '$lib/i18n.svelte';
 	import { Toaster, toast } from '$lib/components/ui';
 	import { CommandPalette } from '$lib/components/command';
 	import ReloadPrompt from '$lib/components/ReloadPrompt.svelte';
@@ -16,12 +16,14 @@
 
 	import { theme } from '$lib/stores/theme.svelte';
 	import { viewport } from '$lib/stores/viewport.svelte';
+	import { flagEnabled } from '$lib/config';
 
 	import * as dbRepo from '$lib/db';
 
 	let { children }: { children: Snippet } = $props();
 
 	let commandOpen = $state(false);
+	const commandEnabled = flagEnabled('commandPalette');
 
 	onMount(() => {
 		theme.init();
@@ -34,6 +36,7 @@
 		 * on some layouts, so neither should hijack the palette.
 		 */
 		const onKeydown = (event: KeyboardEvent) => {
+			if (!commandEnabled) return;
 			if (!(event.metaKey || event.ctrlKey) || event.altKey || event.shiftKey) return;
 			if (event.key.toLowerCase() !== 'k') return;
 			event.preventDefault();
@@ -58,7 +61,7 @@
 				})
 				.catch((error) => {
 					console.error('initDb failed', error);
-					toast.error('Could not open local storage. Some features may be unavailable.');
+					toast.error(t('could_not_open_storage'));
 				});
 		}
 
@@ -70,7 +73,7 @@
 	href="#page-content"
 	class="sr-only focus:not-sr-only focus:absolute focus:z-50 focus:border focus:border-border focus:bg-surface focus:p-4 focus:text-ink focus:shadow-md"
 >
-	Skip to main content
+	{t('skip_to_content')}
 </a>
 
 <div class="flex min-h-dvh flex-col" id="main-content">
@@ -86,5 +89,7 @@
 </div>
 
 <Toaster />
-<CommandPalette bind:open={commandOpen} />
+{#if commandEnabled}
+	<CommandPalette bind:open={commandOpen} />
+{/if}
 <ReloadPrompt />

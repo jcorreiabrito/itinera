@@ -130,6 +130,7 @@
 				<button
 					type="button"
 					data-key={date}
+					data-drop-date={date}
 					aria-pressed={isSelected}
 					tabindex={tabStopKey === date ? 0 : -1}
 					onclick={() => onselect(date)}
@@ -163,6 +164,7 @@
 			<button
 				type="button"
 				data-key="ideas"
+				data-drop-date="ideas"
 				aria-pressed={selected === null}
 				tabindex={tabStopKey === null ? 0 : -1}
 				onclick={() => onselect(null)}

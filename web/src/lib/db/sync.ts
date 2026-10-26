@@ -23,8 +23,9 @@
  * (snapshotted into a device-local log) before its conflict branch is **cleared**
  * from the live revision tree. Clearing is essential: without it a document stays
  * perpetually conflicted and is re-resolved forever. The retained losers are
- * surfaced by `@link listConflicts` for a future "Review changes" screen and
- * dismissed via `@link markConflictReviewed`.
+ * surfaced by `@link listConflicts` on `/settings/conflicts`, restored field by
+ * field via `@link restoreConflictFields`, and dismissed via
+ * `@link markConflictReviewed`.
  *
  * The `@link syncStatus` store shape is the contract consumed by the
  * `SyncStatusPill` UI component (see the db README).

@@ -27,7 +27,6 @@
 		ThemeToggle,
 		toast
 	} from '$lib/components/ui';
-	import ConflictLogModal from '$lib/components/ui/ConflictLogModal.svelte';
 	import IosStorageNotice from '$lib/components/ui/IosStorageNotice.svelte';
 	import TripTemplateModal from '$lib/components/trip/TripTemplateModal.svelte';
 	import { DuplicateTripSheet, NewTripSheet, TripCard, TripFormSheet } from '$lib/components/trip';
@@ -68,7 +67,6 @@
 	// URL, where it would only add noise to every shared link.
 	let archiveOpen = $state(false);
 
-	let conflictOpen = $state(false);
 	let templateOpen = $state(false);
 	let createOpen = $state(page.url.searchParams.get('new') === '1');
 	let editOpen = $state(false);
@@ -381,15 +379,14 @@
 			</div>
 			<div class="flex items-center gap-2">
 				<SyncStatusPill />
-				<button
-					type="button"
-					onclick={() => (conflictOpen = true)}
+				<a
+					href={resolve('/settings/conflicts')}
 					aria-label={t('sync_conflict_history')}
 					title={t('sync_conflict_history')}
 					class="hidden size-9 place-items-center rounded-md text-ink-muted transition-colors hover:bg-surface-sunken hover:text-ink active:scale-95 sm:grid [&_svg]:size-4"
 				>
 					<History />
-				</button>
+				</a>
 				<ThemeToggle />
 				<a
 					href={resolve('/settings')}
@@ -686,8 +683,6 @@
 		<Button variant="destructive" onclick={confirmDelete}>{t('delete')}</Button>
 	{/snippet}
 </Dialog>
-
-<ConflictLogModal bind:open={conflictOpen} />
 
 <TripTemplateModal
 	bind:open={templateOpen}

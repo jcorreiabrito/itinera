@@ -1,8 +1,15 @@
 <script lang="ts">
-	import { tick } from 'svelte';
+	import { onDestroy, tick } from 'svelte';
 	import type { ResolvedPathname } from '$app/types';
-	import { checklist, itinerary } from '$lib/db';
-	import type { ChecklistItem, Destination, Flight, ItineraryItem, Reservation } from '$lib/db';
+	import { checklist, itinerary, trash } from '$lib/db';
+	import type {
+		ChecklistItem,
+		Destination,
+		Flight,
+		ItineraryCategory,
+		ItineraryItem,
+		Reservation
+	} from '$lib/db';
 	import {
 		ChevronDown,
 		CloudRain,
@@ -21,6 +28,12 @@
 	import { getDestinationForDate } from '$lib/destinations';
 	import { renderMarkdown } from '$lib/markdown';
 	import { hasCoordinates, optimiseDayRoute, type RouteStop } from '$lib/route';
+	import {
+		classifyAxis,
+		dropInsertionIndex,
+		insertionToIndex,
+		moveItem as moveLaneItem
+	} from '$lib/gestures';
 	import { cn } from '$lib/utils';
 	import { getRuntimeConfig, flagEnabled } from '$lib/config';
 	import {
@@ -239,9 +252,78 @@
 	const todosDone = $derived(day.todos.filter((t) => t.done).length);
 	let todosOpen = $state(true);
 
-	// Already in `order` sequence: `buildDay` sorts the all-day lane, and
-	// `laneNeighbour` reads that same array to decide what "up" means.
-	const allDayItems = $derived(day.allDay);
+	// --- Reorder lanes ---------------------------------------------------------
+	// All-day items are ordered by `order`. In the timed lane only the untimed
+	// item entries at the head are manually ordered: a start time means the clock
+	// decides, so those rows get no handle and never move past an untimed one.
+
+	type UntimedEntry = itinerary.TimelineEntry & { item: ItineraryItem };
+
+	function isUntimedItemEntry(entry: itinerary.TimelineEntry): entry is UntimedEntry {
+		return entry.kind === 'item' && entry.item !== undefined && entry.minutes === null;
+	}
+
+	interface OptimisticOrder {
+		ids: string[];
+		/** The lane signature the parent had when the write started. */
+		base: string;
+	}
+
+	let optimisticAllDay = $state<OptimisticOrder | null>(null);
+	let optimisticUntimed = $state<OptimisticOrder | null>(null);
+
+	const untimedEntries = $derived(day.timed.filter(isUntimedItemEntry));
+	const allDaySignature = $derived(day.allDay.map((item) => item._id).join('|'));
+	const untimedSignature = $derived(untimedEntries.map((entry) => entry.item._id).join('|'));
+
+	function orderByIds(items: readonly ItineraryItem[], ids?: string[]): ItineraryItem[] {
+		if (!ids) return [...items];
+		const byId = new Map(items.map((item) => [item._id, item]));
+		const ordered = ids.flatMap((id) => {
+			const item = byId.get(id);
+			return item ? [item] : [];
+		});
+		const seen = new Set(ids);
+		for (const item of items) if (!seen.has(item._id)) ordered.push(item);
+		return ordered;
+	}
+
+	function orderEntries(entries: readonly UntimedEntry[], ids?: string[]): UntimedEntry[] {
+		if (!ids) return [...entries];
+		const byId = new Map(entries.map((entry) => [entry.item._id, entry]));
+		const ordered = ids.flatMap((id) => {
+			const entry = byId.get(id);
+			return entry ? [entry] : [];
+		});
+		const seen = new Set(ids);
+		for (const entry of entries) if (!seen.has(entry.item._id)) ordered.push(entry);
+		return ordered;
+	}
+
+	const allDayLane = $derived(orderByIds(day.allDay, optimisticAllDay?.ids));
+	const untimedLane = $derived(orderEntries(untimedEntries, optimisticUntimed?.ids));
+
+	/*
+	 * The untimed rows share their `<ol>` with the timed ones. Replacing only the
+	 * slots they occupy keeps flights and reservations where `buildDay` put them
+	 * while the optimistic order is on screen.
+	 */
+	const timelineEntries = $derived.by(() => {
+		const queue = [...untimedLane];
+		return day.timed.map((entry) => (isUntimedItemEntry(entry) ? (queue.shift() ?? entry) : entry));
+	});
+
+	// Clear the optimistic list once the parent reload has moved the lane: a
+	// different signature means the timeline we were waiting for (or a newer one)
+	// arrived, so the props are the truth again.
+	$effect(() => {
+		const signature = allDaySignature;
+		if (optimisticAllDay && signature !== optimisticAllDay.base) optimisticAllDay = null;
+	});
+	$effect(() => {
+		const signature = untimedSignature;
+		if (optimisticUntimed && signature !== optimisticUntimed.base) optimisticUntimed = null;
+	});
 
 	// --- Day title + notes editor ----------------------------------------------
 	let metaOpen = $state(false);
@@ -299,6 +381,7 @@
 		if (!other) return;
 		try {
 			await itinerary.swapPlacement(item, other);
+			void announce(t('gestures_reordered', { title: item.title ?? t('untitled') }));
 			onchanged();
 		} catch {
 			toast.error(t('could_not_reorder'));
@@ -509,9 +592,9 @@
 		exitSelection();
 	}
 
-	type BatchVerb = 'move' | 'duplicate' | 'delete';
+	type BatchVerb = 'move' | 'categorise' | 'duplicate' | 'delete';
 
-	function reportBatch(verb: BatchVerb, summary: BatchSummary) {
+	function reportBatch(verb: BatchVerb, summary: BatchSummary, undo?: () => Promise<void>) {
 		if (summary.failed > 0) {
 			const message = t('batch_partial', {
 				succeeded: String(summary.succeeded),
@@ -524,14 +607,27 @@
 		}
 
 		const n = String(summary.succeeded);
+		const options = undo ? { action: { label: t('undo'), onClick: undo } } : undefined;
 		if (verb === 'move') {
-			toast.success(t(summary.succeeded === 1 ? 'batch_moved_one' : 'batch_moved_many', { n }));
+			toast.success(
+				t(summary.succeeded === 1 ? 'batch_moved_one' : 'batch_moved_many', { n }),
+				options
+			);
+		} else if (verb === 'categorise') {
+			toast.success(
+				t(summary.succeeded === 1 ? 'batch_categorised_one' : 'batch_categorised_many', { n }),
+				options
+			);
 		} else if (verb === 'duplicate') {
 			toast.success(
-				t(summary.succeeded === 1 ? 'batch_duplicated_one' : 'batch_duplicated_many', { n })
+				t(summary.succeeded === 1 ? 'batch_duplicated_one' : 'batch_duplicated_many', { n }),
+				options
 			);
 		} else {
-			toast.success(t(summary.succeeded === 1 ? 'batch_deleted_one' : 'batch_deleted_many', { n }));
+			toast.success(
+				t(summary.succeeded === 1 ? 'batch_deleted_one' : 'batch_deleted_many', { n }),
+				options
+			);
 		}
 	}
 
@@ -543,7 +639,11 @@
 		});
 	}
 
-	async function runBatch(verb: BatchVerb, work: (item: ItineraryItem) => Promise<unknown>) {
+	async function runBatch(
+		verb: BatchVerb,
+		work: (item: ItineraryItem) => Promise<unknown>,
+		undo?: () => Promise<void>
+	) {
 		if (batchBusy) return;
 		const picked = pickedItems();
 		if (picked.length === 0) return;
@@ -555,7 +655,7 @@
 			const results = await Promise.allSettled(
 				picked.map((item) => Promise.resolve().then(() => work(item)))
 			);
-			reportBatch(verb, summarizeBatch(results));
+			reportBatch(verb, summarizeBatch(results), undo);
 			exitSelection();
 			onchanged();
 		} finally {
@@ -569,6 +669,10 @@
 
 	async function moveSelectedTo(date: string | null) {
 		await runBatch('move', (item) => itinerary.moveToDay(item._id, date, item.order ?? 0));
+	}
+
+	async function categoriseSelected(category: ItineraryCategory) {
+		await runBatch('categorise', (item) => itinerary.update(item._id, { category }));
 	}
 
 	async function duplicateSelected() {
@@ -597,13 +701,442 @@
 
 	async function deleteSelected() {
 		batchDeleteOpen = false;
-		await runBatch('delete', (item) => itinerary.softDelete(item._id));
+		// Delete is a move to Trash, so the toast can offer the same one-tap undo
+		// the single-row delete and the checklist use. The ids are captured before
+		// the batch runs because the rows leave the day on reload.
+		const removed = pickedItems().map((item) => item._id);
+		await runBatch(
+			'delete',
+			(item) => itinerary.softDelete(item._id),
+			async () => {
+				try {
+					await trash.restoreMany(removed);
+					toast.success(
+						t(removed.length === 1 ? 'restored_single' : 'restored_plural', {
+							n: String(removed.length)
+						})
+					);
+					onchanged();
+				} catch {
+					toast.error(t('could_not_restore'));
+				}
+			}
+		);
 	}
+
+	// --- Pointer drag (reorder and cross-day) ---------------------------------
+	/*
+	 * Rows are dragged from their handle only. A row-wide long-press cannot
+	 * coexist with native vertical scrolling in Pointer Events, so the handle is
+	 * both the touch target and the keyboard target: arrows reorder through the
+	 * same `move()` path as the row menu.
+	 */
+
+	type DragLane = 'allDay' | 'untimed';
+
+	interface DragSession {
+		item: ItineraryItem;
+		lane: DragLane;
+		pointerId: number;
+		handle: HTMLElement;
+		row: HTMLElement;
+		rowWidth: number;
+		startX: number;
+		startY: number;
+		lastX: number;
+		lastY: number;
+		grabX: number;
+		grabY: number;
+		active: boolean;
+		preview: HTMLElement | null;
+		target: HTMLElement | null;
+	}
+
+	const DRAG_THRESHOLD = 6;
+	const AUTOSCROLL_EDGE = 80;
+	const AUTOSCROLL_MAX_STEP = 18;
+	const DRAGGING_CLASS = 'gesture-dragging';
+	const SOURCE_CLASS = 'gesture-drag-source';
+	const PREVIEW_CLASS = 'gesture-drag-preview';
+	const DROP_TARGET_CLASS = 'gesture-drop-target';
+
+	let drag: DragSession | null = null;
+	let previewFrame = 0;
+	let scrollFrame = 0;
+	let clickGuard: { handler: (event: Event) => void; timer: number } | null = null;
+	let announcement = $state('');
+	let announcementRun = 0;
+
+	async function announce(message: string) {
+		const run = ++announcementRun;
+		announcement = '';
+		await tick();
+		if (run === announcementRun) announcement = message;
+	}
+
+	function laneRows(lane: DragLane): HTMLElement[] {
+		if (!sectionEl) return [];
+		return Array.from(sectionEl.querySelectorAll<HTMLElement>(`[data-drag-lane="${lane}"]`));
+	}
+
+	function laneIds(lane: DragLane): string[] {
+		if (lane === 'allDay') return allDayLane.map((item) => item._id);
+		return untimedLane.map((entry) => entry.item._id);
+	}
+
+	function findDropTarget(x: number, y: number): HTMLElement | null {
+		if (typeof document === 'undefined') return null;
+		return document.elementFromPoint(x, y)?.closest<HTMLElement>('[data-drop-date]') ?? null;
+	}
+
+	function beginDrag(event: PointerEvent, item: ItineraryItem, lane: DragLane) {
+		if (selecting || drag) return;
+		if (event.pointerType === 'mouse' && event.button !== 0) return;
+		if (!event.isPrimary) return;
+
+		const handle = event.currentTarget;
+		if (!(handle instanceof HTMLElement)) return;
+		const row = handle.closest<HTMLElement>('[data-drag-lane]');
+		if (!row) return;
+
+		const rect = row.getBoundingClientRect();
+		drag = {
+			item,
+			lane,
+			pointerId: event.pointerId,
+			handle,
+			row,
+			rowWidth: rect.width,
+			startX: event.clientX,
+			startY: event.clientY,
+			lastX: event.clientX,
+			lastY: event.clientY,
+			grabX: event.clientX - rect.left,
+			grabY: event.clientY - rect.top,
+			active: false,
+			preview: null,
+			target: null
+		};
+
+		handle.focus({ preventScroll: true });
+		window.addEventListener('pointermove', onDragMove, { passive: true });
+		window.addEventListener('pointerup', onDragEnd);
+		window.addEventListener('pointercancel', onDragCancel);
+		window.addEventListener('keydown', onDragKeyDown, true);
+	}
+
+	function activateDrag(session: DragSession) {
+		session.active = true;
+		try {
+			session.handle.setPointerCapture(session.pointerId);
+		} catch {
+			// The pointer may already be gone; the window listeners still finish it.
+		}
+		document.body.classList.add(DRAGGING_CLASS);
+		session.row.classList.add(SOURCE_CLASS);
+
+		const preview = session.row.cloneNode(true) as HTMLElement;
+		preview.removeAttribute('data-drag-lane');
+		preview.setAttribute('aria-hidden', 'true');
+		preview.setAttribute('inert', '');
+		preview.classList.remove(SOURCE_CLASS);
+		preview.classList.add(PREVIEW_CLASS);
+		/*
+		 * Written inline rather than by a utility class: the clone still carries
+		 * the row's own layout classes, and inline wins over whichever stylesheet
+		 * order the app happens to ship. There is deliberately no transition —
+		 * the preview is positioned every frame, and with no animation there is
+		 * nothing for prefers-reduced-motion to disable.
+		 */
+		preview.style.position = 'fixed';
+		preview.style.left = '0';
+		preview.style.top = '0';
+		preview.style.zIndex = '9999';
+		preview.style.margin = '0';
+		preview.style.width = `${session.rowWidth}px`;
+		preview.style.pointerEvents = 'none';
+		preview.style.willChange = 'transform';
+		document.body.appendChild(preview);
+		session.preview = preview;
+		positionPreview(session);
+	}
+
+	function positionPreview(session: DragSession) {
+		if (!session.preview) return;
+		const left = session.lastX - session.grabX;
+		const top = session.lastY - session.grabY;
+		session.preview.style.transform = `translate3d(${left}px, ${top}px, 0)`;
+	}
+
+	function updateDropTarget(session: DragSession) {
+		const target = findDropTarget(session.lastX, session.lastY);
+		if (target === session.target) return;
+		session.target?.classList.remove(DROP_TARGET_CLASS);
+		session.target = target;
+		if (!target) return;
+		target.classList.add(DROP_TARGET_CLASS);
+		target.scrollIntoView({ block: 'nearest', inline: 'nearest' });
+	}
+
+	function schedulePreviewFrame() {
+		if (previewFrame) return;
+		previewFrame = requestAnimationFrame(() => {
+			previewFrame = 0;
+			const session = drag;
+			if (!session?.active) return;
+			positionPreview(session);
+			updateDropTarget(session);
+		});
+	}
+
+	function ensureAutoScroll() {
+		if (scrollFrame) return;
+		scrollFrame = requestAnimationFrame(autoScrollStep);
+	}
+
+	function autoScrollStep() {
+		scrollFrame = 0;
+		const session = drag;
+		if (!session?.active) return;
+
+		const height = window.innerHeight;
+		let delta = 0;
+		if (session.lastY < AUTOSCROLL_EDGE) {
+			delta = -Math.ceil(
+				((AUTOSCROLL_EDGE - session.lastY) / AUTOSCROLL_EDGE) * AUTOSCROLL_MAX_STEP
+			);
+		} else if (session.lastY > height - AUTOSCROLL_EDGE) {
+			delta = Math.ceil(
+				((session.lastY - (height - AUTOSCROLL_EDGE)) / AUTOSCROLL_EDGE) * AUTOSCROLL_MAX_STEP
+			);
+		}
+		if (delta === 0) return;
+
+		const before = window.scrollY;
+		window.scrollBy(0, delta);
+		// At the document edge the loop would spin without moving anything.
+		if (window.scrollY === before) return;
+		updateDropTarget(session);
+		scrollFrame = requestAnimationFrame(autoScrollStep);
+	}
+
+	function onDragMove(event: PointerEvent) {
+		const session = drag;
+		if (!session || event.pointerId !== session.pointerId) return;
+		session.lastX = event.clientX;
+		session.lastY = event.clientY;
+
+		if (!session.active) {
+			const axis = classifyAxis(
+				event.clientX - session.startX,
+				event.clientY - session.startY,
+				DRAG_THRESHOLD
+			);
+			if (axis === null) return;
+			if (axis === 'x') {
+				cleanupDrag();
+				return;
+			}
+			activateDrag(session);
+		}
+		schedulePreviewFrame();
+		ensureAutoScroll();
+	}
+
+	function onDragEnd(event: PointerEvent) {
+		const session = drag;
+		if (!session || event.pointerId !== session.pointerId) return;
+
+		const active = session.active;
+		const x = session.lastX;
+		const y = session.lastY;
+		const target = active ? findDropTarget(x, y) : null;
+		cleanupDrag();
+		if (!active) return;
+
+		suppressNextClick();
+		void finishDrop(session, target, x, y);
+	}
+
+	function onDragCancel(event: PointerEvent) {
+		if (!drag || event.pointerId !== drag.pointerId) return;
+		cancelDrag(true);
+	}
+
+	function onDragKeyDown(event: KeyboardEvent) {
+		if (event.key !== 'Escape' || !drag) return;
+		event.preventDefault();
+		event.stopPropagation();
+		cancelDrag(true);
+	}
+
+	function cancelDrag(returnFocus: boolean) {
+		const session = drag;
+		if (!session) return;
+		const active = session.active;
+		cleanupDrag();
+		if (active) void announce(t('gestures_drag_cancelled'));
+		if (returnFocus) session.handle.focus({ preventScroll: true });
+	}
+
+	function cleanupDrag(): DragSession | null {
+		const session = drag;
+		drag = null;
+
+		if (typeof window !== 'undefined') {
+			window.removeEventListener('pointermove', onDragMove);
+			window.removeEventListener('pointerup', onDragEnd);
+			window.removeEventListener('pointercancel', onDragCancel);
+			window.removeEventListener('keydown', onDragKeyDown, true);
+			if (previewFrame) cancelAnimationFrame(previewFrame);
+			if (scrollFrame) cancelAnimationFrame(scrollFrame);
+			previewFrame = 0;
+			scrollFrame = 0;
+		}
+
+		if (session) {
+			try {
+				if (session.handle.hasPointerCapture?.(session.pointerId)) {
+					session.handle.releasePointerCapture(session.pointerId);
+				}
+			} catch {
+				// The row can already be detached by a reload.
+			}
+			session.row.classList.remove(SOURCE_CLASS);
+			session.target?.classList.remove(DROP_TARGET_CLASS);
+			session.preview?.remove();
+		}
+
+		if (typeof document !== 'undefined') document.body.classList.remove(DRAGGING_CLASS);
+		return session;
+	}
+
+	function suppressNextClick() {
+		if (typeof document === 'undefined') return;
+		releaseClickGuard();
+		const handler = (event: Event) => {
+			event.preventDefault();
+			event.stopPropagation();
+		};
+		document.addEventListener('click', handler, true);
+		const timer = window.setTimeout(() => {
+			if (clickGuard?.handler === handler) releaseClickGuard();
+		}, 0);
+		clickGuard = { handler, timer };
+	}
+
+	function releaseClickGuard() {
+		if (!clickGuard) return;
+		document.removeEventListener('click', clickGuard.handler, true);
+		clearTimeout(clickGuard.timer);
+		clickGuard = null;
+	}
+
+	function applyOptimistic(lane: DragLane, ids: string[]) {
+		if (lane === 'allDay') optimisticAllDay = { ids, base: allDaySignature };
+		else optimisticUntimed = { ids, base: untimedSignature };
+	}
+
+	function restoreOptimistic(lane: DragLane, previous: OptimisticOrder | null) {
+		if (lane === 'allDay') optimisticAllDay = previous;
+		else optimisticUntimed = previous;
+	}
+
+	async function finishDrop(
+		session: DragSession,
+		target: HTMLElement | null,
+		x: number,
+		y: number
+	) {
+		if (target) {
+			const dropKey = target.dataset.dropDate ?? 'ideas';
+			if (dropKey === (day.date ?? 'ideas')) {
+				void announce(t('gestures_drag_cancelled'));
+				return;
+			}
+			const date = dropKey === 'ideas' ? null : dropKey;
+			try {
+				await itinerary.moveToDay(session.item._id, date, session.item.order ?? 0);
+			} catch {
+				toast.error(t('gestures_move_failed'));
+				void announce(t('gestures_move_failed'));
+				return;
+			}
+			const label = date ? formatWeekdayDate(date) : t('ideas');
+			toast.success(t('gestures_moved_to', { date: label }));
+			void announce(t('gestures_moved_to', { date: label }));
+			onchanged();
+			return;
+		}
+
+		const rows = laneRows(session.lane);
+		const ids = laneIds(session.lane);
+		const from = ids.indexOf(session.item._id);
+		if (from < 0 || rows.length !== ids.length) {
+			void announce(t('gestures_drag_cancelled'));
+			return;
+		}
+
+		const bounds = rows[0].parentElement?.getBoundingClientRect();
+		const first = rows[0].getBoundingClientRect();
+		const last = rows[rows.length - 1].getBoundingClientRect();
+		const withinX = bounds ? x >= bounds.left - 24 && x <= bounds.right + 24 : false;
+		const withinY = y >= first.top - 24 && y <= last.bottom + 24;
+		if (!withinX || !withinY) {
+			void announce(t('gestures_drag_cancelled'));
+			return;
+		}
+
+		const insertion = dropInsertionIndex(
+			y,
+			rows.map((row) => row.getBoundingClientRect())
+		);
+		const to = insertionToIndex(insertion, from);
+		if (to === from) {
+			void announce(t('gestures_drag_cancelled'));
+			return;
+		}
+
+		const nextIds = moveLaneItem(ids, from, to);
+		const previous = session.lane === 'allDay' ? optimisticAllDay : optimisticUntimed;
+		applyOptimistic(session.lane, nextIds);
+		try {
+			await itinerary.setOrder(nextIds.map((id, order) => ({ id, order })));
+		} catch {
+			restoreOptimistic(session.lane, previous);
+			toast.error(t('gestures_reorder_failed'));
+			void announce(t('gestures_reorder_failed'));
+			return;
+		}
+		void announce(t('gestures_reordered', { title: session.item.title ?? t('untitled') }));
+		onchanged();
+	}
+
+	$effect(() => {
+		if (selecting) cancelDrag(false);
+	});
+
+	// The route remounts this component per day, but a prop swap in isolation
+	// must not leave a drag (or its preview) attached to the previous day.
+	let dragDayKey: string | null = null;
+	$effect(() => {
+		const key = day.date ?? 'ideas';
+		if (dragDayKey !== null && key !== dragDayKey) cancelDrag(false);
+		dragDayKey = key;
+	});
+
+	onDestroy(() => {
+		cleanupDrag();
+		releaseClickGuard();
+		announcementRun += 1;
+	});
 </script>
 
 <svelte:window onkeydown={onSelectionKeydown} />
 
 <section bind:this={sectionEl} aria-label={heading} class="space-y-4">
+	<p class="sr-only" aria-live="polite" aria-atomic="true">{announcement}</p>
+
 	<!-- Day header -->
 	<header class="space-y-3">
 		<div class="flex items-start justify-between gap-3">
@@ -735,6 +1268,7 @@
 				count={selectedCount}
 				busy={batchBusy}
 				onmove={openBatchMove}
+				oncategorise={categoriseSelected}
 				onduplicate={duplicateSelected}
 				ondelete={openBatchDelete}
 			/>
@@ -796,13 +1330,13 @@
 	{/if}
 
 	<!-- All-day lane -->
-	{#if allDayItems.length > 0}
+	{#if allDayLane.length > 0}
 		<div>
 			<h3 class="mb-2 text-xs font-semibold uppercase tracking-wide text-ink-muted">
 				{t('all_day')}
 			</h3>
 			<ul class="space-y-2">
-				{#each allDayItems as item (item._id)}
+				{#each allDayLane as item (item._id)}
 					{#if selecting}
 						<BatchSelectionRow
 							{item}
@@ -818,6 +1352,9 @@
 							{reservationsById}
 							{homeCurrency}
 							{travelerCount}
+							draggable={true}
+							dragLane="allDay"
+							ondragpointerdown={(e, dragged) => beginDrag(e, dragged, 'allDay')}
 							canMoveUp={canMove(item, 'up')}
 							canMoveDown={canMove(item, 'down')}
 							{onedit}
@@ -843,7 +1380,9 @@
 		<ol
 			class="relative space-y-2 before:absolute before:bottom-3 before:left-[4.75rem] before:top-3 before:w-px before:bg-border before:content-['']"
 		>
-			{#each day.timed as entry, i (entry.item?._id ?? `${entry.kind}-${i}`)}
+			{#each timelineEntries as entry, i (entry.item?._id ?? `${entry.kind}-${i}`)}
+				{@const isUntimed =
+					entry.kind === 'item' && entry.item !== undefined && entry.minutes === null}
 				{#if selecting && entry.kind === 'item' && entry.item}
 					{@const item = entry.item}
 					<BatchSelectionRow
@@ -860,6 +1399,9 @@
 						{reservationsById}
 						{homeCurrency}
 						{travelerCount}
+						draggable={!selecting && isUntimed}
+						dragLane={isUntimed ? 'untimed' : undefined}
+						ondragpointerdown={(e, dragged) => beginDrag(e, dragged, 'untimed')}
 						canMoveUp={entry.item ? canMove(entry.item, 'up') : false}
 						canMoveDown={entry.item ? canMove(entry.item, 'down') : false}
 						{onedit}
@@ -1052,3 +1594,24 @@
 		onapply={applyRouteOrder}
 	/>
 {/if}
+
+<style>
+	:global(body.gesture-dragging) {
+		cursor: grabbing;
+		user-select: none;
+	}
+
+	:global(body.gesture-dragging *) {
+		cursor: grabbing !important;
+		user-select: none;
+	}
+
+	:global(.gesture-drag-source) {
+		opacity: 0.4;
+	}
+
+	:global([data-drop-date].gesture-drop-target) {
+		outline: 2px solid rgb(var(--color-primary-600-rgb));
+		outline-offset: 2px;
+	}
+</style>

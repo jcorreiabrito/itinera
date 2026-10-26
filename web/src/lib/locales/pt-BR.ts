@@ -38,6 +38,9 @@ export const basePtBR: Record<string, string> = {
 	trip_not_found_desc: 'Ela pode ter sido excluída em outro dispositivo.',
 	retry: 'Tentar novamente',
 	retrying: 'Tentando novamente…',
+	skip_to_content: 'Ir para o conteúdo principal',
+	could_not_open_storage:
+		'Não foi possível abrir o armazenamento local. Alguns recursos podem ficar indisponíveis.',
 	error_title: 'Algo deu errado',
 	error_heading: 'Algo deu errado',
 	error_section: 'Algo deu errado nesta seção',
@@ -282,14 +285,16 @@ export const basePtBR: Record<string, string> = {
 	// Trash & Conflicts
 	review_changes_title: 'Revisar alterações – Itinera',
 	conflicts_help_text:
-		'Quando a mesma informação é editada offline em dois dispositivos, o Itinera mantém automaticamente a versão mais recente. As versões substituídas ficam salvas aqui para que nada se perca.',
+		'Quando a mesma informação é editada offline em dois dispositivos, o Itinera mantém a versão mais recente. As versões substituídas ficam salvas aqui para você restaurar qualquer campo; descartá-las apaga essas cópias definitivamente.',
 	no_conflicts_title: 'Sem conflitos – tudo está sincronizado.',
 	no_conflicts_desc:
 		'Se dois dispositivos divergirem após edições offline, as versões substituídas aparecerão aqui para revisão.',
 	kept_version_saved: 'Mantida a versão salva {time}.',
 	most_recently: 'mais recentemente',
-	mark_reviewed: 'Marcar como visto',
-	marked_as_reviewed: 'Marcado como visto.',
+	discard_saved_versions: 'Descartar versões salvas',
+	discard_saved_versions_confirm:
+		'Isto apaga permanentemente as versões substituídas guardadas para este registro. Restaure primeiro os campos que quiser manter.',
+	saved_versions_discarded: 'Versões salvas descartadas.',
 	set_aside: 'Guardado',
 	edited_at: 'editado {time}',
 	differs_in: 'difere em {fields}',
@@ -366,6 +371,7 @@ export const basePtBR: Record<string, string> = {
 	apply_template_ellipsis: 'Aplicar modelo...',
 	save_as_template_ellipsis: 'Salvar como modelo...',
 	reset_checklist: 'Reiniciar checklist',
+	reset_checklist_confirm: 'Desmarcar todos os itens deste checklist?',
 	clear_completed: 'Limpar concluídos',
 	progress: 'Progresso',
 	checklist_overall_progress: 'Progresso geral do checklist',

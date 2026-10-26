@@ -3,9 +3,12 @@
  *
  * Conflicts are rare (only when the same record is edited on two devices while
  * both offline), but resolved deterministically so every device converges on
- * the same winner. The **losing revisions are never silently dropped** – they
- * are retained in CouchDB's revision tree and surfaced via `listConflicts()`
- * for a future "Review changes" screen (see `docs/05-offline-and-sync.md`).
+ * the same winner. The **losing revisions are never silently dropped**: before
+ * the conflict branches are cleared, a full snapshot of each loser is kept in
+ * the device-local retention log and surfaced by `listConflicts()` on the
+ * Review changes screen (`/settings/conflicts`). The log is deliberately
+ * device-local — a replicated log would itself be a document two devices
+ * overwrite while resolving conflicts in it.
  *
  * This module is intentionally **pure** (no PouchDB import); it only decides a
  * winner. The PouchDB wiring that applies the decision and enumerates conflicts

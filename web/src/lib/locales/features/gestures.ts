@@ -12,5 +12,24 @@
  * sees the English and the Portuguese side by side, which is how the rest of
  * the dictionary is written.
  */
-export const gesturesEn = {} satisfies Record<string, string>;
-export const gesturesPt = {} satisfies Record<string, string>;
+export const gesturesEn = {
+	gestures_drag_item: 'Drag {title} to reorder',
+	gestures_reordered: '{title} reordered',
+	gestures_reorder_failed: 'Could not reorder the activity',
+	gestures_drag_cancelled: 'Move cancelled',
+	gestures_moved_to: 'Moved to {date}',
+	gestures_move_failed: 'Could not move the activity',
+	gestures_item_done: 'Checked off {title}',
+	gestures_item_reopened: 'Reopened {title}'
+} satisfies Record<string, string>;
+
+export const gesturesPt = {
+	gestures_drag_item: 'Arraste {title} para reordenar',
+	gestures_reordered: 'Nova posição para {title}',
+	gestures_reorder_failed: 'Não foi possível reordenar a atividade',
+	gestures_drag_cancelled: 'Movimentação cancelada',
+	gestures_moved_to: 'Movido para {date}',
+	gestures_move_failed: 'Não foi possível mover a atividade',
+	gestures_item_done: 'Marcado como feito: {title}',
+	gestures_item_reopened: 'Reaberto: {title}'
+} satisfies Record<string, string>;
