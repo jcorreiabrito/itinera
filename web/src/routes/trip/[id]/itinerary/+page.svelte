@@ -10,10 +10,13 @@
 	import ExportCalendarButton from '$lib/components/trip/ExportCalendarButton.svelte';
 	import {
 		DateStrip,
+		DayRail,
 		ItineraryDay,
 		ItineraryItemSheet,
+		ItemInspector,
 		TripMap,
-		WholeTripOverview
+		WholeTripOverview,
+		dayItems
 	} from '$lib/components/itinerary';
 	import { getTripShellContext } from '$lib/trip-context';
 	import { startLive } from '$lib/live';
@@ -21,6 +24,7 @@
 	import { cn } from '$lib/utils';
 	import { itineraryUrl, readItineraryParams } from '$lib/utils/url-state';
 	import { matchShortcut } from '$lib/shortcuts';
+	import { viewport } from '$lib/stores/viewport.svelte';
 
 	const shell = getTripShellContext();
 	const reloadSignal = shell.reloadSignal;
@@ -49,6 +53,9 @@
 	let sheetOpen = $state(false);
 	let sheetMode = $state<'create' | 'edit'>('create');
 	let sheetItem = $state<ItineraryItem | null>(null);
+	// The docked inspector owns its dirty guard; Escape must go through it so a
+	// draft is not discarded just because the page handled the keystroke.
+	let inspector = $state<{ requestClose: () => boolean } | null>(null);
 
 	/** Apply the URL's view state once, when a trip is first shown. */
 	function initSelection(tl: NonNullable<typeof timeline>) {
@@ -97,6 +104,11 @@
 				initSelection(tl);
 				initForId = tid;
 			}
+			// A live reload can delete or move the item under the inspector. The
+			// docked pane would otherwise keep editing a record that no longer exists.
+			if (sheetOpen && sheetItem && !allTripItems.some((item) => item._id === sheetItem?._id)) {
+				closeInspector();
+			}
 			everLoaded = true;
 			loadError = false;
 		} catch {
@@ -119,15 +131,24 @@
 	const homeCurrency = $derived(trip?.homeCurrency ?? 'EUR');
 	const flightsById = $derived(new Map(flightList.map((f) => [f._id, f])));
 	const reservationsById = $derived(new Map(resList.map((r) => [r._id, r])));
-	const ideasCount = $derived(
-		timeline ? timeline.unscheduled.allDay.length + timeline.unscheduled.timed.length : 0
-	);
+	const ideasCount = $derived(timeline ? dayItems(timeline.unscheduled).length : 0);
+
+	/*
+	 * The three-pane workspace starts where Tailwind's `xl` does. The layout is
+	 * switched in JS rather than by hiding a second copy with `hidden xl:grid`:
+	 * two mounted copies would mean two Leaflet maps, and the off-screen one
+	 * would initialise at zero size.
+	 */
+	const wide = $derived(viewport.width >= 1280);
 
 	const currentDay = $derived.by(() => {
 		if (!timeline) return null;
 		if (selectedDate === null) return timeline.unscheduled;
 		return timeline.days.find((d) => d.date === selectedDate) ?? timeline.days[0] ?? null;
 	});
+
+	const currentDayItems = $derived(currentDay ? dayItems(currentDay) : []);
+	const selectedItemId = $derived(sheetOpen ? (sheetItem?._id ?? null) : null);
 
 	const selectedKey = $derived(selectedDate ?? 'ideas');
 	const links = $derived({
@@ -143,32 +164,7 @@
 	 */
 	const allTripItems = $derived.by(() => {
 		if (!timeline) return [];
-		const itemsList: ItineraryItem[] = [];
-		/*
-		 * Called with two different array shapes: the all-day lanes hold bare
-		 * `ItineraryItem`s while the timed lanes hold `TimelineEntry` wrappers.
-		 * The predicate is explicit because `'kind' in entry` alone narrows an
-		 * intersection of the two down to `{}` rather than to `ItineraryItem`.
-		 */
-		const isTimelineEntry = (
-			e: ItineraryItem | itinerary.TimelineEntry
-		): e is itinerary.TimelineEntry => 'kind' in e;
-		const pushEntries = (entries: Array<ItineraryItem | itinerary.TimelineEntry>) => {
-			for (const entry of entries) {
-				if (isTimelineEntry(entry)) {
-					if (entry.kind === 'item' && entry.item) itemsList.push(entry.item);
-				} else {
-					itemsList.push(entry);
-				}
-			}
-		};
-		for (const d of timeline.days) {
-			pushEntries(d.allDay);
-			pushEntries(d.timed);
-		}
-		pushEntries(timeline.unscheduled.allDay);
-		pushEntries(timeline.unscheduled.timed);
-		return itemsList;
+		return [...timeline.days.flatMap(dayItems), ...dayItems(timeline.unscheduled)];
 	});
 
 	let itinerarySearch = $state('');
@@ -260,6 +256,21 @@
 		sheetOpen = true;
 	}
 
+	/** Close the inspector and drop `?item=` through the URL-sync effect. */
+	function closeInspector() {
+		sheetOpen = false;
+		sheetItem = null;
+	}
+
+	/**
+	 * Put focus back on the active day rather than on `<body>`. The rail keeps a
+	 * roving tabindex, so the selected entry is the one with `tabindex="0"`.
+	 */
+	function focusDayRail() {
+		const rail = document.getElementById('itinerary-day-rail');
+		rail?.querySelector<HTMLElement>('button[tabindex="0"]')?.focus();
+	}
+
 	/**
 	 * Step through the day strip, including the Ideas bucket at either end.
 	 *
@@ -283,6 +294,22 @@
 	}
 
 	function onShortcut(event: KeyboardEvent) {
+		/*
+		 * Escape closes the docked inspector and hands focus back to the rail.
+		 * A native dialog that is open on top (day details, move-to-day) owns
+		 * Escape first; stealing it would close the wrong thing.
+		 */
+		if (
+			wide &&
+			viewMode === 'day' &&
+			event.key === 'Escape' &&
+			sheetOpen &&
+			!document.querySelector('dialog[open]')
+		) {
+			event.preventDefault();
+			if (inspector?.requestClose() ?? true) focusDayRail();
+			return;
+		}
 		// A sheet owns the keyboard while it is open: its fields are guarded by
 		// `matchShortcut`, but its buttons are not, and `n` there would stack a
 		// second sheet behind the first.
@@ -312,6 +339,92 @@
 	<title>{t('itinerary')} – {trip?.title?.trim() || t('untitled_trip')}</title>
 </svelte:head>
 
+{#snippet dayTimeline()}
+	{#if currentDay}
+		{#key selectedKey}
+			<ItineraryDay
+				day={currentDay}
+				tripId={id}
+				{dates}
+				destinations={trip?.destinations ?? []}
+				{homeCurrency}
+				travelerCount={trip?.travelerCount ?? 1}
+				{flightsById}
+				{reservationsById}
+				{links}
+				onedit={openEdit}
+				onchanged={reload}
+			/>
+		{/key}
+	{/if}
+{/snippet}
+
+{#snippet searchResults(items: ItineraryItem[])}
+	<div class="flex flex-col gap-3">
+		<div class="flex items-center justify-between px-1 text-xs text-ink-muted">
+			<span>{items.length} {t('cat_activities').toLowerCase()}</span>
+			<button
+				type="button"
+				class="font-medium text-primary-600 hover:underline"
+				onclick={() => {
+					itinerarySearch = '';
+					itineraryCategory = 'all';
+				}}
+			>
+				{t('workspace_clear_filters')}
+			</button>
+		</div>
+
+		{#if items.length === 0}
+			<div
+				class="rounded-xl border border-dashed border-border bg-surface/50 p-8 text-center text-sm text-ink-muted"
+			>
+				{t('workspace_no_search_results')}
+			</div>
+		{:else}
+			<div class="flex flex-col gap-2">
+				{#each items as itm (itm._id)}
+					<div
+						role="button"
+						tabindex="0"
+						class="flex cursor-pointer items-center justify-between gap-3 rounded-lg border border-border bg-surface p-3 text-left shadow-soft transition-colors hover:bg-surface-sunken/60"
+						onclick={() => openEdit(itm)}
+						onkeydown={(e) => e.key === 'Enter' && openEdit(itm)}
+					>
+						<div class="min-w-0 flex-1">
+							<div class="mb-1 flex items-center gap-2">
+								<span
+									class="rounded bg-primary-100 px-2 py-0.5 text-xs font-semibold text-primary-700"
+								>
+									{itm.date || t('ideas')}
+								</span>
+								{#if itm.startTime}
+									<span class="flex items-center gap-1 text-xs text-ink-muted">
+										<Clock class="size-3" />
+										{itm.startTime}
+									</span>
+								{/if}
+							</div>
+							<div class="truncate text-sm font-medium text-ink">{itm.title}</div>
+							{#if itm.location}
+								<div class="mt-0.5 flex items-center gap-1 truncate text-xs text-ink-muted">
+									<MapPin class="size-3 shrink-0" />
+									<span
+										>{typeof itm.location === 'string'
+											? itm.location
+											: itm.location.name || itm.location.address}</span
+									>
+								</div>
+							{/if}
+						</div>
+						<Button variant="ghost" size="sm" class="shrink-0 text-xs">{t('edit')}</Button>
+					</div>
+				{/each}
+			</div>
+		{/if}
+	</div>
+{/snippet}
+
 <section aria-labelledby="itinerary-heading" class="pb-28">
 	<h2 id="itinerary-heading" class="sr-only">{t('itinerary')}</h2>
 
@@ -331,7 +444,7 @@
 	{:else}
 		<div class="space-y-5">
 			<div class="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-				{#if viewMode === 'day' && hasDays}
+				{#if viewMode === 'day' && hasDays && !wide}
 					<div class="w-full min-w-0 sm:flex-1">
 						<DateStrip
 							{dates}
@@ -430,70 +543,64 @@
 				</div>
 			</div>
 
-			{#if searchFilteredItems !== null}
-				<div class="flex flex-col gap-3">
-					<div class="flex items-center justify-between px-1 text-xs text-ink-muted">
-						<span>{searchFilteredItems.length} {t('cat_activities').toLowerCase()}</span>
-						<button
-							type="button"
-							class="font-medium text-primary-600 hover:underline"
-							onclick={() => {
-								itinerarySearch = '';
-								itineraryCategory = 'all';
-							}}
-						>
-							Clear filters
-						</button>
+			{#if timeline && wide && viewMode === 'day'}
+				<!--
+					The shell only widens at 2xl, so the panes start narrower than their
+					ideal width and grow with the column. `minmax(0,1fr)` and `min-w-0`
+					on the centre are what stop a long item title from forcing the page
+					to scroll sideways.
+				-->
+				<div
+					class="grid grid-cols-[11rem_minmax(0,1fr)_20rem] items-start gap-4 2xl:grid-cols-[13rem_minmax(0,1fr)_22rem]"
+				>
+					<DayRail
+						days={timeline.days}
+						unscheduled={timeline.unscheduled}
+						selected={selectedDate}
+						{today}
+						onselect={(d) => (selectedDate = d)}
+					/>
+
+					<div class="min-w-0 space-y-4">
+						{#if searchFilteredItems !== null}
+							{@render searchResults(searchFilteredItems)}
+						{:else}
+							{@render dayTimeline()}
+							{#if currentDay}
+								<div class="sticky bottom-4 z-10">
+									<TripMap
+										items={currentDayItems}
+										destination={trip?.destinations[0]?.name}
+										tripId={id}
+										onchanged={reload}
+										selectedId={selectedItemId}
+										onselect={openEdit}
+										heightClass="h-64"
+									/>
+								</div>
+							{/if}
+						{/if}
 					</div>
 
-					{#if searchFilteredItems.length === 0}
-						<div
-							class="rounded-xl border border-dashed border-border bg-surface/50 p-8 text-center text-sm text-ink-muted"
-						>
-							Nenhuma atividade corresponde aos critérios de busca.
-						</div>
-					{:else}
-						<div class="flex flex-col gap-2">
-							{#each searchFilteredItems as itm (itm._id)}
-								<div
-									role="button"
-									tabindex="0"
-									class="flex cursor-pointer items-center justify-between gap-3 rounded-lg border border-border bg-surface p-3 text-left shadow-soft transition-colors hover:bg-surface-sunken/60"
-									onclick={() => openEdit(itm)}
-									onkeydown={(e) => e.key === 'Enter' && openEdit(itm)}
-								>
-									<div class="min-w-0 flex-1">
-										<div class="mb-1 flex items-center gap-2">
-											<span
-												class="rounded bg-primary-100 px-2 py-0.5 text-xs font-semibold text-primary-700"
-											>
-												{itm.date || t('ideas')}
-											</span>
-											{#if itm.startTime}
-												<span class="flex items-center gap-1 text-xs text-ink-muted">
-													<Clock class="size-3" />
-													{itm.startTime}
-												</span>
-											{/if}
-										</div>
-										<div class="truncate text-sm font-medium text-ink">{itm.title}</div>
-										{#if itm.location}
-											<div class="mt-0.5 flex items-center gap-1 truncate text-xs text-ink-muted">
-												<MapPin class="size-3 shrink-0" />
-												<span
-													>{typeof itm.location === 'string'
-														? itm.location
-														: itm.location.name || itm.location.address}</span
-												>
-											</div>
-										{/if}
-									</div>
-									<Button variant="ghost" size="sm" class="shrink-0 text-xs">{t('edit')}</Button>
-								</div>
-							{/each}
-						</div>
-					{/if}
+					<ItemInspector
+						bind:this={inspector}
+						open={sheetOpen}
+						mode={sheetMode}
+						tripId={id}
+						item={sheetItem}
+						defaultDate={selectedDate}
+						{dates}
+						flights={flightList}
+						reservations={resList}
+						{homeCurrency}
+						onsaved={reload}
+						onclose={closeInspector}
+						onclosed={focusDayRail}
+						oncreate={() => openAdd()}
+					/>
 				</div>
+			{:else if searchFilteredItems !== null}
+				{@render searchResults(searchFilteredItems)}
 			{:else}
 				{#if allTripItems.length > 0}
 					<div class="rounded-xl border border-border bg-surface p-1 shadow-soft">
@@ -507,23 +614,7 @@
 				{/if}
 
 				{#if viewMode === 'day'}
-					{#if currentDay}
-						{#key selectedKey}
-							<ItineraryDay
-								day={currentDay}
-								tripId={id}
-								{dates}
-								destinations={trip?.destinations ?? []}
-								{homeCurrency}
-								travelerCount={trip?.travelerCount ?? 1}
-								{flightsById}
-								{reservationsById}
-								{links}
-								onedit={openEdit}
-								onchanged={reload}
-							/>
-						{/key}
-					{/if}
+					{@render dayTimeline()}
 				{:else if timeline}
 					<WholeTripOverview
 						days={timeline.days}
@@ -540,7 +631,7 @@
 </section>
 
 <!-- Floating add button -->
-{#if loaded && (hasDays || ideasCount > 0)}
+{#if loaded && (hasDays || ideasCount > 0) && !(wide && viewMode === 'day')}
 	<button
 		type="button"
 		onclick={() => openAdd()}
@@ -553,15 +644,19 @@
 	</button>
 {/if}
 
-<ItineraryItemSheet
-	bind:open={sheetOpen}
-	mode={sheetMode}
-	tripId={id}
-	item={sheetItem}
-	defaultDate={selectedDate}
-	{dates}
-	flights={flightList}
-	reservations={resList}
-	{homeCurrency}
-	onsaved={reload}
-/>
+<!-- On phones and tablets the sheet stays the editor; the docked inspector takes
+	over only in the wide day view, and the two never mount together. -->
+{#if !wide || viewMode !== 'day'}
+	<ItineraryItemSheet
+		bind:open={sheetOpen}
+		mode={sheetMode}
+		tripId={id}
+		item={sheetItem}
+		defaultDate={selectedDate}
+		{dates}
+		flights={flightList}
+		reservations={resList}
+		{homeCurrency}
+		onsaved={reload}
+	/>
+{/if}

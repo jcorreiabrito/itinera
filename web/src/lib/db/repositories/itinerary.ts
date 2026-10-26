@@ -207,6 +207,22 @@ export function link(
 }
 
 /**
+ * Write a new `order` for several items at once.
+ *
+ * The walking-order optimiser renumbers a day's untimed items; it changes no
+ * cost, so `patchDoc` is used rather than `update`, which would relink each
+ * item's expense on every call. A shallow patch also leaves a concurrent sync
+ * edit to another field (a title, a note) intact.
+ */
+export async function setOrder(
+	placements: readonly { id: string; order: number }[]
+): Promise<void> {
+	await Promise.all(
+		placements.map((placement) => patchDoc<ItineraryItem>(placement.id, { order: placement.order }))
+	);
+}
+
+/**
  * Create or update the linked `expense` from an item's estimated cost
  * ("Add as expense"). Idempotent: keyed on `itineraryItem` `itemId` through
  * `@link expenses.upsertLinkedExpense`, so repeated taps UPDATE the same linked

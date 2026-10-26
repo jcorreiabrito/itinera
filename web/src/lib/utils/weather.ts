@@ -9,6 +9,29 @@ export interface DayWeather {
 	minTemp: number;
 	icon: string;
 	description: string;
+	/**
+	 * Highest chance of precipitation in the day, in percent.
+	 *
+	 * Optional because a cache written before this field existed is still a
+	 * valid forecast: callers must treat a missing value as "not known", never
+	 * as zero.
+	 */
+	precipitationProbability?: number;
+	/** Total precipitation in the day, in millimetres. Same cache caveat. */
+	precipitationSum?: number;
+}
+
+interface OpenMeteoDaily {
+	time?: string[];
+	weather_code?: Array<number | null>;
+	temperature_2m_max?: Array<number | null>;
+	temperature_2m_min?: Array<number | null>;
+	precipitation_probability_max?: Array<number | null>;
+	precipitation_sum?: Array<number | null>;
+}
+
+interface OpenMeteoResponse {
+	daily?: OpenMeteoDaily;
 }
 
 export interface WeatherForecast {
@@ -63,35 +86,63 @@ export function loadCachedWeather(lat: number, lng: number): WeatherForecast | n
 export async function fetchTripWeather(lat: number, lng: number): Promise<WeatherForecast | null> {
 	const cached = loadCachedWeather(lat, lng);
 
+	/*
+	 * The server render has no saved location and no reliable online state, and a
+	 * forecast is never worth delaying the first paint for. Only the cache may be
+	 * read there.
+	 */
+	if (typeof window === 'undefined') return cached;
+
 	// If online, attempt to fetch fresh forecast
 	if (typeof navigator !== 'undefined' && !navigator.onLine) {
 		return cached;
 	}
 
 	try {
-		const url = `https://api.open-meteo.com/v1/forecast?latitude=${lat}&longitude=${lng}&daily=weather_code,temperature_2m_max,temperature_2m_min&timezone=auto`;
+		const url = `https://api.open-meteo.com/v1/forecast?latitude=${lat}&longitude=${lng}&daily=weather_code,temperature_2m_max,temperature_2m_min,precipitation_probability_max,precipitation_sum&timezone=auto`;
 		const res = await fetch(url);
 		if (!res.ok) return cached;
 
-		const data = await res.json();
-		if (!data?.daily?.time) return cached;
+		const data = (await res.json()) as OpenMeteoResponse;
+		const daily = data?.daily;
+		if (!daily?.time) return cached;
 
 		const days: Record<string, DayWeather> = {};
-		const times: string[] = data.daily.time;
-		const maxes: number[] = data.daily.temperature_2m_max;
-		const mins: number[] = data.daily.temperature_2m_min;
-		const codes: number[] = data.daily.weather_code;
+		const times = daily.time;
+		const maxes = daily.temperature_2m_max ?? [];
+		const mins = daily.temperature_2m_min ?? [];
+		const codes = daily.weather_code ?? [];
+		const probabilities = daily.precipitation_probability_max ?? [];
+		const sums = daily.precipitation_sum ?? [];
 
 		for (let i = 0; i < times.length; i++) {
-			const dStr = times[i];
-			const meta = getWeatherMeta(codes[i]);
-			days[dStr] = {
-				date: dStr,
-				maxTemp: Math.round(maxes[i]),
-				minTemp: Math.round(mins[i]),
+			const date = times[i];
+			const max = maxes[i];
+			const min = mins[i];
+			if (!date || typeof max !== 'number' || typeof min !== 'number') continue;
+			if (!Number.isFinite(max) || !Number.isFinite(min)) continue;
+
+			const code = codes[i];
+			const meta = getWeatherMeta(typeof code === 'number' ? code : 0);
+			const day: DayWeather = {
+				date,
+				maxTemp: Math.round(max),
+				minTemp: Math.round(min),
 				icon: meta.icon,
 				description: meta.desc
 			};
+
+			const probability = probabilities[i];
+			if (typeof probability === 'number' && Number.isFinite(probability)) {
+				day.precipitationProbability = Math.round(probability);
+			}
+
+			const sum = sums[i];
+			if (typeof sum === 'number' && Number.isFinite(sum)) {
+				day.precipitationSum = Math.round(sum * 10) / 10;
+			}
+
+			days[date] = day;
 		}
 
 		const forecast: WeatherForecast = {

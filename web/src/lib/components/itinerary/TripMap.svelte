@@ -22,12 +22,24 @@
 		items = [],
 		destination = '',
 		tripId = '',
-		onchanged
+		onchanged,
+		heightClass = 'h-[min(20rem,45dvh)]',
+		selectedId = null,
+		onselect
 	}: {
 		items?: ItineraryItem[];
 		destination?: string;
 		tripId?: string;
 		onchanged?: () => void;
+		/**
+		 * Height of the map body when inline. The workspace docks a shorter map
+		 * below the day; the default keeps the original viewport-clamped size.
+		 */
+		heightClass?: string;
+		/** The item whose marker should be highlighted, if any. */
+		selectedId?: string | null;
+		/** Selecting a marker hands the item to the caller (the inspector). */
+		onselect?: (item: ItineraryItem) => void;
 	} = $props();
 
 	let mapContainer = $state<HTMLDivElement | null>(null);
@@ -89,10 +101,19 @@
 			})
 	);
 
+	interface MarkerEntry {
+		marker: L.Marker;
+		coords: [number, number];
+		itemId: string;
+	}
+
 	let leafMap: L.Map | null = null;
 	let polylineLayer: L.Polyline | null = null;
-	/* eslint-disable-next-line svelte/prefer-svelte-reactivity -- a plain Map/Date is correct here: this is a local accumulator/registry rebuilt on every run, not reactive $state. SvelteMap would add reactivity nobody reads. */
-	let markersMap: Map<number, { marker: L.Marker; coords: [number, number] }> = new Map();
+	/* eslint-disable-next-line svelte/prefer-svelte-reactivity -- a plain Map is correct here: this is a local accumulator/registry rebuilt on every run, not reactive $state. SvelteMap would add reactivity nobody reads. */
+	let markersMap: Map<number, MarkerEntry> = new Map();
+	/** Incremented by every marker rebuild so a slow geocode cannot paint into a newer run. */
+	let markerGeneration = 0;
+	let lastSelectedId: string | null = null;
 
 	const CITY_COORDS: Record<string, [number, number]> = {
 		paris: [48.8566, 2.3522],
@@ -157,6 +178,7 @@
 	let currentTileLayer: L.TileLayer | null = null;
 	let downloadingOffline = $state(false);
 	let cartoApiKey = $state<string>('');
+	let destroyed = false;
 
 	onMount(async () => {
 		if (typeof window === 'undefined' || !mapContainer) return;
@@ -166,6 +188,9 @@
 		} catch {
 			/* settings unavailable — fall back to localStorage below */
 		}
+		// The pane can close while settings are loading; mounting a map on a
+		// detached container would leave a Leaflet instance with nothing to remove.
+		if (destroyed) return;
 		if (!cartoApiKey && typeof localStorage !== 'undefined') {
 			cartoApiKey = localStorage.getItem('itinera_carto_api_key') || '';
 		}
@@ -173,6 +198,10 @@
 	});
 
 	onDestroy(() => {
+		// Cancel any geocode still in flight: it would otherwise add markers to a
+		// map that has already been removed.
+		destroyed = true;
+		markerGeneration += 1;
 		if (leafMap) {
 			leafMap.remove();
 			leafMap = null;
@@ -307,15 +336,66 @@
 			});
 
 			mapLoaded = true;
-			await refreshMarkers();
 		} catch (err) {
 			console.error('Failed to initialize map', err);
 			mapError = true;
 		}
 	}
 
+	/*
+	 * Rebuild the pins when the items change, not only when the map mounts.
+	 *
+	 * The workspace swaps the map's items when the selected day changes, and the
+	 * old inline map had the same defect: a saved edit changed the props but not
+	 * the pins. The signature is what makes the effect idempotent; `refreshMarkers`
+	 * itself is free to rebuild as often as the effect decides.
+	 */
+	const locationSignature = $derived(
+		`${destination}|${locations
+			.map((loc) => `${loc.id}:${loc.lat ?? ''}:${loc.lng ?? ''}:${loc.locationName}`)
+			.join('|')}`
+	);
+	let renderedSignature: string | null = null;
+
+	$effect(() => {
+		const signature = locationSignature;
+		if (!mapLoaded || signature === renderedSignature) return;
+		renderedSignature = signature;
+		void refreshMarkers();
+	});
+
+	$effect(() => {
+		const id = selectedId ?? null;
+		if (!mapLoaded) return;
+		applySelectedMarker(id);
+		if (id && id !== lastSelectedId) focusMarker(id);
+		lastSelectedId = id;
+	});
+
+	function applySelectedMarker(id: string | null) {
+		for (const [index, entry] of markersMap) {
+			entry.marker.getElement()?.classList.toggle('itinera-pin-selected', entry.itemId === id);
+			if (entry.itemId === id) selectedIndex = index;
+		}
+	}
+
+	/** Fly to an item's pin and open its popup; no-op while it has no marker. */
+	function focusMarker(id: string): boolean {
+		for (const [index, entry] of markersMap) {
+			if (entry.itemId !== id) continue;
+			selectedIndex = index;
+			if (leafMap) {
+				leafMap.flyTo(entry.coords, Math.max(leafMap.getZoom(), 13), { duration: 1.2 });
+				entry.marker.openPopup();
+			}
+			return true;
+		}
+		return false;
+	}
+
 	async function refreshMarkers() {
 		if (!leafMap) return;
+		const generation = ++markerGeneration;
 
 		// Clear existing markers
 		markersMap.forEach((entry) => entry.marker.remove());
@@ -330,6 +410,9 @@
 				coords = [loc.lat, loc.lng];
 			} else {
 				coords = await geocode(loc.locationName);
+				// A day change or a reload started a newer rebuild while this one
+				// was geocoding; let that run own the map from here.
+				if (generation !== markerGeneration || !leafMap) return;
 				if (coords && loc.item) {
 					const existingLoc =
 						typeof loc.item.location === 'object' ? loc.item.location : { name: loc.locationName };
@@ -346,7 +429,7 @@
 					className: 'custom-map-pin',
 					html: `
             <div class="group relative flex items-center justify-center">
-              <div class="h-8 w-8 rounded-full bg-primary-600 text-white flex items-center justify-center font-bold text-xs shadow-card ring-2 ring-surface border border-white transform transition-transform group-hover:scale-110">
+              <div class="pin-dot h-8 w-8 rounded-full bg-primary-600 text-white flex items-center justify-center font-bold text-xs shadow-card ring-2 ring-surface border border-white transform transition-transform group-hover:scale-110">
                 ${loc.index}
               </div>
               <div class="absolute -bottom-1 w-2 h-2 bg-primary-600 rotate-45 border-r border-b border-white"></div>
@@ -375,9 +458,10 @@
 
 				marker.on('click', () => {
 					selectedIndex = loc.index;
+					onselect?.(loc.item);
 				});
 
-				markersMap.set(loc.index, { marker, coords });
+				markersMap.set(loc.index, { marker, coords, itemId: loc.id });
 				bounds.push(coords);
 			}
 		}
@@ -398,10 +482,14 @@
 			}
 		} else if (destination) {
 			const destCoords = await geocode(destination);
-			if (destCoords && leafMap) {
+			if (generation !== markerGeneration || !leafMap) return;
+			if (destCoords) {
 				leafMap.setView(destCoords, 11);
 			}
 		}
+
+		applySelectedMarker(selectedId ?? null);
+		if (selectedId) focusMarker(selectedId);
 	}
 
 	function focusLocation(idx: number) {
@@ -546,7 +634,7 @@
 		-->
 		<div
 			class={`relative w-full ${
-				isExpanded ? 'flex-1' : 'h-[min(20rem,45dvh)]'
+				isExpanded ? 'flex-1' : heightClass
 			} flex flex-col bg-surface-sunken`}
 		>
 			<div
@@ -640,3 +728,14 @@
 		</div>
 	</div>
 </Dialog>
+
+<style>
+	/*
+	 * The marker div is created by Leaflet, so a scoped selector cannot reach it.
+	 * Only the ring is added: transforming the icon would fight Leaflet's own
+	 * positioning transform and move the pin off its coordinates.
+	 */
+	:global(.itinera-pin-selected .pin-dot) {
+		box-shadow: 0 0 0 3px rgb(var(--color-primary-200-rgb));
+	}
+</style>

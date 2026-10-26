@@ -1,21 +1,52 @@
 <script lang="ts">
+	import { tick } from 'svelte';
 	import type { ResolvedPathname } from '$app/types';
 	import { checklist, itinerary } from '$lib/db';
 	import type { ChecklistItem, Destination, Flight, ItineraryItem, Reservation } from '$lib/db';
-	import { ChevronDown, ListTodo, MapPin, Pencil, Plus, Sparkles, Star } from 'lucide-svelte';
+	import {
+		ChevronDown,
+		CloudRain,
+		Footprints,
+		ListChecks,
+		ListTodo,
+		MapPin,
+		Pencil,
+		Plus,
+		Sparkles,
+		Star
+	} from 'lucide-svelte';
 	import { DateTime } from 'luxon';
-	import { Button, Dialog, Field, Input, Select, Textarea, toast } from '$lib/components/ui';
-	import { flagEmoji, formatMoney } from '$lib/format';
+	import { Badge, Button, Dialog, Field, Input, Select, Textarea, toast } from '$lib/components/ui';
+	import { flagEmoji, formatMoney, formatWeekdayDate } from '$lib/format';
 	import { getDestinationForDate } from '$lib/destinations';
 	import { renderMarkdown } from '$lib/markdown';
+	import { hasCoordinates, optimiseDayRoute, type RouteStop } from '$lib/route';
 	import { cn } from '$lib/utils';
 	import { getRuntimeConfig, flagEnabled } from '$lib/config';
-	import { fetchTripWeather, loadCachedWeather, type DayWeather } from '$lib/utils/weather';
+	import {
+		fetchTripWeather,
+		loadCachedWeather,
+		type DayWeather,
+		type WeatherForecast
+	} from '$lib/utils/weather';
 	import { t } from '$lib/i18n.svelte';
 	import { CATEGORY_META, CATEGORY_ORDER } from './categories';
 	import TimelineEntryRow from './TimelineEntryRow.svelte';
 	import MoveToDayDialog from './MoveToDayDialog.svelte';
 	import DayFeasibility from './DayFeasibility.svelte';
+	import BatchActionBar from './BatchActionBar.svelte';
+	import BatchSelectionRow from './BatchSelectionRow.svelte';
+	import MoveOutdoorDialog from './MoveOutdoorDialog.svelte';
+	import OptimiseRouteDialog from './OptimiseRouteDialog.svelte';
+	import { dayItems } from './day-status';
+	import { moveableOutdoorItems, planDriestDay, type DriestPlan } from './weather-plan';
+	import {
+		allSelected as allIdsSelected,
+		selectedInOrder,
+		summarizeBatch,
+		toggleSelected,
+		type BatchSummary
+	} from './batch-selection';
 
 	const feasibilityEnabled = flagEnabled('feasibility');
 
@@ -63,31 +94,147 @@
 	);
 
 	let dayWeather = $state<DayWeather | null>(null);
+	let weatherByDate = $state<Record<string, DayWeather>>({});
+
+	/**
+	 * The selected day and the three days either side, clipped to the trip.
+	 * A fortnight away is a different plan, not a drier alternative to today.
+	 */
+	const weatherWindowDates = $derived.by(() => {
+		if (!day.date) return [];
+		const index = dates.indexOf(day.date);
+		if (index < 0) return [day.date];
+		return dates.slice(Math.max(0, index - 3), Math.min(dates.length, index + 4));
+	});
+
+	const outdoorItems = $derived(moveableOutdoorItems(dayItems(day)));
+
+	/** A route stop from an item; the location is optional until one is set. */
+	function stopOf(item: ItineraryItem): RouteStop {
+		return { id: item._id, lat: item.location?.lat, lng: item.location?.lng };
+	}
 
 	$effect(() => {
-		if (!day.date || !activeDestination?.lat || !activeDestination?.lng) {
+		const targetDate = day.date;
+		const window = weatherWindowDates;
+		if (!targetDate || window.length === 0) {
 			dayWeather = null;
+			weatherByDate = {};
 			return;
 		}
-		const lat = activeDestination.lat;
-		const lng = activeDestination.lng;
-		const targetDate = day.date;
 
-		const cached = loadCachedWeather(lat, lng);
-		if (cached?.days?.[targetDate]) {
-			dayWeather = cached.days[targetDate];
+		const locations: { date: string; lat: number; lng: number }[] = [];
+		const cached: Record<string, DayWeather> = {};
+		for (const date of window) {
+			const destination = getDestinationForDate(date, destinations);
+			const lat = destination?.lat;
+			const lng = destination?.lng;
+			if (lat == null || lng == null) continue;
+			locations.push({ date, lat, lng });
+			const entry = loadCachedWeather(lat, lng)?.days?.[date];
+			if (entry) cached[date] = entry;
 		}
+		weatherByDate = cached;
+		dayWeather = cached[targetDate] ?? null;
 
-		// A deployment with no route to the forecast service keeps showing the
-		// cached forecast without a failing request on every day card.
-		if (getRuntimeConfig().weatherEnabled) {
-			fetchTripWeather(lat, lng).then((forecast) => {
-				if (forecast?.days?.[targetDate]) {
-					dayWeather = forecast.days[targetDate];
-				}
-			});
+		/*
+		 * A deployment with no route to the forecast service, and the server
+		 * render itself, must never open a request. The cache above is still
+		 * read, so a previously fetched forecast keeps showing.
+		 */
+		if (typeof window === 'undefined' || !getRuntimeConfig().weatherEnabled) return;
+
+		// Only the selected day always needs fresh weather. Nearby days are
+		// fetched only when there is something the rain could move.
+		const wanted: Record<string, { lat: number; lng: number }> = {};
+		for (const { date, lat, lng } of locations) {
+			if (date !== targetDate && outdoorItems.length === 0) continue;
+			wanted[`${lat},${lng}`] = { lat, lng };
 		}
+		const keys = Object.keys(wanted);
+		if (keys.length === 0) return;
+
+		let cancelled = false;
+		void Promise.all(
+			keys.map((key) =>
+				fetchTripWeather(wanted[key].lat, wanted[key].lng).then((forecast) => ({ key, forecast }))
+			)
+		).then((results) => {
+			if (cancelled) return;
+			const forecasts: Record<string, WeatherForecast | null> = {};
+			for (const { key, forecast } of results) forecasts[key] = forecast;
+			const merged: Record<string, DayWeather> = { ...cached };
+			for (const { date, lat, lng } of locations) {
+				const entry = forecasts[`${lat},${lng}`]?.days?.[date];
+				if (entry) merged[date] = entry;
+			}
+			weatherByDate = merged;
+			dayWeather = merged[targetDate] ?? null;
+		});
+
+		return () => {
+			cancelled = true;
+		};
 	});
+
+	const weatherLabel = $derived.by(() => {
+		const forecast = dayWeather;
+		if (!forecast) return '';
+		const parts = [
+			t('weather_temp_range', { min: String(forecast.minTemp), max: String(forecast.maxTemp) })
+		];
+		if (forecast.precipitationProbability != null) {
+			parts.push(
+				t('weather_precip_chance', {
+					p: String(Math.round(forecast.precipitationProbability))
+				})
+			);
+		}
+		if (forecast.precipitationSum != null && forecast.precipitationSum > 0) {
+			parts.push(t('weather_precip_amount', { mm: String(forecast.precipitationSum) }));
+		}
+		return t('weather_day_summary', { summary: parts.join(', ') });
+	});
+
+	const driestPlan = $derived.by((): DriestPlan => {
+		if (!day.date) return { current: null, target: null };
+		return planDriestDay(day.date, weatherWindowDates, weatherByDate);
+	});
+
+	// At zero chance nothing can be drier, so the action would have nothing to
+	// say; above zero the dialog may still report that the nearby days are wetter.
+	const currentChance = $derived(driestPlan.current?.precipitationProbability ?? null);
+	const canMoveOutdoor = $derived(
+		outdoorItems.length > 0 && currentChance != null && currentChance > 0
+	);
+
+	// --- Walking order ---------------------------------------------------------
+	// Only the untimed lane is reordered: a start time is the signal that a stop
+	// belongs to a booking, and all-day items live in their own lane.
+	const routeItems = $derived(
+		day.timed.flatMap((entry) =>
+			entry.kind === 'item' && entry.item && !entry.item.startTime ? [entry.item] : []
+		)
+	);
+	const routePlan = $derived.by(() => {
+		const stops = routeItems.map(stopOf);
+		const located = stops.filter((stop) => hasCoordinates(stop));
+		if (located.length < 3) return null;
+		return optimiseDayRoute(stops);
+	});
+	const orderedRouteItems = $derived.by(() => {
+		if (!routePlan) return [];
+		const byId = new Map(routeItems.map((item) => [item._id, item]));
+		return routePlan.order.flatMap((id) => {
+			const item = byId.get(id);
+			return item ? [item] : [];
+		});
+	});
+
+	let driestOpen = $state(false);
+	let driestBusy = $state(false);
+	let routeOpen = $state(false);
+	let routeBusy = $state(false);
 
 	const todosDone = $derived(day.todos.filter((t) => t.done).length);
 	let todosOpen = $state(true);
@@ -177,6 +324,48 @@
 		}
 	}
 
+	// --- Weather-aware planning ------------------------------------------------
+	async function moveOutdoorItems() {
+		const target = driestPlan.target;
+		if (!target || outdoorItems.length === 0 || driestBusy) return;
+		driestBusy = true;
+		try {
+			await Promise.all(
+				outdoorItems.map((item) => itinerary.moveToDay(item._id, target.date, item.order ?? 0))
+			);
+			const n = String(outdoorItems.length);
+			toast.success(
+				t(outdoorItems.length === 1 ? 'weather_driest_moved_one' : 'weather_driest_moved_many', {
+					n,
+					date: formatWeekdayDate(target.date)
+				})
+			);
+			driestOpen = false;
+			onchanged();
+		} catch {
+			toast.error(t('weather_driest_failed'));
+		} finally {
+			driestBusy = false;
+		}
+	}
+
+	// --- Walking order ---------------------------------------------------------
+	async function applyRouteOrder() {
+		const plan = routePlan;
+		if (!plan || routeBusy) return;
+		routeBusy = true;
+		try {
+			await itinerary.setOrder(plan.order.map((id, order) => ({ id, order })));
+			toast.success(t('route_optimise_applied'));
+			routeOpen = false;
+			onchanged();
+		} catch {
+			toast.error(t('route_optimise_failed'));
+		} finally {
+			routeBusy = false;
+		}
+	}
+
 	// --- Add as expense / delete (from row menu) ------------------------------
 	async function addExpense(item: ItineraryItem) {
 		try {
@@ -240,60 +429,315 @@
 	}
 
 	const isEmpty = $derived(day.allDay.length === 0 && day.timed.length === 0);
+
+	// --- Multi-select and batch actions ---------------------------------------
+	const items = $derived(dayItems(day));
+	const itemIds = $derived(items.map((item) => item._id));
+
+	let selecting = $state(false);
+	let selectedIds = $state<ReadonlySet<string>>(new Set());
+	let batchBusy = $state(false);
+	let batchMoveOpen = $state(false);
+	let batchDeleteOpen = $state(false);
+	let sectionEl = $state<HTMLElement>();
+
+	const selectedIdsInOrder = $derived(selectedInOrder(selectedIds, itemIds));
+	const selectedCount = $derived(selectedIdsInOrder.length);
+	const everythingSelected = $derived(allIdsSelected(selectedIds, itemIds));
+	const batchSelectedLabel = $derived(
+		t(selectedCount === 1 ? 'batch_selected_one' : 'batch_selected_many', {
+			n: String(selectedCount)
+		})
+	);
+	const batchDeleteTitle = $derived(
+		selectedCount === 1
+			? t('batch_delete_title_one', { n: String(selectedCount) })
+			: t('batch_delete_title_many', { n: String(selectedCount) })
+	);
+
+	// The route remounts this component when the day changes, but a prop swap in
+	// isolation (tests, future callers) must not carry a selection to a new day
+	// or trip.
+	let selectionKey: string | null = null;
+	$effect(() => {
+		const key = `${tripId}:${day.date ?? 'ideas'}`;
+		if (key === selectionKey) return;
+		const hadKey = selectionKey !== null;
+		selectionKey = key;
+		if (!hadKey) return;
+		selecting = false;
+		selectedIds = new Set();
+	});
+
+	async function enterSelection() {
+		selecting = true;
+		selectedIds = new Set();
+		// The Select button is replaced by Done, so hand focus to the first row
+		// rather than letting it fall back to the document body.
+		await tick();
+		sectionEl?.querySelector<HTMLInputElement>('[data-batch-checkbox]')?.focus();
+	}
+
+	async function exitSelection() {
+		const wasSelecting = selecting;
+		selecting = false;
+		selectedIds = new Set();
+		if (!wasSelecting) return;
+		await tick();
+		sectionEl?.querySelector<HTMLButtonElement>('[data-batch-select]')?.focus();
+	}
+
+	function toggleItem(id: string, on: boolean) {
+		selectedIds = toggleSelected(selectedIds, id, on);
+	}
+
+	function selectEveryItem() {
+		selectedIds = new Set(itemIds);
+	}
+
+	function clearSelection() {
+		selectedIds = new Set();
+	}
+
+	function onSelectionKeydown(event: KeyboardEvent) {
+		if (event.key !== 'Escape' || !selecting) return;
+		// A dialog owns Escape while it is open; closing it must not also drop
+		// the selection underneath.
+		if (document.querySelector('dialog[open]')) return;
+		event.preventDefault();
+		event.stopPropagation();
+		exitSelection();
+	}
+
+	type BatchVerb = 'move' | 'duplicate' | 'delete';
+
+	function reportBatch(verb: BatchVerb, summary: BatchSummary) {
+		if (summary.failed > 0) {
+			const message = t('batch_partial', {
+				succeeded: String(summary.succeeded),
+				total: String(summary.total),
+				failed: String(summary.failed)
+			});
+			if (summary.succeeded === 0) toast.error(message);
+			else toast.warning(message);
+			return;
+		}
+
+		const n = String(summary.succeeded);
+		if (verb === 'move') {
+			toast.success(t(summary.succeeded === 1 ? 'batch_moved_one' : 'batch_moved_many', { n }));
+		} else if (verb === 'duplicate') {
+			toast.success(
+				t(summary.succeeded === 1 ? 'batch_duplicated_one' : 'batch_duplicated_many', { n })
+			);
+		} else {
+			toast.success(t(summary.succeeded === 1 ? 'batch_deleted_one' : 'batch_deleted_many', { n }));
+		}
+	}
+
+	function pickedItems(): ItineraryItem[] {
+		const byId = new Map(items.map((item) => [item._id, item]));
+		return selectedIdsInOrder.flatMap((id) => {
+			const item = byId.get(id);
+			return item ? [item] : [];
+		});
+	}
+
+	async function runBatch(verb: BatchVerb, work: (item: ItineraryItem) => Promise<unknown>) {
+		if (batchBusy) return;
+		const picked = pickedItems();
+		if (picked.length === 0) return;
+
+		batchBusy = true;
+		try {
+			// `Promise.resolve().then` turns a synchronous throw inside `work` into a
+			// rejection too, so one bad item still leaves the other writes reported.
+			const results = await Promise.allSettled(
+				picked.map((item) => Promise.resolve().then(() => work(item)))
+			);
+			reportBatch(verb, summarizeBatch(results));
+			exitSelection();
+			onchanged();
+		} finally {
+			batchBusy = false;
+		}
+	}
+
+	function openBatchMove() {
+		if (selectedCount > 0) batchMoveOpen = true;
+	}
+
+	async function moveSelectedTo(date: string | null) {
+		await runBatch('move', (item) => itinerary.moveToDay(item._id, date, item.order ?? 0));
+	}
+
+	async function duplicateSelected() {
+		await runBatch('duplicate', (item) =>
+			itinerary.create(tripId, {
+				title: item.title ? `${item.title} ${t('batch_copy_suffix')}` : '',
+				date: item.date ?? null,
+				allDay: item.allDay,
+				startTime: item.startTime,
+				endTime: item.endTime,
+				category: item.category,
+				location: item.location,
+				notes: item.notes,
+				linkedFlightId: item.linkedFlightId,
+				linkedReservationId: item.linkedReservationId,
+				estCost: item.estCost,
+				currency: item.currency,
+				order: item.order ?? 0
+			})
+		);
+	}
+
+	function openBatchDelete() {
+		if (selectedCount > 0) batchDeleteOpen = true;
+	}
+
+	async function deleteSelected() {
+		batchDeleteOpen = false;
+		await runBatch('delete', (item) => itinerary.softDelete(item._id));
+	}
 </script>
 
-<section aria-label={heading} class="space-y-4">
+<svelte:window onkeydown={onSelectionKeydown} />
+
+<section bind:this={sectionEl} aria-label={heading} class="space-y-4">
 	<!-- Day header -->
-	<header class="flex items-start justify-between gap-3">
-		<div class="min-w-0">
-			<div class="flex flex-wrap items-center gap-2">
-				{#if isIdeas}<Sparkles class="size-5 text-accent-terracotta" aria-hidden="true" />{/if}
-				<h2 class="font-serif text-xl font-semibold text-ink">{heading}</h2>
-				{#if activeDestination}
-					<span
-						class="inline-flex items-center gap-1 rounded-full border border-primary-300 bg-primary-50 px-2.5 py-0.5 text-xs font-semibold text-primary-800"
-					>
-						<MapPin class="size-3 text-primary-600" />
-						{#if flagEmoji(activeDestination.country)}<span aria-hidden="true"
-								>{flagEmoji(activeDestination.country)}</span
-							>{/if}
-						{activeDestination.name}
-					</span>
-				{/if}
-				{#if dayWeather}
-					<span
-						class="inline-flex items-center gap-1 rounded-full border border-sky-300 bg-sky-50 px-2.5 py-0.5 text-xs font-semibold text-sky-800"
-						title={dayWeather.description}
-					>
-						<span>{dayWeather.icon}</span>
-						<span>{dayWeather.maxTemp}° / {dayWeather.minTemp}°C</span>
-					</span>
+	<header class="space-y-3">
+		<div class="flex items-start justify-between gap-3">
+			<div class="min-w-0">
+				<div class="flex flex-wrap items-center gap-2">
+					{#if isIdeas}<Sparkles class="size-5 text-accent-terracotta" aria-hidden="true" />{/if}
+					<h2 class="font-serif text-xl font-semibold text-ink">{heading}</h2>
+					{#if activeDestination}
+						<span
+							class="inline-flex items-center gap-1 rounded-full border border-primary-300 bg-primary-50 px-2.5 py-0.5 text-xs font-semibold text-primary-800"
+						>
+							<MapPin class="size-3 text-primary-600" />
+							{#if flagEmoji(activeDestination.country)}<span aria-hidden="true"
+									>{flagEmoji(activeDestination.country)}</span
+								>{/if}
+							{activeDestination.name}
+						</span>
+					{/if}
+					{#if dayWeather}
+						<span title={dayWeather.description}>
+							<Badge variant="info" class="font-semibold">
+								<span aria-hidden="true">{dayWeather.icon}</span>
+								<span aria-hidden="true">
+									{t('weather_badge_temp', {
+										max: String(dayWeather.maxTemp),
+										min: String(dayWeather.minTemp)
+									})}
+									{#if dayWeather.precipitationProbability != null}
+										· {t('weather_badge_chance', {
+											p: String(Math.round(dayWeather.precipitationProbability))
+										})}
+									{/if}
+									{#if dayWeather.precipitationSum != null && dayWeather.precipitationSum > 0}
+										· {t('weather_badge_amount', {
+											mm: String(dayWeather.precipitationSum)
+										})}
+									{/if}
+								</span>
+								<span class="sr-only">{weatherLabel}</span>
+							</Badge>
+						</span>
+					{/if}
+				</div>
+				{#if !isIdeas}
+					{#if day.day?.title}
+						<p class="mt-0.5 text-sm font-medium text-primary-700">{day.day.title}</p>
+					{/if}
+					{#if day.day?.notes}
+						<!-- Compact rows hide the day's note preview; Edit day still shows it. -->
+						<div class="density-secondary mt-1.5 space-y-1.5 text-sm text-ink-muted">
+							<!-- eslint-disable-next-line svelte/no-at-html-tags -- renderMarkdown escapes all user text before adding allowlisted tags (see $lib/markdown.ts) -->
+							{@html renderMarkdown(day.day.notes)}
+						</div>
+					{/if}
+				{:else}
+					<p class="mt-0.5 text-sm text-ink-muted">{t('capture_ideas_hint')}</p>
 				{/if}
 			</div>
-			{#if !isIdeas}
-				{#if day.day?.title}
-					<p class="mt-0.5 text-sm font-medium text-primary-700">{day.day.title}</p>
+			<div class="flex shrink-0 flex-wrap items-center justify-end gap-1.5">
+				{#if selecting}
+					<Button variant="secondary" size="sm" onclick={exitSelection} disabled={batchBusy}>
+						{t('batch_done')}
+					</Button>
+				{:else}
+					{#if !isIdeas}
+						<button
+							type="button"
+							onclick={openMeta}
+							class="inline-flex shrink-0 items-center gap-1.5 rounded-md border border-border bg-surface px-2.5 py-1.5 text-xs font-medium text-ink-muted transition-colors hover:bg-surface-sunken hover:text-ink [&_svg]:size-3.5"
+						>
+							<Pencil />
+							{day.day?.title || day.day?.notes ? t('edit_day') : t('add_title')}
+						</button>
+					{/if}
+					{#if items.length > 0}
+						<Button variant="secondary" size="sm" data-batch-select onclick={enterSelection}>
+							<ListChecks class="size-4" aria-hidden="true" />
+							{t('batch_select')}
+						</Button>
+					{/if}
 				{/if}
-				{#if day.day?.notes}
-					<!-- Compact rows hide the day's note preview; Edit day still shows it. -->
-					<div class="density-secondary mt-1.5 space-y-1.5 text-sm text-ink-muted">
-						<!-- eslint-disable-next-line svelte/no-at-html-tags -- renderMarkdown escapes all user text before adding allowlisted tags (see $lib/markdown.ts) -->
-						{@html renderMarkdown(day.day.notes)}
-					</div>
-				{/if}
-			{:else}
-				<p class="mt-0.5 text-sm text-ink-muted">{t('capture_ideas_hint')}</p>
-			{/if}
+			</div>
 		</div>
-		{#if !isIdeas}
-			<button
-				type="button"
-				onclick={openMeta}
-				class="inline-flex shrink-0 items-center gap-1.5 rounded-md border border-border bg-surface px-2.5 py-1.5 text-xs font-medium text-ink-muted transition-colors hover:bg-surface-sunken hover:text-ink [&_svg]:size-3.5"
+
+		{#if !selecting && (canMoveOutdoor || routePlan)}
+			<div class="flex flex-wrap items-center gap-1">
+				{#if canMoveOutdoor}
+					<Button variant="ghost" size="sm" onclick={() => (driestOpen = true)}>
+						<CloudRain class="size-4" aria-hidden="true" />
+						{t('weather_move_outdoor')}
+					</Button>
+				{/if}
+				{#if routePlan}
+					<Button variant="ghost" size="sm" onclick={() => (routeOpen = true)}>
+						<Footprints class="size-4" aria-hidden="true" />
+						{t('route_optimise_action')}
+					</Button>
+				{/if}
+			</div>
+		{/if}
+
+		{#if selecting}
+			<div
+				class="flex flex-wrap items-center justify-between gap-2 rounded-lg border border-primary-300 bg-primary-50 px-3 py-2"
 			>
-				<Pencil />
-				{day.day?.title || day.day?.notes ? t('edit_day') : t('add_title')}
-			</button>
+				<p class="text-sm font-semibold text-primary-800" aria-live="polite">
+					{batchSelectedLabel}
+				</p>
+				<div class="flex flex-wrap items-center gap-1">
+					<Button
+						variant="ghost"
+						size="sm"
+						onclick={selectEveryItem}
+						disabled={batchBusy || everythingSelected}
+					>
+						{t('batch_select_all')}
+					</Button>
+					<Button
+						variant="ghost"
+						size="sm"
+						onclick={clearSelection}
+						disabled={batchBusy || selectedCount === 0}
+					>
+						{t('batch_clear')}
+					</Button>
+				</div>
+			</div>
+			<BatchActionBar
+				count={selectedCount}
+				busy={batchBusy}
+				onmove={openBatchMove}
+				onduplicate={duplicateSelected}
+				ondelete={openBatchDelete}
+			/>
 		{/if}
 	</header>
 
@@ -359,22 +803,31 @@
 			</h3>
 			<ul class="space-y-2">
 				{#each allDayItems as item (item._id)}
-					<TimelineEntryRow
-						entry={{ kind: 'item', minutes: null, order: item.order ?? 0, item }}
-						{links}
-						{flightsById}
-						{reservationsById}
-						{homeCurrency}
-						{travelerCount}
-						canMoveUp={canMove(item, 'up')}
-						canMoveDown={canMove(item, 'down')}
-						{onedit}
-						onmoveup={(i) => move(i, 'up')}
-						onmovedown={(i) => move(i, 'down')}
-						onmovetoday={openMove}
-						onaddexpense={addExpense}
-						ondelete={removeItem}
-					/>
+					{#if selecting}
+						<BatchSelectionRow
+							{item}
+							selected={selectedIds.has(item._id)}
+							disabled={batchBusy}
+							onchange={toggleItem}
+						/>
+					{:else}
+						<TimelineEntryRow
+							entry={{ kind: 'item', minutes: null, order: item.order ?? 0, item }}
+							{links}
+							{flightsById}
+							{reservationsById}
+							{homeCurrency}
+							{travelerCount}
+							canMoveUp={canMove(item, 'up')}
+							canMoveDown={canMove(item, 'down')}
+							{onedit}
+							onmoveup={(i) => move(i, 'up')}
+							onmovedown={(i) => move(i, 'down')}
+							onmovetoday={openMove}
+							onaddexpense={addExpense}
+							ondelete={removeItem}
+						/>
+					{/if}
 				{/each}
 			</ul>
 		</div>
@@ -391,22 +844,32 @@
 			class="relative space-y-2 before:absolute before:bottom-3 before:left-[4.75rem] before:top-3 before:w-px before:bg-border before:content-['']"
 		>
 			{#each day.timed as entry, i (entry.item?._id ?? `${entry.kind}-${i}`)}
-				<TimelineEntryRow
-					{entry}
-					{links}
-					{flightsById}
-					{reservationsById}
-					{homeCurrency}
-					{travelerCount}
-					canMoveUp={entry.item ? canMove(entry.item, 'up') : false}
-					canMoveDown={entry.item ? canMove(entry.item, 'down') : false}
-					{onedit}
-					onmoveup={(it) => move(it, 'up')}
-					onmovedown={(it) => move(it, 'down')}
-					onmovetoday={openMove}
-					onaddexpense={addExpense}
-					ondelete={removeItem}
-				/>
+				{#if selecting && entry.kind === 'item' && entry.item}
+					{@const item = entry.item}
+					<BatchSelectionRow
+						{item}
+						selected={selectedIds.has(item._id)}
+						disabled={batchBusy}
+						onchange={toggleItem}
+					/>
+				{:else}
+					<TimelineEntryRow
+						{entry}
+						{links}
+						{flightsById}
+						{reservationsById}
+						{homeCurrency}
+						{travelerCount}
+						canMoveUp={entry.item ? canMove(entry.item, 'up') : false}
+						canMoveDown={entry.item ? canMove(entry.item, 'down') : false}
+						{onedit}
+						onmoveup={(it) => move(it, 'up')}
+						onmovedown={(it) => move(it, 'down')}
+						onmovetoday={openMove}
+						onaddexpense={addExpense}
+						ondelete={removeItem}
+					/>
+				{/if}
 			{/each}
 		</ol>
 	{/if}
@@ -548,3 +1011,44 @@
 	title={moveItem?.title}
 	onmove={doMoveDate}
 />
+
+<!-- Batch move dialog -->
+<MoveToDayDialog bind:open={batchMoveOpen} {dates} current={day.date} onmove={moveSelectedTo} />
+
+<!-- Batch delete confirmation -->
+<Dialog bind:open={batchDeleteOpen} title={batchDeleteTitle}>
+	<p class="text-sm text-ink-muted">{t('batch_delete_body')}</p>
+
+	{#snippet footer()}
+		<Button variant="ghost" onclick={() => (batchDeleteOpen = false)} disabled={batchBusy}>
+			{t('cancel')}
+		</Button>
+		<Button variant="destructive" onclick={deleteSelected} disabled={batchBusy}>
+			{t('delete')}
+		</Button>
+	{/snippet}
+</Dialog>
+
+<!-- Drier-day preview -->
+{#if canMoveOutdoor}
+	<MoveOutdoorDialog
+		bind:open={driestOpen}
+		items={outdoorItems}
+		currentDate={day.date ?? ''}
+		currentChance={currentChance ?? 0}
+		target={driestPlan.target}
+		busy={driestBusy}
+		onmove={moveOutdoorItems}
+	/>
+{/if}
+
+<!-- Walking order preview -->
+{#if routePlan}
+	<OptimiseRouteDialog
+		bind:open={routeOpen}
+		items={orderedRouteItems}
+		plan={routePlan}
+		busy={routeBusy}
+		onapply={applyRouteOrder}
+	/>
+{/if}
