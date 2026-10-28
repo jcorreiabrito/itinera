@@ -4,7 +4,7 @@
  * The gesture arithmetic is covered by `gestures.test.ts`; this file only makes
  * the changed components compile under the Vitest Svelte pipeline and checks
  * the two contracts a drag depends on: a labelled handle on reorderable rows,
- * and the `data-drop-date` attributes on both day switchers.
+ * and the `data-drop-key` attributes on both day switchers.
  */
 
 import { describe, expect, it, vi } from 'vitest';
@@ -61,7 +61,11 @@ const allDayItem = {
 } as ItineraryItem;
 
 const day: DayTimeline = {
+	key: '2026-10-25',
+	kind: 'dated',
 	date: '2026-10-25',
+	ordinal: 1,
+	weekdayHint: null,
 	day: null,
 	todos: [],
 	allDay: [allDayItem],
@@ -71,7 +75,11 @@ const day: DayTimeline = {
 
 function emptyDay(date: string | null): DayTimeline {
 	return {
+		key: date ?? 'ideas',
+		kind: date ? 'dated' : 'ideas',
 		date,
+		ordinal: date ? 1 : null,
+		weekdayHint: null,
 		day: null,
 		todos: [],
 		allDay: [],
@@ -106,7 +114,10 @@ describe('itinerary gestures', () => {
 	it('marks every date strip chip as a drop target', () => {
 		const { container } = render(DateStrip, {
 			props: {
-				dates: ['2026-10-24', '2026-10-25'],
+				days: [
+					{ key: '2026-10-24', date: '2026-10-24', ordinal: 1, weekdayHint: null },
+					{ key: '2026-10-25', date: '2026-10-25', ordinal: 2, weekdayHint: null }
+				],
 				selected: '2026-10-25',
 				today: '2026-10-25',
 				ideasCount: 1,
@@ -114,9 +125,57 @@ describe('itinerary gestures', () => {
 			}
 		});
 
-		expect(container.querySelector('[data-drop-date="2026-10-24"]')).toBeTruthy();
-		expect(container.querySelector('[data-drop-date="2026-10-25"]')).toBeTruthy();
-		expect(container.querySelector('[data-drop-date="ideas"]')).toBeTruthy();
+		expect(container.querySelector('[data-drop-key="2026-10-24"]')).toBeTruthy();
+		expect(container.querySelector('[data-drop-key="2026-10-25"]')).toBeTruthy();
+		expect(container.querySelector('[data-drop-key="ideas"]')).toBeTruthy();
+	});
+
+	it('labels dream day chips with their ordinal and weekday wish', () => {
+		const { getByRole } = render(DateStrip, {
+			props: {
+				days: [
+					{ key: 'dream-1', date: null, ordinal: 1, weekdayHint: null },
+					{ key: 'dream-2', date: null, ordinal: 2, weekdayHint: 6 }
+				],
+				selected: 'dream-1',
+				today: '2026-10-25',
+				ideasCount: 0,
+				onselect: vi.fn()
+			}
+		});
+
+		expect(getByRole('button', { name: 'Day 1' })).toBeTruthy();
+		expect(getByRole('button', { name: 'Day 2, Sat wish' })).toBeTruthy();
+	});
+
+	it('labels dated chips by their date even when the day carries a plan ordinal', () => {
+		const { getByRole, queryByRole } = render(DateStrip, {
+			props: {
+				days: [{ key: '2026-10-24', date: '2026-10-24', ordinal: 1, weekdayHint: null }],
+				selected: '2026-10-24',
+				today: '2026-10-24',
+				ideasCount: 0,
+				onselect: vi.fn()
+			}
+		});
+
+		expect(getByRole('button', { name: 'Sat 24 Oct' })).toBeTruthy();
+		expect(queryByRole('button', { name: /Day 1/ })).toBeNull();
+	});
+
+	it('labels a dated rail day by its date, not its plan ordinal', () => {
+		const { getByRole, queryByRole } = render(DayRail, {
+			props: {
+				days: [emptyDay('2026-10-24')],
+				unscheduled: emptyDay(null),
+				selected: '2026-10-24',
+				today: '2026-10-24',
+				onselect: vi.fn()
+			}
+		});
+
+		expect(getByRole('button', { name: /Sat 24/ })).toBeTruthy();
+		expect(queryByRole('button', { name: /Day 1/ })).toBeNull();
 	});
 
 	it('marks every day rail entry as a drop target', () => {
@@ -130,9 +189,9 @@ describe('itinerary gestures', () => {
 			}
 		});
 
-		expect(container.querySelector('[data-drop-date="2026-10-24"]')).toBeTruthy();
-		expect(container.querySelector('[data-drop-date="2026-10-25"]')).toBeTruthy();
-		expect(container.querySelector('[data-drop-date="ideas"]')).toBeTruthy();
+		expect(container.querySelector('[data-drop-key="2026-10-24"]')).toBeTruthy();
+		expect(container.querySelector('[data-drop-key="2026-10-25"]')).toBeTruthy();
+		expect(container.querySelector('[data-drop-key="ideas"]')).toBeTruthy();
 	});
 
 	it('drops the handles when batch selection takes over the rows', async () => {
@@ -140,7 +199,7 @@ describe('itinerary gestures', () => {
 			props: {
 				day,
 				tripId: 'trip',
-				dates: ['2026-10-25'],
+				days: [{ key: '2026-10-25', date: '2026-10-25', ordinal: 1, weekdayHint: null }],
 				links,
 				onedit: vi.fn(),
 				onchanged: vi.fn()

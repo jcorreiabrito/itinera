@@ -5,12 +5,13 @@
 	import type { ResolvedPathname } from '$app/types';
 	import { writable } from 'svelte/store';
 	import { page } from '$app/state';
-	import { todayIso, trips } from '$lib/db';
+	import { todayIso, trips, isDreamTrip } from '$lib/db';
 	import type { Trip } from '$lib/db';
 	import { t, type TranslationKey } from '$lib/i18n.svelte';
 	import {
 		AlertTriangle,
 		ArrowLeft,
+		CalendarDays,
 		MapPinned,
 		Pencil,
 		Plus,
@@ -19,10 +20,11 @@
 	} from 'lucide-svelte';
 	import type { IconComponent } from '$lib/types';
 	import { TRIP_MOBILE_TABS, TRIP_SECTIONS } from '$lib/trip-sections';
-	import { formatDateRange } from '$lib/format';
+	import { formatDateRange, tripRangeLabel } from '$lib/format';
 	import { flagEnabled } from '$lib/config';
 	import { QuickCaptureSheet } from '$lib/components/capture';
 	import { TripDataMenu, TripFormSheet } from '$lib/components/trip';
+	import SetDatesSheet from '$lib/components/trip/SetDatesSheet.svelte';
 	import { setTripShellContext } from '$lib/trip-context';
 	import { startLive } from '$lib/live';
 	import { cn } from '$lib/utils';
@@ -43,6 +45,7 @@
 	let editOpen = $state(false);
 	let shareOpen = $state(false);
 	let captureOpen = $state(false);
+	let datesOpen = $state(false);
 	/** Deployment switch, read once: `flags: { capture: false }` removes the entry points. */
 	const captureEnabled = flagEnabled('capture');
 	const reloadSignal = writable(0);
@@ -79,7 +82,11 @@
 		editOpen = true;
 	}
 
-	setTripShellContext({ reloadSignal, requestReload, openEditor });
+	function openDates() {
+		datesOpen = true;
+	}
+
+	setTripShellContext({ reloadSignal, requestReload, openEditor, openDates });
 
 	// Reload the header trip whenever the route id changes.
 	$effect(() => {
@@ -201,6 +208,25 @@
 				{/if}
 				<button
 					type="button"
+					onclick={() => (datesOpen = true)}
+					disabled={!trip}
+					aria-label={trip && isDreamTrip(trip) ? t('set_dates_title') : t('change_dates')}
+					title={trip && isDreamTrip(trip) ? t('set_dates_title') : t('change_dates')}
+					class="hidden size-11 min-h-[44px] min-w-[44px] place-items-center rounded-md text-ink-muted transition-colors hover:bg-surface-sunken hover:text-ink active:scale-95 disabled:opacity-40 sm:grid [&_svg]:size-5"
+				>
+					<CalendarDays />
+				</button>
+				{#if trip}
+					<TripDataMenu
+						tripid={id}
+						title={trip.title?.trim() || undefined}
+						dream={isDreamTrip(trip)}
+						onedit={openEditor}
+						onshare={() => (shareOpen = true)}
+					/>
+				{/if}
+				<button
+					type="button"
 					onclick={openEditor}
 					disabled={!trip}
 					aria-label={t('edit')}
@@ -208,14 +234,6 @@
 				>
 					<Pencil />
 				</button>
-				{#if trip}
-					<TripDataMenu
-						tripid={id}
-						title={trip.title?.trim() || undefined}
-						onedit={openEditor}
-						onshare={() => (shareOpen = true)}
-					/>
-				{/if}
 			</div>
 		</header>
 
@@ -233,9 +251,9 @@
 				<h1 class="font-serif text-2xl font-semibold leading-tight">
 					{trip.title?.trim() || t('untitled_trip')}
 				</h1>
-				{#if formatDateRange(trip.startDate, trip.endDate)}
+				{#if formatDateRange(trip.startDate, trip.endDate) || isDreamTrip(trip)}
 					<p class="mt-1 text-sm text-ink-muted">
-						{formatDateRange(trip.startDate, trip.endDate)}
+						{tripRangeLabel(trip)}
 					</p>
 				{/if}
 			</header>
@@ -339,7 +357,15 @@
 	{trip}
 	onsaved={requestReload}
 	onlivechange={requestReload}
+	onchangedates={() => {
+		editOpen = false;
+		datesOpen = true;
+	}}
 />
+
+{#if trip}
+	<SetDatesSheet bind:open={datesOpen} {trip} onsaved={requestReload} />
+{/if}
 
 {#if trip}
 	<ShareTripModal bind:open={shareOpen} {trip} />

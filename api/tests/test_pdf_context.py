@@ -272,6 +272,104 @@ class TestShapeTripPdfContext:
         assert "Part 2 of 2" in html_page
 
 
+def _dream_trip(extra: dict | None = None) -> dict:
+    base = {
+        "_id": "trip:01",
+        "type": "trip",
+        "title": "Someday Japan",
+        "dateMode": "dream",
+        "dreamDayCount": 3,
+        "homeCurrency": "EUR",
+    }
+    if extra:
+        base.update(extra)
+    return base
+
+
+def _ordinal_item(ordinal: int | None, title: str, **kwargs) -> dict:
+    d = {"_id": f"itin:01:{title}", "type": "itineraryItem", "title": title, "order": 0}
+    if ordinal is not None:
+        d["dayOrdinal"] = ordinal
+    d.update(kwargs)
+    return d
+
+
+class TestDreamShapeTripPdfContext:
+    def test_numbered_days_use_ordinals_not_dates(self):
+        docs = [
+            _dream_trip(),
+            _ordinal_item(1, "Arrive"),
+            _ordinal_item(3, "Market"),
+        ]
+        ctx = shape_trip_pdf_context(docs)
+        labels = [b["label"] for b in ctx["days"]]
+        assert labels == ["Day 1", "Day 2", "Day 3"]
+        assert ctx["days"][0]["items"][0]["title"] == "Arrive"
+        assert ctx["days"][1]["items"] == []
+        assert ctx["days"][2]["items"][0]["title"] == "Market"
+        assert all(b["date"] is None for b in ctx["days"])
+
+    def test_trip_day_title_is_appended_to_the_label(self):
+        docs = [
+            _dream_trip(),
+            {
+                "_id": "day:trip01:dream-002",
+                "type": "tripDay",
+                "ordinal": 2,
+                "title": "Onsen",
+            },
+            _ordinal_item(2, "Bath"),
+        ]
+        ctx = shape_trip_pdf_context(docs)
+        day_two = next(b for b in ctx["days"] if b.get("ordinal") == 2)
+        assert day_two["label"] == "Day 2 — Onsen"
+        assert day_two["items"][0]["title"] == "Bath"
+
+    def test_items_without_an_ordinal_are_unscheduled_even_with_a_stale_date(self):
+        docs = [
+            _dream_trip(),
+            _ordinal_item(1, "Planned"),
+            _item("2026-06-05", "Stale date"),
+        ]
+        ctx = shape_trip_pdf_context(docs)
+        blocks = [b for b in ctx["days"] if b.get("date") is None]
+        unscheduled = [b for b in blocks if b.get("ordinal") is None]
+        assert len(unscheduled) == 1
+        assert unscheduled[0]["label"] == "Unscheduled"
+        assert [i["title"] for i in unscheduled[0]["items"]] == ["Stale date"]
+        # A stale date must not manufacture a dated block on a dream plan.
+        assert not any(b.get("date") for b in ctx["days"])
+
+    def test_legacy_undated_trip_with_ordinals_is_grouped_as_a_dream_plan(self):
+        trip = {
+            "_id": "trip:01",
+            "type": "trip",
+            "title": "Someday",
+            "homeCurrency": "EUR",
+        }
+        ctx = shape_trip_pdf_context([trip, _ordinal_item(2, "Second day")])
+        assert [b["label"] for b in ctx["days"]] == ["Day 1", "Day 2"]
+        assert ctx["days"][1]["items"][0]["title"] == "Second day"
+
+    def test_cover_says_flexible_dates(self):
+        docs = [_dream_trip({"dreamDayCount": 2})]
+        ctx = shape_trip_pdf_context(docs)
+        assert ctx["cover"]["dateRange"] == "Flexible dates"
+        assert ctx["cover"]["dateRangeISO"] == ""
+
+    def test_cover_and_days_are_localised(self):
+        docs = [_dream_trip({"dreamDayCount": 2}), _ordinal_item(1, "Chegada")]
+        ctx = shape_trip_pdf_context(docs, lang="pt-BR")
+        assert ctx["cover"]["dateRange"] == "Datas flexíveis"
+        assert ctx["days"][0]["label"] == "Dia 1"
+
+    def test_rendered_html_prints_numbered_days(self):
+        docs = [_dream_trip({"dreamDayCount": 2}), _ordinal_item(2, "Market")]
+        html_page = render_trip_html(shape_trip_pdf_context(docs))
+        assert "Flexible dates" in html_page
+        assert "Day 2" in html_page
+        assert "Market" in html_page
+
 
 class TestLocalisedLabels:
     """

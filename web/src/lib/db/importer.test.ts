@@ -220,6 +220,50 @@ describe('parseAndPrepareTripImport', () => {
 		}
 	});
 
+	it('keeps numbered day ids and placements when importing a dream plan', () => {
+		const payload = {
+			trip: {
+				_id: 'trip:OLD',
+				type: 'trip',
+				title: 'Someday Japan',
+				dateMode: 'dream',
+				dreamDayCount: 2
+			},
+			documents: {
+				tripDay: [
+					{
+						_id: 'day:OLD:dream-002',
+						type: 'tripDay',
+						ordinal: 2,
+						weekdayHint: 6,
+						title: 'Onsen'
+					}
+				],
+				itineraryItem: [
+					{
+						_id: 'itin:OLD:1',
+						type: 'itineraryItem',
+						title: 'Bath',
+						dayOrdinal: 2
+					}
+				]
+			}
+		};
+
+		const { newTripId, tripDoc, preparedDocs } = parseAndPrepareTripImport(payload);
+		const uid = newTripId.split(':')[1];
+		const day = preparedDocs.find((doc) => doc.type === 'tripDay');
+		const item = preparedDocs.find((doc) => doc.type === 'itineraryItem');
+
+		expect(tripDoc.dateMode).toBe('dream');
+		expect(tripDoc.dreamDayCount).toBe(2);
+		expect(day?._id).toBe(`day:${uid}:dream-002`);
+		expect(day?.ordinal).toBe(2);
+		expect(day?.weekdayHint).toBe(6);
+		expect(item?.dayOrdinal).toBe(2);
+		expect(item?.date ?? null).toBeNull();
+	});
+
 	it('handles hand-crafted or un-nested JSON payloads gracefully', () => {
 		const simplePayload = {
 			title: 'Simple Trip',

@@ -5,7 +5,17 @@
 	import { resolve } from '$app/paths';
 	import { flights, itinerary, reservations, todayIso, trips } from '$lib/db';
 	import type { Flight, ItineraryItem, Reservation, Trip } from '$lib/db';
-	import { CalendarDays, Plus, Search, X, MapPin, Clock } from 'lucide-svelte';
+	import {
+		BedDouble,
+		CalendarDays,
+		CloudSun,
+		Plane,
+		Plus,
+		Search,
+		X,
+		MapPin,
+		Clock
+	} from 'lucide-svelte';
 	import { Button, EmptyState, ErrorState, Input, Skeleton } from '$lib/components/ui';
 	import ExportCalendarButton from '$lib/components/trip/ExportCalendarButton.svelte';
 	import {
@@ -18,6 +28,9 @@
 		WholeTripOverview,
 		dayItems
 	} from '$lib/components/itinerary';
+	import { dayKeyOf, toDayOption } from '$lib/components/itinerary/day-options';
+	import { isDreamTrip } from '$lib/db/date-mode';
+	import { formatWeekdayDate } from '$lib/format';
 	import { getTripShellContext } from '$lib/trip-context';
 	import { startLive } from '$lib/live';
 	import { t } from '$lib/i18n.svelte';
@@ -44,8 +57,9 @@
 	let resList = $state<Reservation[]>([]);
 	let today = $state(todayIso());
 
-	// `null` selection = the Unscheduled / Ideas bucket.
-	let selectedDate = $state<string | null>(null);
+	// `null` selection = the Unscheduled / Ideas bucket. Otherwise a day key:
+	// an ISO date on a dated trip, `dream-3` on a dream trip.
+	let selectedKey = $state<string | null>(null);
 	// Reactive, not a plain flag: the URL-sync effect below keys off it, and it
 	// has to wake up when the first load for a trip finishes initialising.
 	let initForId = $state('');
@@ -60,13 +74,13 @@
 
 	/** Apply the URL's view state once, when a trip is first shown. */
 	function initSelection(tl: NonNullable<typeof timeline>) {
-		const days = tl.days.map((d) => d.date as string);
-		const view = readItineraryParams(page.url.searchParams, days, today);
-		selectedDate = view.date;
+		const keys = tl.days.map((d) => d.key);
+		const view = readItineraryParams(page.url.searchParams, keys, today);
+		selectedKey = view.date;
 		viewMode = view.overview ? 'overview' : 'day';
 		itinerarySearch = view.query;
 		itineraryCategory = view.category;
-		if (view.item) openByUrlId(view.item, days);
+		if (view.item) openByUrlId(view.item, keys);
 	}
 
 	/**
@@ -77,11 +91,11 @@
 	 * An id that no longer names a live item is ignored; the URL-sync effect drops
 	 * it from the address bar on its first pass.
 	 */
-	function openByUrlId(itemId: string, days: string[]) {
+	function openByUrlId(itemId: string, keys: string[]) {
 		const target = allTripItems.find((item) => item._id === itemId);
 		if (!target) return;
-		const date = target.date ?? null;
-		if (date && days.includes(date)) selectedDate = date;
+		const key = dayKeyOf(target);
+		if (key && keys.includes(key)) selectedKey = key;
 		sheetMode = 'edit';
 		sheetItem = target;
 		sheetOpen = true;
@@ -128,7 +142,8 @@
 
 	onMount(() => startLive(() => loadAll(page.params.id ?? '')));
 
-	const dates = $derived(timeline ? timeline.days.map((d) => d.date as string) : []);
+	const dayKeys = $derived(timeline ? timeline.days.map((d) => d.key) : []);
+	const dayOptions = $derived(timeline ? timeline.days.map(toDayOption) : []);
 	const homeCurrency = $derived(trip?.homeCurrency ?? 'EUR');
 	const flightsById = $derived(new Map(flightList.map((f) => [f._id, f])));
 	const reservationsById = $derived(new Map(resList.map((r) => [r._id, r])));
@@ -144,14 +159,28 @@
 
 	const currentDay = $derived.by(() => {
 		if (!timeline) return null;
-		if (selectedDate === null) return timeline.unscheduled;
-		return timeline.days.find((d) => d.date === selectedDate) ?? timeline.days[0] ?? null;
+		if (selectedKey === null) return timeline.unscheduled;
+		return timeline.days.find((d) => d.key === selectedKey) ?? timeline.days[0] ?? null;
 	});
 
 	const currentDayItems = $derived(currentDay ? dayItems(currentDay) : []);
 	const selectedItemId = $derived(sheetOpen ? (sheetItem?._id ?? null) : null);
 
-	const selectedKey = $derived(selectedDate ?? 'ideas');
+	/** Identity for `{#key}`; `ideas` is a selection like any other. */
+	const activeKey = $derived(selectedKey ?? 'ideas');
+	const dream = $derived(trip ? isDreamTrip(trip) : false);
+
+	/*
+	 * A day can disappear under the selection: "Remove day" on the last dream
+	 * day, a re-date, or a live sync. Fall back to the first day rather than
+	 * leaving a strip with nothing selected and a stale `?date=` in the URL.
+	 */
+	$effect(() => {
+		if (!timeline) return;
+		if (selectedKey === null) return;
+		if (timeline.days.some((day) => day.key === selectedKey)) return;
+		selectedKey = timeline.days[0]?.key ?? null;
+	});
 	const links = $derived({
 		flights: resolve(`/trip/${id}/bookings?tab=flights`),
 		reservations: resolve(`/trip/${id}/bookings?tab=reservations`)
@@ -187,7 +216,7 @@
 	 */
 	$effect(() => {
 		const tid = id;
-		const date = selectedDate;
+		const date = selectedKey;
 		const overview = viewMode === 'overview';
 		const query = itinerarySearch;
 		const category = itineraryCategory;
@@ -230,7 +259,7 @@
 		});
 	});
 
-	const hasDays = $derived(dates.length > 0);
+	const hasDays = $derived(dayKeys.length > 0);
 
 	function reload() {
 		loadAll(id);
@@ -242,9 +271,9 @@
 		loadAll(id);
 	}
 
-	function openAdd(date: string | null = null) {
-		if (date !== null) {
-			selectedDate = date;
+	function openAdd(key: string | null = null) {
+		if (key !== null) {
+			selectedKey = key;
 		}
 		sheetMode = 'create';
 		sheetItem = null;
@@ -255,6 +284,37 @@
 		sheetMode = 'edit';
 		sheetItem = item;
 		sheetOpen = true;
+	}
+
+	/** The day badge a search result shows: a date, "Day 3", or Ideas. */
+	function itemDayLabel(item: ItineraryItem): string {
+		if (item.dayOrdinal != null) return t('day_n', { n: String(item.dayOrdinal) });
+		return item.date ?? t('ideas');
+	}
+
+	/*
+	 * Anchors on a dream trip: real-dated bookings that the flexible plan has to
+	 * be built around. They live on the Bookings tab, but the itinerary has to
+	 * show them — otherwise a plan looks free to start any day while a flight
+	 * already fixes one.
+	 */
+	function flightAnchorLabel(flight: Flight): string {
+		const segment = flight.segments[0];
+		const from = segment?.from?.code ?? segment?.from?.city ?? '';
+		const to = segment?.to?.code ?? segment?.to?.city ?? '';
+		return [t('flight'), segment?.flightNumber ?? '', from && to ? `${from} → ${to}` : '']
+			.filter(Boolean)
+			.join(' ');
+	}
+
+	function flightAnchorDate(flight: Flight): string {
+		return formatWeekdayDate(flight.segments[0]?.departLocal?.slice(0, 10) ?? null);
+	}
+
+	function reservationAnchorDate(reservation: Reservation): string {
+		return formatWeekdayDate(
+			reservation.start?.slice(0, 10) ?? reservation.end?.slice(0, 10) ?? null
+		);
 	}
 
 	/** Close the inspector and drop `?item=` through the URL-sync effect. */
@@ -283,15 +343,15 @@
 	 */
 	function stepDay(direction: 1 | -1) {
 		if (!hasDays) return;
-		const keys: (string | null)[] = ideasCount > 0 ? [...dates, null] : dates;
-		const index = keys.findIndex((key) => key === selectedDate);
+		const keys: (string | null)[] = ideasCount > 0 ? [...dayKeys, null] : dayKeys;
+		const index = keys.findIndex((key) => key === selectedKey);
 		if (index < 0) {
-			selectedDate = keys[0] ?? null;
+			selectedKey = keys[0] ?? null;
 			return;
 		}
 		const next = index + direction;
 		if (next < 0 || next >= keys.length) return;
-		selectedDate = keys[next];
+		selectedKey = keys[next];
 	}
 
 	/*
@@ -315,12 +375,12 @@
 	let swallowTimer = 0;
 
 	function daySwipeKeys(): (string | null)[] {
-		return ideasCount > 0 ? [...dates, null] : dates;
+		return ideasCount > 0 ? [...dayKeys, null] : dayKeys;
 	}
 
 	function canStep(direction: SwipeDirection): boolean {
 		const keys = daySwipeKeys();
-		const index = keys.findIndex((key) => key === selectedDate);
+		const index = keys.findIndex((key) => key === selectedKey);
 		if (index < 0) return false;
 		const next = index + (direction === 'left' ? 1 : -1);
 		return next >= 0 && next < keys.length;
@@ -447,7 +507,7 @@
 				break;
 			case 'new-item':
 				event.preventDefault();
-				openAdd(selectedDate);
+				openAdd(selectedKey);
 				break;
 			default:
 				break;
@@ -463,11 +523,11 @@
 
 {#snippet dayTimeline()}
 	{#if currentDay}
-		{#key selectedKey}
+		{#key activeKey}
 			<ItineraryDay
 				day={currentDay}
 				tripId={id}
-				{dates}
+				days={dayOptions}
 				destinations={trip?.destinations ?? []}
 				{homeCurrency}
 				travelerCount={trip?.travelerCount ?? 1}
@@ -518,7 +578,7 @@
 								<span
 									class="rounded bg-primary-100 px-2 py-0.5 text-xs font-semibold text-primary-700"
 								>
-									{itm.date || t('ideas')}
+									{itemDayLabel(itm)}
 								</span>
 								{#if itm.startTime}
 									<span class="flex items-center gap-1 text-xs text-ink-muted">
@@ -561,7 +621,13 @@
 		<ErrorState title={t('could_not_load_itinerary')} onretry={retry} />
 	{:else if !hasDays && ideasCount === 0}
 		<EmptyState icon={CalendarDays} title={t('lets_plan_days')} description={t('plan_days_desc')}>
-			<Button onclick={shell.openEditor}>{t('set_trip_dates')}</Button>
+			{#if trip}
+				<Button onclick={shell.openDates}>
+					{dream ? t('set_dates_title') : t('set_trip_dates')}
+				</Button>
+			{:else}
+				<Button onclick={shell.openEditor}>{t('set_trip_dates')}</Button>
+			{/if}
 		</EmptyState>
 	{:else}
 		<div class="space-y-5">
@@ -569,11 +635,11 @@
 				{#if viewMode === 'day' && hasDays && !wide}
 					<div class="w-full min-w-0 sm:flex-1">
 						<DateStrip
-							{dates}
-							selected={selectedDate}
+							days={dayOptions}
+							selected={selectedKey}
 							{today}
 							{ideasCount}
-							onselect={(d) => (selectedDate = d)}
+							onselect={(key) => (selectedKey = key)}
 						/>
 					</div>
 				{:else if viewMode === 'overview'}
@@ -582,6 +648,21 @@
 
 				<div class="flex shrink-0 items-center justify-between gap-2 sm:justify-end">
 					{#if trip}
+						<Button
+							variant="secondary"
+							size="sm"
+							class="px-2 sm:px-3.5"
+							aria-label={dream ? t('set_dates_title') : t('change_dates')}
+							onclick={shell.openDates}
+						>
+							<CalendarDays class="size-4" aria-hidden="true" />
+							<span class="hidden sm:inline"
+								>{dream ? t('set_dates_title') : t('change_dates')}</span
+							>
+						</Button>
+					{/if}
+
+					{#if trip && !dream}
 						<ExportCalendarButton
 							{trip}
 							items={allTripItems}
@@ -620,6 +701,47 @@
 					</div>
 				</div>
 			</div>
+
+			{#if dream && (flightList.length > 0 || resList.length > 0)}
+				<div class="rounded-xl border border-accent-terracotta/40 bg-accent-terracotta/5 p-3">
+					<div class="flex flex-wrap items-start justify-between gap-2">
+						<div class="flex items-start gap-2">
+							<CloudSun class="mt-0.5 size-4 shrink-0 text-accent-terracotta" aria-hidden="true" />
+							<div>
+								<p class="text-sm font-semibold text-ink">{t('anchored_bookings')}</p>
+								<p class="text-xs text-ink-muted">{t('anchored_bookings_desc')}</p>
+							</div>
+						</div>
+						<Button variant="ghost" size="sm" href={links.flights}>{t('view_bookings')}</Button>
+					</div>
+					<ul class="mt-2 flex flex-wrap gap-1.5">
+						{#each flightList as flight (flight._id)}
+							<li
+								class="inline-flex items-center gap-1.5 rounded-full border border-border bg-surface px-2.5 py-1 text-xs text-ink-muted"
+							>
+								<Plane class="size-3 shrink-0" aria-hidden="true" />
+								<span class="font-medium text-ink">{flightAnchorLabel(flight)}</span>
+								{#if flightAnchorDate(flight)}
+									<span>· {flightAnchorDate(flight)}</span>
+								{/if}
+							</li>
+						{/each}
+						{#each resList as reservation (reservation._id)}
+							<li
+								class="inline-flex items-center gap-1.5 rounded-full border border-border bg-surface px-2.5 py-1 text-xs text-ink-muted"
+							>
+								<BedDouble class="size-3 shrink-0" aria-hidden="true" />
+								<span class="font-medium text-ink"
+									>{reservation.name ?? t('label_reservation')}</span
+								>
+								{#if reservationAnchorDate(reservation)}
+									<span>· {reservationAnchorDate(reservation)}</span>
+								{/if}
+							</li>
+						{/each}
+					</ul>
+				</div>
+			{/if}
 
 			<!-- Itinerary Search & Category Quick Filters -->
 			<div
@@ -678,9 +800,9 @@
 					<DayRail
 						days={timeline.days}
 						unscheduled={timeline.unscheduled}
-						selected={selectedDate}
+						selected={selectedKey}
 						{today}
-						onselect={(d) => (selectedDate = d)}
+						onselect={(key) => (selectedKey = key)}
 					/>
 
 					<div class="min-w-0 space-y-4">
@@ -710,8 +832,8 @@
 						mode={sheetMode}
 						tripId={id}
 						item={sheetItem}
-						defaultDate={selectedDate}
-						{dates}
+						defaultDayKey={selectedKey}
+						days={dayOptions}
 						flights={flightList}
 						reservations={resList}
 						{homeCurrency}
@@ -756,7 +878,7 @@
 						{homeCurrency}
 						{links}
 						onedit={openEdit}
-						onaddactivity={(date) => openAdd(date)}
+						onaddactivity={(key) => openAdd(key)}
 					/>
 				{/if}
 			{/if}
@@ -786,8 +908,8 @@
 		mode={sheetMode}
 		tripId={id}
 		item={sheetItem}
-		defaultDate={selectedDate}
-		{dates}
+		defaultDayKey={selectedKey}
+		days={dayOptions}
 		flights={flightList}
 		reservations={resList}
 		{homeCurrency}

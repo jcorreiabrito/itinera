@@ -323,6 +323,25 @@ def _safe_date(value: str | None) -> date | None:
         return None
 
 
+def _item_ordinal(item: dict[str, Any]) -> int | None:
+    """The numbered-day position of an itinerary item, when it has one."""
+    raw = item.get("dayOrdinal")
+    return raw if isinstance(raw, int) and raw > 0 else None
+
+
+def _trip_day_ordinal(day_doc: dict[str, Any]) -> int | None:
+    """The numbered-day position of a TripDay document.
+
+    Normally stored as `ordinal`; older documents may only carry it in the
+    `dream-###` suffix of their `_id`.
+    """
+    raw = day_doc.get("ordinal")
+    if isinstance(raw, int) and raw > 0:
+        return raw
+    match = re.search(r":dream-(\d+)$", str(day_doc.get("_id") or ""))
+    return int(match.group(1)) if match else None
+
+
 def _date_range(start: str | None, end: str | None) -> list[str]:
     try:
         start_d = date.fromisoformat(start) if start else None
@@ -386,33 +405,94 @@ def shape_trip_pdf_context(
         return [d for d in grouped.get(key, []) if not d.get("deletedAt")]
 
     # --- Itinerary grouped by day ---
+    #
+    # A dream trip has no calendar dates: its days are numbered positions
+    # (`dayOrdinal`), optionally titled by a `tripDay` document. Legacy undated
+    # trips adopt the same shape when their items already carry ordinals, so an
+    # old export still prints as a plan rather than a pile of unscheduled items.
     items = _active("itineraryItem")
-    by_day: dict[str, list[dict[str, Any]]] = {}
     for item in items:
-        by_day.setdefault(item.get("date") or "__unscheduled__", []).append(item)
-    for day_items in by_day.values():
-        day_items.sort(key=lambda x: (x.get("order") or 0, x.get("startTime") or ""))
-        for item in day_items:
-            # Labelled only where there IS a category: falling through to the
-            # "Other" default would put a chip on every uncategorised item.
-            if item.get("category"):
-                item["category_label"] = _term_label(item["category"], effective_lang, i18n_dict)
+        # Labelled only where there IS a category: falling through to the
+        # "Other" default would put a chip on every uncategorised item.
+        if item.get("category"):
+            item["category_label"] = _term_label(item["category"], effective_lang, i18n_dict)
 
     ordered = _date_range(trip.get("startDate"), trip.get("endDate"))
-    seen = set(ordered)
+    has_ordinals = any(_item_ordinal(item) is not None for item in items)
+    is_dream = trip.get("dateMode") == "dream" or (not ordered and has_ordinals)
+
     day_blocks: list[dict[str, Any]] = []
-    for d in ordered:
-        lbl = _format_day_label(_safe_date(d), d, effective_lang)
-        day_blocks.append({"date": d, "label": lbl, "items": by_day.get(d, [])})
+    if is_dream:
+        by_ordinal: dict[int, list[dict[str, Any]]] = {}
+        unscheduled_items: list[dict[str, Any]] = []
+        for item in items:
+            ordinal = _item_ordinal(item)
+            if ordinal is None:
+                unscheduled_items.append(item)
+            else:
+                by_ordinal.setdefault(ordinal, []).append(item)
+        for day_items in by_ordinal.values():
+            day_items.sort(key=lambda x: (x.get("order") or 0, x.get("startTime") or ""))
 
-    for d in sorted(k for k in by_day if k != "__unscheduled__" and k not in seen):
-        lbl = _format_day_label(_safe_date(d), d, effective_lang)
-        day_blocks.append({"date": d, "label": lbl, "items": by_day[d]})
+        day_titles: dict[int, str] = {}
+        for day_doc in _active("tripDay"):
+            ordinal = _trip_day_ordinal(day_doc)
+            title = day_doc.get("title")
+            if ordinal is not None and isinstance(title, str) and title.strip():
+                day_titles[ordinal] = title.strip()
 
-    if "__unscheduled__" in by_day:
-        day_blocks.append(
-            {"date": None, "label": i18n_dict["unscheduled"], "items": by_day["__unscheduled__"]}
+        try:
+            configured_count = int(trip.get("dreamDayCount") or 0)
+        except (TypeError, ValueError):
+            configured_count = 0
+        total_days = max(
+            configured_count, max(by_ordinal, default=0), max(day_titles, default=0), 1
         )
+        for ordinal in range(1, total_days + 1):
+            label = i18n_dict["day_n"].format(n=ordinal)
+            title = day_titles.get(ordinal)
+            if title:
+                label = f"{label} — {title}"
+            day_blocks.append(
+                {
+                    "date": None,
+                    "ordinal": ordinal,
+                    "title": title,
+                    "label": label,
+                    "items": by_ordinal.get(ordinal, []),
+                }
+            )
+
+        if unscheduled_items:
+            unscheduled_items.sort(key=lambda x: (x.get("order") or 0, x.get("startTime") or ""))
+            day_blocks.append(
+                {
+                    "date": None,
+                    "ordinal": None,
+                    "label": i18n_dict["unscheduled"],
+                    "items": unscheduled_items,
+                }
+            )
+    else:
+        by_day: dict[str, list[dict[str, Any]]] = {}
+        for item in items:
+            by_day.setdefault(item.get("date") or "__unscheduled__", []).append(item)
+        for day_items in by_day.values():
+            day_items.sort(key=lambda x: (x.get("order") or 0, x.get("startTime") or ""))
+
+        seen = set(ordered)
+        for d in ordered:
+            lbl = _format_day_label(_safe_date(d), d, effective_lang)
+            day_blocks.append({"date": d, "label": lbl, "items": by_day.get(d, [])})
+
+        for d in sorted(k for k in by_day if k != "__unscheduled__" and k not in seen):
+            lbl = _format_day_label(_safe_date(d), d, effective_lang)
+            day_blocks.append({"date": d, "label": lbl, "items": by_day[d]})
+
+        if "__unscheduled__" in by_day:
+            day_blocks.append(
+                {"date": None, "label": i18n_dict["unscheduled"], "items": by_day["__unscheduled__"]}
+            )
 
     # --- Flights & reservations ---
     flights = sorted(_active("flight"), key=lambda x: x.get("order") or 0)
@@ -668,12 +748,18 @@ def shape_trip_pdf_context(
     cover = {
         "title": (raw_title.strip() if isinstance(raw_title, str) else "")
         or i18n_dict["untitled_trip"],
-        "dateRange": _cover_date_range(raw_start, raw_end, effective_lang),
+        "dateRange": (
+            i18n_dict["flexible_dates"]
+            if is_dream
+            else _cover_date_range(raw_start, raw_end, effective_lang)
+        ),
         # Machine-readable twin of the printed line, so a screen reader or a
         # parser gets the dates the way they are stored, not only the way they
-        # are worded.
+        # are worded. A dream plan has no range to report.
         "dateRangeISO": (
-            f"{raw_start}/{raw_end}" if raw_start and raw_end else raw_start or raw_end or ""
+            ""
+            if is_dream
+            else (f"{raw_start}/{raw_end}" if raw_start and raw_end else raw_start or raw_end or "")
         ),
         "destinations": destinations,
         "travelerCount": traveler_count,

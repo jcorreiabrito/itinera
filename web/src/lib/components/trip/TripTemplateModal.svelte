@@ -69,8 +69,8 @@
 			const chosen = selectedTemplate;
 			const trip = await trips.create({
 				title: chosen.name,
-				startDate: '',
-				endDate: '',
+				dateMode: 'dream',
+				dreamDayCount: 1,
 				homeCurrency: 'EUR',
 				destinations: chosen.destination ? [{ name: chosen.destination }] : [],
 				notes: t('created_from_template_note', { name: chosen.name })

@@ -10,7 +10,7 @@
 import { ulid } from 'ulid';
 import { bulkPut, getDoc, listTripDocs, nowIso } from './base';
 import { SCHEMA_VERSION, TRIP_CHILD_TYPES } from './constants';
-import { bareTripUid, fullTripid, parseId } from './ids';
+import { bareTripUid, dreamDayId, fullTripid, parseId } from './ids';
 import type { AnyDoc, Trip } from './schemas';
 
 export interface ImportResult {
@@ -160,8 +160,13 @@ export function parseAndPrepareTripImport(payload: unknown): {
 			newId = newTripId;
 			raw.type = 'trip';
 		} else if (type === 'tripDay') {
-			const datePart = typeof raw.date === 'string' && raw.date ? raw.date : 'undated';
-			newId = `day:${newTripUid}:${datePart}`;
+			const ordinal = typeof raw.ordinal === 'number' ? raw.ordinal : null;
+			if (ordinal != null) {
+				newId = dreamDayId(newTripUid, ordinal);
+			} else {
+				const datePart = typeof raw.date === 'string' && raw.date ? raw.date : 'undated';
+				newId = `day:${newTripUid}:${datePart}`;
+			}
 			raw.type = 'tripDay';
 		} else {
 			newId = `${prefix}:${newTripUid}:${ulid()}`;
@@ -244,7 +249,7 @@ export async function importTripToLocalDb(payload: unknown): Promise<ImportResul
 	};
 }
 
-function normalizeDocForCompare(doc: Record<string, unknown>): Record<string, unknown> {
+export function normalizeDocForCompare(doc: Record<string, unknown>): Record<string, unknown> {
 	const clone = { ...doc };
 	delete clone._rev;
 	delete clone.createdAt;
@@ -359,8 +364,13 @@ export function parseAndPrepareTripUpdateDocs(
 			}
 			raw.type = type;
 		} else if (type === 'tripDay') {
-			const datePart = typeof raw.date === 'string' && raw.date ? raw.date : 'undated';
-			newId = `day:${targetTripUid}:${datePart}`;
+			const ordinal = typeof raw.ordinal === 'number' ? raw.ordinal : null;
+			if (ordinal != null) {
+				newId = dreamDayId(targetTripUid, ordinal);
+			} else {
+				const datePart = typeof raw.date === 'string' && raw.date ? raw.date : 'undated';
+				newId = `day:${targetTripUid}:${datePart}`;
+			}
 			raw.type = 'tripDay';
 		} else {
 			newId = `${prefix}:${targetTripUid}:${ulid()}`;
@@ -433,6 +443,12 @@ export interface TripUpdateDiff {
 	unchanged: AnyDoc[];
 	isNoOp: boolean;
 	readyToSaveDocs: AnyDoc[];
+	/** Plan items the template no longer places; they move to Ideas. */
+	movedToIdeas?: AnyDoc[];
+	/** Stale day documents removed after the write (never user content). */
+	purgeIds?: string[];
+	/** Write everything in one batch, trip document last. */
+	apply?: () => Promise<void>;
 }
 
 export async function prepareTripUpdateDiff(

@@ -32,10 +32,10 @@
 	import type { Flight, ItineraryItem, Reservation, ExpenseCategory } from '$lib/db';
 	import { Button, Field, Input, Select, Textarea, toast } from '$lib/components/ui';
 	import { Trash2, Wallet, Plus, Search, MapPin, Loader2 } from 'lucide-svelte';
-	import { DateTime } from 'luxon';
 	import { t } from '$lib/i18n.svelte';
 	import { isDirty, snapshot } from '$lib/utils/form-dirty';
 	import { CATEGORY_ORDER, CATEGORY_META } from './categories';
+	import { dayKeyOf, dayOptionLabel, placementFromDayKey, type DayOption } from './day-options';
 	import {
 		CATEGORY_ORDER as EXPENSE_CATEGORY_ORDER,
 		CATEGORY_META as EXPENSE_CATEGORY_META
@@ -57,10 +57,10 @@
 		/** Bare trip ULID. */
 		tripId: string;
 		item?: ItineraryItem | null;
-		/** Default day for a new item (`null` = Unscheduled). */
-		defaultDate?: string | null;
-		/** Trip days (ISO) for the day picker. */
-		dates: string[];
+		/** Default day key for a new item (`null` = Unscheduled). */
+		defaultDayKey?: string | null;
+		/** The trip's days, dated or numbered, for the day picker. */
+		days: DayOption[];
 		flights?: Flight[];
 		reservations?: Reservation[];
 		/** Home currency, used for the optional estimated cost. */
@@ -80,8 +80,8 @@
 		mode = 'create',
 		tripId,
 		item = null,
-		defaultDate = null,
-		dates,
+		defaultDayKey = null,
+		days,
 		flights = [],
 		reservations = [],
 		homeCurrency = 'EUR',
@@ -97,7 +97,7 @@
 
 	interface FormState {
 		title: string;
-		date: string; // '' = Unscheduled
+		dayKey: string; // '' = Unscheduled
 		allDay: boolean;
 		startTime: string;
 		endTime: string;
@@ -136,7 +136,7 @@
 	function blankForm(): FormState {
 		return {
 			title: '',
-			date: defaultDate ?? '',
+			dayKey: defaultDayKey ?? '',
 			allDay: false,
 			startTime: '',
 			endTime: '',
@@ -231,7 +231,7 @@
 		if (mode === 'edit' && item) {
 			form = {
 				title: item.title ?? '',
-				date: item.date ?? '',
+				dayKey: dayKeyOf(item) ?? '',
 				allDay: item.allDay ?? false,
 				startTime: timeOf(item.startTime ?? ''),
 				endTime: timeOf(item.endTime ?? ''),
@@ -268,7 +268,7 @@
 	 * on another day means a form for that day.
 	 */
 	const selectionToken = $derived(
-		mode === 'create' ? `create:${defaultDate ?? ''}` : `edit:${item?._id ?? 'new'}`
+		mode === 'create' ? `create:${defaultDayKey ?? ''}` : `edit:${item?._id ?? 'new'}`
 	);
 
 	let loadedToken = '';
@@ -292,11 +292,6 @@
 		if (!active) return;
 		dirty = dirtyNow;
 	});
-
-	function dayLabel(iso: string): string {
-		const dt = DateTime.fromISO(iso);
-		return dt.isValid ? dt.toFormat('ccc d LLL') : iso;
-	}
 
 	function flightLabel(f: Flight): string {
 		const segs = f.segments ?? [];
@@ -371,9 +366,12 @@
 		const hasCosts = form.costs.length > 0;
 		const cost = hasCosts ? totalCostsSum : form.estCost.trim() ? Number(form.estCost) : undefined;
 
+		const placement = placementFromDayKey(form.dayKey);
+
 		return {
 			title: form.title.trim(),
-			date: form.date ? form.date : null,
+			date: placement.date,
+			dayOrdinal: placement.dayOrdinal,
 			allDay: form.allDay,
 			startTime: form.allDay ? undefined : form.startTime || undefined,
 			endTime: form.allDay ? undefined : form.endTime || undefined,
@@ -488,15 +486,15 @@
 		/>
 	</Field>
 
-	<Field label={t('label_day')} for={fid('date')} hint={t('day_field_hint')}>
+	<Field label={t('label_day')} for={fid('day')} hint={t('day_field_hint')}>
 		<Select
-			id={fid('date')}
-			value={form.date}
-			onchange={(e) => (form.date = e.currentTarget.value)}
+			id={fid('day')}
+			value={form.dayKey}
+			onchange={(e) => (form.dayKey = e.currentTarget.value)}
 		>
 			<option value="">{t('unscheduled_ideas')}</option>
-			{#each dates as date (date)}
-				<option value={date}>{dayLabel(date)}</option>
+			{#each days as day (day.key)}
+				<option value={day.key}>{dayOptionLabel(day)}</option>
 			{/each}
 		</Select>
 	</Field>

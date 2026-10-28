@@ -4,6 +4,7 @@
 	import { Button, Dialog } from '$lib/components/ui';
 	import { t } from '$lib/i18n.svelte';
 	import ItineraryItemForm from './ItineraryItemForm.svelte';
+	import type { DayOption } from './day-options';
 
 	/*
 	 * The wide workspace's right pane: the editor docked beside the plan.
@@ -20,9 +21,9 @@
 		/** Bare trip ULID. */
 		tripId: string;
 		item: ItineraryItem | null;
-		/** Default day for a new item (`null` = Unscheduled). */
-		defaultDate: string | null;
-		dates: string[];
+		/** Default day key for a new item (`null` = Unscheduled). */
+		defaultDayKey: string | null;
+		days: DayOption[];
 		flights?: Flight[];
 		reservations?: Reservation[];
 		homeCurrency?: string;
@@ -38,8 +39,8 @@
 		mode,
 		tripId,
 		item,
-		defaultDate,
-		dates,
+		defaultDayKey,
+		days,
 		flights = [],
 		reservations = [],
 		homeCurrency = 'EUR',
@@ -117,8 +118,8 @@
 				{mode}
 				{tripId}
 				{item}
-				{defaultDate}
-				{dates}
+				{defaultDayKey}
+				{days}
 				{flights}
 				{reservations}
 				{homeCurrency}

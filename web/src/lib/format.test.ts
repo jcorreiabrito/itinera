@@ -17,6 +17,7 @@ vi.mock('$lib/i18n.svelte', () => ({
 
 import {
 	formatDateRange,
+	tripRangeLabel,
 	formatWeekdayDate,
 	formatDate,
 	formatTime,
@@ -52,6 +53,36 @@ describe('formatDateRange', () => {
 	it('shows single date when only start is provided', () => {
 		const result = formatDateRange('2026-06-01', null);
 		expect(result).toContain('Jun');
+	});
+});
+
+describe('tripRangeLabel', () => {
+	it('labels a dream trip with its numbered days instead of dates', () => {
+		expect(
+			tripRangeLabel({
+				dateMode: 'dream',
+				startDate: undefined,
+				endDate: undefined,
+				dreamDayCount: 5
+			})
+		).toBe('dream_range'.replace('{n}', '5'));
+	});
+
+	it('falls back to at least one day for a legacy undated trip', () => {
+		expect(tripRangeLabel({ dateMode: undefined, startDate: undefined, endDate: undefined })).toBe(
+			'dream_range'.replace('{n}', '1')
+		);
+	});
+
+	it('delegates to the calendar range for a dated trip', () => {
+		expect(
+			tripRangeLabel({
+				dateMode: 'dated',
+				startDate: '2026-06-01',
+				endDate: '2026-06-10',
+				dreamDayCount: 9
+			})
+		).toBe(formatDateRange('2026-06-01', '2026-06-10'));
 	});
 });
 

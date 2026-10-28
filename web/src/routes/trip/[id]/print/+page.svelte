@@ -32,7 +32,7 @@
 	import { getLanguage, setLanguage, t } from '$lib/i18n.svelte';
 	import type { Language, TranslationKey } from '$lib/i18n.svelte';
 	import { ErrorState, Select, Skeleton } from '$lib/components/ui';
-	import { flagEmoji, formatDateRange, formatMoney } from '$lib/format';
+	import { flagEmoji, formatMoney, tripRangeLabel } from '$lib/format';
 	import { renderMarkdown } from '$lib/markdown';
 	import { DateTime } from 'luxon';
 	import { ArrowLeft, Download, Printer } from 'lucide-svelte';
@@ -282,10 +282,17 @@
 		return groups;
 	});
 
-	function dayLabel(date: string | null, title?: string): string {
-		if (!date) return t('unscheduled_ideas');
-		const dt = DateTime.fromISO(date, { locale: getLanguage() });
-		const formatted = dt.isValid ? dt.toFormat('cccc, d LLLL yyyy') : date;
+	function dayLabel(day: itinerary.DayTimeline): string {
+		let formatted: string;
+		if (day.date) {
+			const dt = DateTime.fromISO(day.date, { locale: getLanguage() });
+			formatted = dt.isValid ? dt.toFormat('cccc, d LLLL yyyy') : day.date;
+		} else if (day.ordinal != null) {
+			formatted = t('day_n', { n: String(day.ordinal) });
+		} else {
+			formatted = t('unscheduled_ideas');
+		}
+		const title = day.day?.title;
 		return title ? `${formatted} — ${title}` : formatted;
 	}
 
@@ -479,9 +486,7 @@
 						<div>
 							<dt class="text-xs uppercase tracking-wide text-ink-muted">{t('dates')}</dt>
 							<dd class="font-medium">
-								{trip.startDate || trip.endDate
-									? formatDateRange(trip.startDate, trip.endDate)
-									: t('no_dates_yet')}
+								{trip.startDate || trip.endDate ? tripRangeLabel(trip) : t('no_dates_yet')}
 							</dd>
 						</div>
 						<div>
@@ -494,7 +499,7 @@
 						</div>
 						<div>
 							<dt class="text-xs uppercase tracking-wide text-ink-muted">{t('days')}</dt>
-							<dd class="font-medium">{days.filter((d) => d.date).length}</dd>
+							<dd class="font-medium">{days.length}</dd>
 						</div>
 					</dl>
 				</header>
@@ -538,9 +543,7 @@
 					<div>
 						<dt class="text-xs uppercase tracking-wide text-ink-muted">{t('dates')}</dt>
 						<dd class="font-medium">
-							{trip.startDate || trip.endDate
-								? formatDateRange(trip.startDate, trip.endDate)
-								: t('no_dates_yet')}
+							{trip.startDate || trip.endDate ? tripRangeLabel(trip) : t('no_dates_yet')}
 						</dd>
 					</div>
 					<div>
@@ -553,7 +556,7 @@
 					</div>
 					<div>
 						<dt class="text-xs uppercase tracking-wide text-ink-muted">{t('days')}</dt>
-						<dd class="font-medium">{days.filter((d) => d.date).length}</dd>
+						<dd class="font-medium">{days.length}</dd>
 					</div>
 				</dl>
 			</header>
@@ -714,10 +717,10 @@
 			<section id="print-itinerary" class="mt-8" class:page-break={startsPage('itinerary')}>
 				<h2 class="font-serif text-xl font-semibold">{t('itinerary')}</h2>
 				<div class="mt-3 space-y-5">
-					{#each days as day (day.date)}
+					{#each days as day (day.key)}
 						<div class="break-inside-avoid">
 							<h3 class="border-b border-border pb-1 font-serif text-base font-semibold">
-								{dayLabel(day.date, day.day?.title)}
+								{dayLabel(day)}
 							</h3>
 							{#if day.day?.notes}
 								<div class="mt-1 text-xs text-ink-muted">

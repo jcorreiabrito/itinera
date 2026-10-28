@@ -1,31 +1,26 @@
 <script lang="ts">
 	import { Lightbulb, Check } from 'lucide-svelte';
-	import { DateTime } from 'luxon';
 	import { Dialog } from '$lib/components/ui';
 	import { t } from '$lib/i18n.svelte';
 	import { cn } from '$lib/utils';
+	import { dayOptionLabel, type DayOption } from './day-options';
 
 	interface Props {
 		open?: boolean;
-		/** Trip dates (ISO) to choose from. */
-		dates: string[];
-		/** The item's current date ('null' = Unscheduled). */
+		/** The trip's days, dated or numbered. */
+		days: DayOption[];
+		/** The item's current day key ('null' = Unscheduled). */
 		current: string | null;
 		/** Item title, for the dialog description. */
 		title?: string;
-		onmove: (date: string | null) => void;
+		onmove: (key: string | null) => void;
 	}
 
-	let { open = $bindable(false), dates, current, title, onmove }: Props = $props();
+	let { open = $bindable(false), days, current, title, onmove }: Props = $props();
 
-	function label(iso: string): string {
-		const dt = DateTime.fromISO(iso);
-		return dt.isValid ? dt.toFormat('ccc d LLL') : iso;
-	}
-
-	function choose(date: string | null) {
+	function choose(key: string | null) {
 		open = false;
-		if (date !== current) onmove(date);
+		if (key !== current) onmove(key);
 	}
 
 	const rowClass = (active: boolean) =>
@@ -52,11 +47,11 @@
 				{#if current === null}<Check class="size-4" />{/if}
 			</button>
 		</li>
-		{#each dates as date (date)}
+		{#each days as day (day.key)}
 			<li>
-				<button type="button" class={rowClass(current === date)} onclick={() => choose(date)}>
-					<span>{label(date)}</span>
-					{#if current === date}<Check class="size-4" />{/if}
+				<button type="button" class={rowClass(current === day.key)} onclick={() => choose(day.key)}>
+					<span>{dayOptionLabel(day)}</span>
+					{#if current === day.key}<Check class="size-4" />{/if}
 				</button>
 			</li>
 		{/each}

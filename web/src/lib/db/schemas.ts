@@ -212,6 +212,14 @@ export const tripSchema = z
 		destinations: z.array(destinationSchema).default([]),
 		startDate: z.string().optional(),
 		endDate: z.string().optional(),
+		/**
+		 * How the trip's day list is defined. Absent means "infer": a trip with
+		 * both dates is dated, a trip with neither is a dream. Storing it
+		 * explicitly once the user chooses avoids re-deriving from partial data.
+		 */
+		dateMode: z.enum(['dated', 'dream']).optional(),
+		/** Number of numbered days on a dream trip (the authoritative length). */
+		dreamDayCount: z.number().int().min(1).max(366).optional(),
 		primaryTimezone: z.string().optional(),
 		archived: z.boolean().default(false),
 		archivedAt: z.string().nullable().optional(),
@@ -231,6 +239,10 @@ export const tripDaySchema = z
 		...baseShape,
 		type: z.literal('tripDay'),
 		date: z.string().optional(),
+		/** Dream-plan position. Dated day docs leave this absent. */
+		ordinal: z.number().int().min(1).optional(),
+		/** Soft weekday wish, 1 = Monday … 7 = Sunday. Dream mode only. */
+		weekdayHint: z.number().int().min(1).max(7).nullable().optional(),
 		title: z.string().optional(),
 		notes: z.string().optional()
 	})
@@ -252,6 +264,8 @@ export const itineraryItemSchema = z
 		...baseShape,
 		type: z.literal('itineraryItem'),
 		date: z.string().nullable().optional(),
+		/** Dream-plan position. Mutually exclusive with `date` in stored data. */
+		dayOrdinal: z.number().int().min(1).nullable().optional(),
 		allDay: z.boolean().default(false),
 		startTime: z.string().optional(),
 		endTime: z.string().optional(),

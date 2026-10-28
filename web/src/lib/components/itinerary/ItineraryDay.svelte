@@ -1,7 +1,7 @@
 <script lang="ts">
 	import { onDestroy, tick } from 'svelte';
 	import type { ResolvedPathname } from '$app/types';
-	import { checklist, itinerary, trash } from '$lib/db';
+	import { checklist, itinerary, trash, trips } from '$lib/db';
 	import type {
 		ChecklistItem,
 		Destination,
@@ -17,12 +17,12 @@
 		ListChecks,
 		ListTodo,
 		MapPin,
+		Minus,
 		Pencil,
 		Plus,
 		Sparkles,
 		Star
 	} from 'lucide-svelte';
-	import { DateTime } from 'luxon';
 	import { Badge, Button, Dialog, Field, Input, Select, Textarea, toast } from '$lib/components/ui';
 	import { flagEmoji, formatMoney, formatWeekdayDate } from '$lib/format';
 	import { getDestinationForDate } from '$lib/destinations';
@@ -42,8 +42,10 @@
 		type DayWeather,
 		type WeatherForecast
 	} from '$lib/utils/weather';
-	import { t } from '$lib/i18n.svelte';
+	import { getLanguage, t } from '$lib/i18n.svelte';
+	import { weekdayShortName } from '$lib/db/date-mode';
 	import { CATEGORY_META, CATEGORY_ORDER } from './categories';
+	import { dayKeyOf, dayOptionLabel, placementFromDayKey, type DayOption } from './day-options';
 	import TimelineEntryRow from './TimelineEntryRow.svelte';
 	import MoveToDayDialog from './MoveToDayDialog.svelte';
 	import DayFeasibility from './DayFeasibility.svelte';
@@ -67,8 +69,8 @@
 		day: itinerary.DayTimeline;
 		/** Bare trip ULID. */
 		tripId: string;
-		/** Trip days (ISO) for move-to-day. */
-		dates: string[];
+		/** The trip's days, dated or numbered, for move-to-day. */
+		days: DayOption[];
 		destinations?: Destination[];
 		homeCurrency?: string;
 		travelerCount?: number;
@@ -84,7 +86,7 @@
 	let {
 		day,
 		tripId,
-		dates,
+		days,
 		destinations = [],
 		homeCurrency = 'EUR',
 		travelerCount = 1,
@@ -95,12 +97,18 @@
 		onchanged
 	}: Props = $props();
 
-	const isIdeas = $derived(day.date === null);
-	const heading = $derived.by(() => {
-		if (!day.date) return t('unscheduled_ideas');
-		const dt = DateTime.fromISO(day.date);
-		return dt.isValid ? dt.toFormat('ccc d LLL') : day.date;
-	});
+	const isIdeas = $derived(day.kind === 'ideas');
+	const isDream = $derived(day.kind === 'dream');
+	const heading = $derived(isIdeas ? t('unscheduled_ideas') : dayOptionLabel(day));
+
+	/** The trip's real dates, for the weather window. Dream days have none. */
+	const datedDays = $derived(days.flatMap((option) => (option.date ? [option.date] : [])));
+
+	/** Highest dream ordinal in the plan; 0 when the trip is dated. */
+	const dreamCount = $derived(days.reduce((max, option) => Math.max(max, option.ordinal ?? 0), 0));
+	const isLastDreamDay = $derived(isDream && day.ordinal != null && day.ordinal === dreamCount);
+	const dreamDayItemCount = $derived(dayItems(day).length);
+	const WEEKDAYS = [1, 2, 3, 4, 5, 6, 7] as const;
 
 	const activeDestination = $derived(
 		day.date && destinations.length > 0 ? getDestinationForDate(day.date, destinations) : null
@@ -115,9 +123,9 @@
 	 */
 	const weatherWindowDates = $derived.by(() => {
 		if (!day.date) return [];
-		const index = dates.indexOf(day.date);
+		const index = datedDays.indexOf(day.date);
 		if (index < 0) return [day.date];
-		return dates.slice(Math.max(0, index - 3), Math.min(dates.length, index + 4));
+		return datedDays.slice(Math.max(0, index - 3), Math.min(datedDays.length, index + 4));
 	});
 
 	const outdoorItems = $derived(moveableOutdoorItems(dayItems(day)));
@@ -338,10 +346,10 @@
 	}
 
 	async function saveMeta() {
-		if (!day.date) return;
+		if (isIdeas) return;
 		metaSaving = true;
 		try {
-			await itinerary.setDayMeta(tripId, day.date, {
+			await itinerary.setDayMeta(tripId, day.key, {
 				title: metaTitle.trim() || undefined,
 				notes: metaNotes.trim() || undefined
 			});
@@ -351,6 +359,57 @@
 			toast.error(t('could_not_save_day_details'));
 		} finally {
 			metaSaving = false;
+		}
+	}
+
+	// --- Dream day controls ----------------------------------------------------
+	let dayBusy = $state(false);
+	let removeDayOpen = $state(false);
+
+	async function saveWish(value: string) {
+		if (day.ordinal == null) return;
+		try {
+			await itinerary.setWeekdayHint(tripId, day.ordinal, value ? Number(value) : null);
+			toast.success(t('wish_saved'));
+			onchanged();
+		} catch {
+			toast.error(t('could_not_save_wish'));
+		}
+	}
+
+	async function addDay() {
+		if (dayBusy) return;
+		dayBusy = true;
+		try {
+			await trips.setDreamDayCount(tripId, dreamCount + 1);
+			toast.success(t('day_added'));
+			onchanged();
+		} catch {
+			toast.error(t('could_not_add_day'));
+		} finally {
+			dayBusy = false;
+		}
+	}
+
+	function requestRemoveDay() {
+		// Removing the last day is destructive to the plan's shape, so a day with
+		// items asks first; an empty one can go straight away.
+		if (dreamDayItemCount > 0) removeDayOpen = true;
+		else void removeDay();
+	}
+
+	async function removeDay() {
+		if (dayBusy) return;
+		dayBusy = true;
+		try {
+			await trips.setDreamDayCount(tripId, Math.max(1, dreamCount - 1));
+			removeDayOpen = false;
+			toast.success(t('day_removed'));
+			onchanged();
+		} catch {
+			toast.error(t('could_not_remove_day'));
+		} finally {
+			dayBusy = false;
 		}
 	}
 
@@ -397,10 +456,18 @@
 		moveOpen = true;
 	}
 
-	async function doMoveDate(date: string | null) {
+	/** Put an item on a day key, whichever kind of day that is. */
+	function moveItemToKey(item: ItineraryItem, key: string | null, order = item.order ?? 0) {
+		const placement = placementFromDayKey(key);
+		return placement.dayOrdinal != null
+			? itinerary.moveToOrdinal(item._id, placement.dayOrdinal, order)
+			: itinerary.moveToDay(item._id, placement.date, order);
+	}
+
+	async function doMoveDate(key: string | null) {
 		if (!moveItem) return;
 		try {
-			await itinerary.moveToDay(moveItem._id, date);
+			await moveItemToKey(moveItem, key);
 			onchanged();
 		} catch {
 			toast.error(t('could_not_move_activity'));
@@ -495,9 +562,11 @@
 		if (!title) return;
 		qSaving = true;
 		try {
+			const placement = placementFromDayKey(isIdeas ? null : day.key);
 			await itinerary.create(tripId, {
 				title,
-				date: day.date,
+				date: placement.date,
+				dayOrdinal: placement.dayOrdinal,
 				allDay: qAllDay,
 				startTime: qAllDay ? undefined : qTime || undefined,
 				category: qCategory ? (qCategory as ItineraryItem['category']) : undefined
@@ -543,7 +612,7 @@
 	// or trip.
 	let selectionKey: string | null = null;
 	$effect(() => {
-		const key = `${tripId}:${day.date ?? 'ideas'}`;
+		const key = `${tripId}:${day.key}`;
 		if (key === selectionKey) return;
 		const hadKey = selectionKey !== null;
 		selectionKey = key;
@@ -667,8 +736,8 @@
 		if (selectedCount > 0) batchMoveOpen = true;
 	}
 
-	async function moveSelectedTo(date: string | null) {
-		await runBatch('move', (item) => itinerary.moveToDay(item._id, date, item.order ?? 0));
+	async function moveSelectedTo(key: string | null) {
+		await runBatch('move', (item) => moveItemToKey(item, key, item.order ?? 0));
 	}
 
 	async function categoriseSelected(category: ItineraryCategory) {
@@ -680,6 +749,7 @@
 			itinerary.create(tripId, {
 				title: item.title ? `${item.title} ${t('batch_copy_suffix')}` : '',
 				date: item.date ?? null,
+				dayOrdinal: item.dayOrdinal ?? null,
 				allDay: item.allDay,
 				startTime: item.startTime,
 				endTime: item.endTime,
@@ -786,7 +856,7 @@
 
 	function findDropTarget(x: number, y: number): HTMLElement | null {
 		if (typeof document === 'undefined') return null;
-		return document.elementFromPoint(x, y)?.closest<HTMLElement>('[data-drop-date]') ?? null;
+		return document.elementFromPoint(x, y)?.closest<HTMLElement>('[data-drop-key]') ?? null;
 	}
 
 	function beginDrag(event: PointerEvent, item: ItineraryItem, lane: DragLane) {
@@ -1049,20 +1119,22 @@
 		y: number
 	) {
 		if (target) {
-			const dropKey = target.dataset.dropDate ?? 'ideas';
-			if (dropKey === (day.date ?? 'ideas')) {
+			const dropKey = target.dataset.dropKey ?? 'ideas';
+			if (dropKey === day.key) {
 				void announce(t('gestures_drag_cancelled'));
 				return;
 			}
-			const date = dropKey === 'ideas' ? null : dropKey;
 			try {
-				await itinerary.moveToDay(session.item._id, date, session.item.order ?? 0);
+				if (dropKey === 'ideas')
+					await itinerary.moveToDay(session.item._id, null, session.item.order ?? 0);
+				else await moveItemToKey(session.item, dropKey, session.item.order ?? 0);
 			} catch {
 				toast.error(t('gestures_move_failed'));
 				void announce(t('gestures_move_failed'));
 				return;
 			}
-			const label = date ? formatWeekdayDate(date) : t('ideas');
+			const option = days.find((candidate) => candidate.key === dropKey);
+			const label = option ? dayOptionLabel(option) : t('ideas');
 			toast.success(t('gestures_moved_to', { date: label }));
 			void announce(t('gestures_moved_to', { date: label }));
 			onchanged();
@@ -1120,7 +1192,7 @@
 	// must not leave a drag (or its preview) attached to the previous day.
 	let dragDayKey: string | null = null;
 	$effect(() => {
-		const key = day.date ?? 'ideas';
+		const key = day.key;
 		if (dragDayKey !== null && key !== dragDayKey) cancelDrag(false);
 		dragDayKey = key;
 	});
@@ -1201,6 +1273,31 @@
 						{t('batch_done')}
 					</Button>
 				{:else}
+					{#if isDream && day.ordinal != null}
+						<label class="inline-flex items-center gap-1.5">
+							<span class="sr-only">{t('weekday_wish')}</span>
+							<Select
+								class="h-8 w-28 text-xs"
+								value={day.weekdayHint != null ? String(day.weekdayHint) : ''}
+								onchange={(e) => saveWish(e.currentTarget.value)}
+							>
+								<option value="">{t('weekday_any')}</option>
+								{#each WEEKDAYS as n (n)}
+									<option value={String(n)}>{weekdayShortName(n, getLanguage())}</option>
+								{/each}
+							</Select>
+						</label>
+						<Button variant="ghost" size="sm" onclick={addDay} disabled={dayBusy}>
+							<Plus class="size-4" aria-hidden="true" />
+							{t('add_day')}
+						</Button>
+						{#if isLastDreamDay && dreamCount > 1}
+							<Button variant="ghost" size="sm" onclick={requestRemoveDay} disabled={dayBusy}>
+								<Minus class="size-4" aria-hidden="true" />
+								{t('remove_day')}
+							</Button>
+						{/if}
+					{/if}
 					{#if !isIdeas}
 						<button
 							type="button"
@@ -1548,14 +1645,37 @@
 <!-- Move to day dialog -->
 <MoveToDayDialog
 	bind:open={moveOpen}
-	{dates}
-	current={moveItem?.date ?? null}
+	{days}
+	current={moveItem ? dayKeyOf(moveItem) : null}
 	title={moveItem?.title}
 	onmove={doMoveDate}
 />
 
 <!-- Batch move dialog -->
-<MoveToDayDialog bind:open={batchMoveOpen} {dates} current={day.date} onmove={moveSelectedTo} />
+<MoveToDayDialog
+	bind:open={batchMoveOpen}
+	{days}
+	current={isIdeas ? null : day.key}
+	onmove={moveSelectedTo}
+/>
+
+<!-- Remove dream day confirmation -->
+<Dialog bind:open={removeDayOpen} title={t('remove_day_title', { n: String(day.ordinal ?? '') })}>
+	<p class="text-sm text-ink-muted">
+		{dreamDayItemCount === 1
+			? t('remove_day_body_one')
+			: t('remove_day_body_many', { n: String(dreamDayItemCount) })}
+	</p>
+
+	{#snippet footer()}
+		<Button variant="ghost" onclick={() => (removeDayOpen = false)} disabled={dayBusy}>
+			{t('cancel')}
+		</Button>
+		<Button variant="destructive" onclick={removeDay} disabled={dayBusy}>
+			{t('remove_day_confirm')}
+		</Button>
+	{/snippet}
+</Dialog>
 
 <!-- Batch delete confirmation -->
 <Dialog bind:open={batchDeleteOpen} title={batchDeleteTitle}>
@@ -1610,7 +1730,7 @@
 		opacity: 0.4;
 	}
 
-	:global([data-drop-date].gesture-drop-target) {
+	:global([data-drop-key].gesture-drop-target) {
 		outline: 2px solid rgb(var(--color-primary-600-rgb));
 		outline-offset: 2px;
 	}

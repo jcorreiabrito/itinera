@@ -16,7 +16,11 @@ function timed(entry: ItineraryItem): TimelineEntry {
 
 function day(over: Partial<DayTimeline> = {}): DayTimeline {
 	return {
+		key: '2026-10-25',
+		kind: 'dated',
 		date: '2026-10-25',
+		ordinal: 1,
+		weekdayHint: null,
 		day: null,
 		todos: [],
 		allDay: [],

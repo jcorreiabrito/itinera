@@ -9,8 +9,14 @@
  */
 
 import { dateOf, eachDateInRange, minutesOfDay } from '../datetime';
+import {
+	dreamDayKey,
+	dreamOrdinalFromKey,
+	effectiveDreamDayCount,
+	isDreamTrip
+} from '../date-mode';
 import { createDoc, getDoc, listTripDocs, patchDoc, restoreDoc, softDeleteDoc } from '../base';
-import { dayId, fullTripid, itineraryItemId } from '../ids';
+import { dayId, dreamDayId, fullTripid, itineraryItemId } from '../ids';
 import { sumExpenses, type MoneyTotals } from '../money';
 import type {
 	ChecklistItem,
@@ -34,6 +40,7 @@ import { placementsForDate, type ReservationPlacement } from './reservations';
 export interface NewItineraryItemInput {
 	title: string;
 	date?: string | null;
+	dayOrdinal?: number | null;
 	allDay?: boolean;
 	startTime?: string;
 	endTime?: string;
@@ -46,6 +53,37 @@ export interface NewItineraryItemInput {
 	currency?: string;
 	costs?: ItineraryCostItem[];
 	order?: number;
+}
+
+/**
+ * Placement is a single choice: a real date or a dream ordinal, never both.
+ *
+ * Normalising on the way in is what lets every reader trust the fields: a
+ * dream item never leaks onto a dated day, and a dated item never appears in
+ * the dream plan. Passing both keeps the ordinal and clears the date, because
+ * "Day 3" is the more specific instruction.
+ */
+function placement(input: { date?: string | null; dayOrdinal?: number | null }): {
+	date: string | null;
+	dayOrdinal: number | null;
+} {
+	if (input.dayOrdinal != null) return { date: null, dayOrdinal: input.dayOrdinal };
+	return { date: input.date ?? null, dayOrdinal: null };
+}
+
+/** True when an item belongs in the Unscheduled / Ideas bucket. */
+function isIdea(item: ItineraryItem, dream: boolean): boolean {
+	return dream ? item.dayOrdinal == null : item.date == null && item.dayOrdinal == null;
+}
+
+/** Linked expenses follow their item's date, including the dream (`null`) case. */
+async function relinkExpenses(item: ItineraryItem): Promise<void> {
+	if (!item.tripid) return;
+	const allExpenses = await expenses.byTrip(item.tripid);
+	const hasLinked = allExpenses.some(
+		(e) => e.linkedType === 'itineraryItem' && e.linkedId?.startsWith(item._id)
+	);
+	if (hasLinked) await addExpense(item._id);
 }
 
 /** Itinerary item -> expense category, for "Add as expense". */
@@ -69,10 +107,18 @@ export async function byDay(tripid: string, date: string): Promise<ItineraryItem
 	return (await byTrip(tripid)).filter((i) => i.date === date);
 }
 
-/** The Unscheduled / Ideas bucket (`date = null`). */
+/**
+ * The Unscheduled / Ideas bucket.
+ *
+ * Dated trips show items with neither placement. Dream trips show every item
+ * without an ordinal, including a stray real-dated item from an import: dream
+ * days have no date buckets, so hiding it would make it unreachable.
+ */
 export async function unscheduled(tripid: string): Promise<ItineraryItem[]> {
-	return (await byTrip(tripid))
-		.filter((i) => i.date == null)
+	const [trip, items] = await Promise.all([getDoc<Trip>(fullTripid(tripid)), byTrip(tripid)]);
+	const dream = trip ? isDreamTrip(trip) : false;
+	return items
+		.filter((item) => isIdea(item, dream))
 		.sort((a, b) => (a.order ?? 0) - (b.order ?? 0));
 }
 
@@ -83,12 +129,14 @@ export function get(id: string): Promise<ItineraryItem | null> {
 
 /** Create an itinerary item. */
 export function create(tripid: string, input: NewItineraryItemInput): Promise<ItineraryItem> {
+	const placed = placement(input);
 	return createDoc<ItineraryItem>({
 		_id: itineraryItemId(tripid),
 		type: 'itineraryItem',
 		tripid: fullTripid(tripid),
 		title: input.title,
-		date: input.date ?? null,
+		date: placed.date,
+		dayOrdinal: placed.dayOrdinal,
 		allDay: input.allDay ?? false,
 		startTime: input.startTime,
 		endTime: input.endTime,
@@ -109,16 +157,17 @@ export async function update(
 	id: string,
 	patch: Partial<NewItineraryItemInput>
 ): Promise<ItineraryItem> {
-	const item = await patchDoc<ItineraryItem>(id, patch as Partial<ItineraryItem>);
-	if (item.tripid) {
-		const allExpenses = await expenses.byTrip(item.tripid);
-		const hasLinked = allExpenses.some(
-			(e) => e.linkedType === 'itineraryItem' && e.linkedId?.startsWith(id)
-		);
-		if (hasLinked) {
-			await addExpense(id);
-		}
+	const normalized = { ...patch } as Partial<ItineraryItem>;
+	if ('dayOrdinal' in patch) {
+		normalized.dayOrdinal = patch.dayOrdinal ?? null;
+		// A move to an ordinal clears the date; clearing the ordinal leaves Ideas.
+		normalized.date = patch.dayOrdinal == null ? (patch.date ?? null) : null;
+	} else if ('date' in patch) {
+		normalized.date = patch.date ?? null;
+		normalized.dayOrdinal = null;
 	}
+	const item = await patchDoc<ItineraryItem>(id, normalized);
+	await relinkExpenses(item);
 	return item;
 }
 
@@ -160,16 +209,23 @@ export async function moveToDay(
 	date: string | null,
 	order = 0
 ): Promise<ItineraryItem> {
-	const item = await patchDoc<ItineraryItem>(id, { date, order });
-	if (item.tripid) {
-		const allExpenses = await expenses.byTrip(item.tripid);
-		const hasLinked = allExpenses.some(
-			(e) => e.linkedType === 'itineraryItem' && e.linkedId?.startsWith(id)
-		);
-		if (hasLinked) {
-			await addExpense(id);
-		}
-	}
+	const item = await patchDoc<ItineraryItem>(id, { date, dayOrdinal: null, order });
+	await relinkExpenses(item);
+	return item;
+}
+
+/** Move an item to a numbered dream day (or Ideas when `ordinal` is null). */
+export async function moveToOrdinal(
+	id: string,
+	ordinal: number | null,
+	order = 0
+): Promise<ItineraryItem> {
+	const item = await patchDoc<ItineraryItem>(id, {
+		date: null,
+		dayOrdinal: ordinal,
+		order
+	});
+	await relinkExpenses(item);
 	return item;
 }
 
@@ -302,28 +358,73 @@ export async function addExpense(itemId: string): Promise<Expense | null> {
 
 // --- Day metadata (tripDay) ------------------------------------------------
 
-/** Get the per-day metadata document, if any. */
-export function getDay(tripid: string, date: string): Promise<TripDay | null> {
-	return getDoc<TripDay>(dayId(tripid, date));
+/** Resolve a UI day key (`YYYY-MM-DD` or `dream-{n}`) to its document id. */
+function dayDocId(tripid: string, key: string): string {
+	const ordinal = dreamOrdinalFromKey(key);
+	return ordinal ? dreamDayId(tripid, ordinal) : dayId(tripid, key);
 }
 
-/** Upsert a day's title/notes. */
+/** Get the per-day metadata document, by day key, if any. */
+export function getDay(tripid: string, key: string): Promise<TripDay | null> {
+	return getDoc<TripDay>(dayDocId(tripid, key));
+}
+
+/**
+ * Upsert a day's title/notes.
+ *
+ * Accepts a day key so the same control works on a dated day (`2026-11-03`)
+ * and on a dream day (`dream-3`); the stored id differs but callers do not
+ * have to branch.
+ */
 export async function setDayMeta(
 	tripid: string,
-	date: string,
+	key: string,
 	meta: { title?: string; notes?: string }
 ): Promise<TripDay> {
-	const _id = dayId(tripid, date);
+	const _id = dayDocId(tripid, key);
 	const existing = await getDoc<TripDay>(_id);
 	if (existing) return patchDoc<TripDay>(_id, meta);
+	const ordinal = dreamOrdinalFromKey(key);
 	return createDoc<TripDay>({
 		_id,
 		type: 'tripDay',
 		tripid: fullTripid(tripid),
-		date,
+		...(ordinal ? { ordinal } : { date: key }),
 		title: meta.title,
 		notes: meta.notes
 	});
+}
+
+/** Set (or clear) a dream day's soft weekday wish. */
+export async function setWeekdayHint(
+	tripid: string,
+	ordinal: number,
+	hint: number | null
+): Promise<TripDay> {
+	const _id = dreamDayId(tripid, ordinal);
+	const existing = await getDoc<TripDay>(_id);
+	if (existing) {
+		return patchDoc<TripDay>(_id, {
+			weekdayHint: hint,
+			// Older dream docs may carry no ordinal; fill it in on first write.
+			...(existing.ordinal == null ? { ordinal } : {})
+		});
+	}
+	return createDoc<TripDay>({
+		_id,
+		type: 'tripDay',
+		tripid: fullTripid(tripid),
+		ordinal,
+		weekdayHint: hint
+	});
+}
+
+/** The ordinal a stored dream `tripDay` doc represents, when it can be read. */
+function ordinalOfDay(doc: TripDay): number | null {
+	if (doc.ordinal != null) return doc.ordinal;
+	if (doc.date) return null;
+	const match = /^day:[^:]+:dream-(\d+)$/.exec(doc._id);
+	return match ? Number(match[1]) : null;
 }
 
 // --- Timeline merge -------------------------------------------------------
@@ -367,9 +468,20 @@ export function entryKey(entry: TimelineEntry): string {
 	return `unknown:${entry.kind}:${entry.minutes ?? 'x'}:${entry.order}`;
 }
 
+/** What kind of bucket this timeline represents. */
+export type DayTimelineKind = 'dated' | 'dream' | 'ideas';
+
 /** A fully-merged itinerary day. */
 export interface DayTimeline {
+	/** Opaque day identity: an ISO date, `dream-{n}`, or `ideas`. */
+	key: string;
+	kind: DayTimelineKind;
+	/** Real date, `null` on a dream day or the Ideas bucket. */
 	date: string | null;
+	/** Position in the plan (1-based), `null` for Ideas. */
+	ordinal: number | null;
+	/** Soft weekday wish carried over from dream mode, if any. */
+	weekdayHint: number | null;
 	day: TripDay | null;
 	/** Daily to-dos (checklist items with this date). */
 	todos: ChecklistItem[];
@@ -414,7 +526,28 @@ async function gather(tripid: string): Promise<TripData> {
 	};
 }
 
-function buildDay(date: string, data: TripData): DayTimeline {
+function sortLanes(
+	untimed: TimelineEntry[],
+	timed: TimelineEntry[],
+	allDay: ItineraryItem[]
+): void {
+	// All-day items follow their persisted `order` (matches the Unscheduled bucket
+	// and the UI's accessible move-up/down on the all-day lane).
+	allDay.sort((a, b) => (a.order ?? 0) - (b.order ?? 0));
+	untimed.sort((a, b) => (a.order ?? 0) - (b.order ?? 0));
+	timed.sort((a, b) => (a.minutes ?? 0) - (b.minutes ?? 0) || a.order - b.order);
+}
+
+/** True when an expense is linked to any of the given itinerary items. */
+function isLinkedToItems(expense: Expense, itemIds: Set<string>): boolean {
+	if (expense.linkedType !== 'itineraryItem' || !expense.linkedId) return false;
+	for (const id of itemIds) {
+		if (expense.linkedId === id || expense.linkedId.startsWith(`${id}:`)) return true;
+	}
+	return false;
+}
+
+function buildDay(date: string, data: TripData, ordinal: number | null = null): DayTimeline {
 	const untimed: TimelineEntry[] = [];
 	const timed: TimelineEntry[] = [];
 	const allDay: ItineraryItem[] = [];
@@ -453,11 +586,7 @@ function buildDay(date: string, data: TripData): DayTimeline {
 		(minutes == null ? untimed : timed).push(entry);
 	}
 
-	// All-day items follow their persisted `order` (matches the Unscheduled bucket
-	// and the UI's accessible move-up/down on the all-day lane).
-	allDay.sort((a, b) => (a.order ?? 0) - (b.order ?? 0));
-	untimed.sort((a, b) => (a.order ?? 0) - (b.order ?? 0));
-	timed.sort((a, b) => (a.minutes ?? 0) - (b.minutes ?? 0) || a.order - b.order);
+	sortLanes(untimed, timed, allDay);
 
 	/*
 	 * The traveller count matters here for the same reason it matters on the
@@ -471,9 +600,15 @@ function buildDay(date: string, data: TripData): DayTimeline {
 		Math.max(data.trip?.travelerCount ?? 1, 1)
 	);
 
+	const dayDoc = data.days.find((d) => d.date === date) ?? null;
+
 	return {
+		key: date,
+		kind: 'dated',
 		date,
-		day: data.days.find((d) => d.date === date) ?? null,
+		ordinal,
+		weekdayHint: dayDoc?.weekdayHint ?? null,
+		day: dayDoc,
 		todos: data.todos.filter((t) => t.date === date),
 		allDay,
 		timed: [...untimed, ...timed],
@@ -481,10 +616,68 @@ function buildDay(date: string, data: TripData): DayTimeline {
 	};
 }
 
-/** The merged timeline for a single day. */
-export async function dayTimeline(tripid: string, date: string): Promise<DayTimeline> {
+/**
+ * The merged timeline for one numbered dream day.
+ *
+ * Bookings have real dates and no ordinal, so they never appear here; the
+ * itinerary surfaces them in an anchored-bookings card instead. Daily to-dos
+ * stay date-bound for the same reason. Expenses linked to this day's items
+ * follow the items, and the Ideas bucket excludes them so nothing is counted
+ * twice.
+ */
+function buildDreamDay(ordinal: number, data: TripData): DayTimeline {
+	const untimed: TimelineEntry[] = [];
+	const timed: TimelineEntry[] = [];
+	const allDay: ItineraryItem[] = [];
+
+	const dayItems = data.items.filter((item) => item.dayOrdinal === ordinal);
+	for (const item of dayItems) {
+		if (item.allDay) {
+			allDay.push(item);
+			continue;
+		}
+		const minutes = minutesOfDay(item.startTime);
+		const entry: TimelineEntry = { kind: 'item', minutes, order: item.order ?? 0, item };
+		(minutes == null ? untimed : timed).push(entry);
+	}
+	sortLanes(untimed, timed, allDay);
+
+	const itemIds = new Set(dayItems.map((item) => item._id));
+	const subtotal = sumExpenses(
+		data.expenses.filter((expense) => !expense.date && isLinkedToItems(expense, itemIds)),
+		data.home,
+		Math.max(data.trip?.travelerCount ?? 1, 1)
+	);
+
+	const dayDoc = data.days.find((doc) => ordinalOfDay(doc) === ordinal) ?? null;
+
+	return {
+		key: dreamDayKey(ordinal),
+		kind: 'dream',
+		date: null,
+		ordinal,
+		weekdayHint: dayDoc?.weekdayHint ?? null,
+		day: dayDoc,
+		// Dream days do not show daily to-dos: a dated to-do stays date-bound.
+		todos: [],
+		allDay,
+		timed: [...untimed, ...timed],
+		subtotal
+	};
+}
+
+/** The merged timeline for a single day key (date, `dream-{n}`, or `ideas`). */
+export async function dayTimeline(tripid: string, key: string): Promise<DayTimeline> {
 	const data = await gather(tripid);
-	return buildDay(date, data);
+	const ordinal = dreamOrdinalFromKey(key);
+	if (ordinal != null) return buildDreamDay(ordinal, data);
+	if (key === 'ideas') return buildUnscheduled(data);
+	const dates =
+		data.trip?.startDate && data.trip?.endDate
+			? eachDateInRange(data.trip.startDate, data.trip.endDate)
+			: [];
+	const index = dates.indexOf(key);
+	return buildDay(key, data, index >= 0 ? index + 1 : null);
 }
 
 /**
@@ -513,30 +706,44 @@ export function laneNeighbour(
 	return lane[dir === 'up' ? index - 1 : index + 1] ?? null;
 }
 
-/** The Unscheduled bucket as a pseudo-timeline (items only). */
+/** The Unscheduled bucket as a pseudo-timeline. */
 function buildUnscheduled(data: TripData): DayTimeline {
+	const dream = data.trip ? isDreamTrip(data.trip) : false;
 	const items = data.items
-		.filter((i) => i.date == null)
+		.filter((item) => isIdea(item, dream))
 		.sort((a, b) => (a.order ?? 0) - (b.order ?? 0));
+
+	/*
+	 * Undated expenses live here rather than on a day: insurance, a rail
+	 * pass, the airport transfer booked before the dates existed. On a dream
+	 * trip, expenses linked to an ordinal item belong to that day, so they are
+	 * excluded here to avoid counting them twice.
+	 */
+	const placedItemIds = dream
+		? new Set(data.items.filter((item) => item.dayOrdinal != null).map((item) => item._id))
+		: new Set<string>();
+	const undatedExpenses = data.expenses.filter(
+		(expense) => !expense.date && !isLinkedToItems(expense, placedItemIds)
+	);
+
 	return {
+		key: 'ideas',
+		kind: 'ideas',
 		date: null,
+		ordinal: null,
+		weekdayHint: null,
 		day: null,
 		todos: [],
-		allDay: items.filter((i) => i.allDay),
+		allDay: items.filter((item) => item.allDay),
 		timed: items
-			.filter((i) => !i.allDay)
-			.map((item) => ({ kind: 'item' as const, minutes: null, order: item.order ?? 0, item })),
-		/*
-		 * Undated expenses live here rather than on a day: insurance, a rail
-		 * pass, the airport transfer booked before the dates existed. The bucket
-		 * used to report zero, so the one screen that lists undated things said
-		 * the trip had not cost anything for them.
-		 */
-		subtotal: sumExpenses(
-			data.expenses.filter((e) => !e.date),
-			data.home,
-			Math.max(data.trip?.travelerCount ?? 1, 1)
-		)
+			.filter((item) => !item.allDay)
+			.map((item) => ({
+				kind: 'item' as const,
+				minutes: null,
+				order: item.order ?? 0,
+				item
+			})),
+		subtotal: sumExpenses(undatedExpenses, data.home, Math.max(data.trip?.travelerCount ?? 1, 1))
 	};
 }
 
@@ -545,17 +752,36 @@ export async function tripTimeline(
 	tripid: string
 ): Promise<{ days: DayTimeline[]; unscheduled: DayTimeline }> {
 	const data = await gather(tripid);
+
+	if (data.trip && isDreamTrip(data.trip)) {
+		const count = effectiveDreamDayCount(
+			data.trip,
+			data.days.map((doc) => ({ ordinal: ordinalOfDay(doc) ?? undefined })),
+			data.items
+		);
+		return {
+			days: Array.from({ length: count }, (_, index) => buildDreamDay(index + 1, data)),
+			unscheduled: buildUnscheduled(data)
+		};
+	}
+
 	const dates =
 		data.trip?.startDate && data.trip?.endDate
 			? eachDateInRange(data.trip.startDate, data.trip.endDate)
 			: [];
 	return {
-		days: dates.map((date) => buildDay(date, data)),
+		days: dates.map((date, index) => buildDay(date, data, index + 1)),
 		unscheduled: buildUnscheduled(data)
 	};
 }
 
-/** The list of trip dates (inclusive), for the date strip. */
+/** The ordered day keys for the UI (dates, or `dream-{n}` for a dream trip). */
+export async function dayKeys(tripid: string): Promise<string[]> {
+	const { days } = await tripTimeline(tripid);
+	return days.map((day) => day.key);
+}
+
+/** The list of trip dates (inclusive), for callers that need real dates only. */
 export async function dayList(tripid: string): Promise<string[]> {
 	const trip = await getDoc<Trip>(fullTripid(tripid));
 	if (!trip?.startDate || !trip?.endDate) return [];

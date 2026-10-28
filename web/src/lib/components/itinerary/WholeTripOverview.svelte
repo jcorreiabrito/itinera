@@ -20,6 +20,7 @@
 	import { getDestinationForDate } from '$lib/destinations';
 	import { minutesOfDay } from '$lib/db/datetime';
 	import { categoryMeta } from './categories';
+	import { dayWish } from './day-options';
 	import { cn } from '$lib/utils';
 	import { t } from '$lib/i18n.svelte';
 
@@ -29,7 +30,7 @@
 		homeCurrency?: string;
 		links: { flights: ResolvedPathname; reservations: ResolvedPathname };
 		onedit: (item: ItineraryItem) => void;
-		onaddactivity: (date: string | null) => void;
+		onaddactivity: (key: string) => void;
 	}
 
 	let {
@@ -279,30 +280,46 @@
 			</div>
 			<!-- Day Headers Columns -->
 			<div class="flex flex-1">
-				{#each days as day (day.date)}
+				{#each days as day (day.key)}
 					{@const p = parts(day.date)}
+					{@const wish = dayWish(day)}
+					{@const isDreamDay = day.date == null && day.ordinal != null}
 					<div
 						class="flex h-[100px] w-[calc(100vw-4.5rem)] flex-1 shrink-0 snap-start flex-col justify-between gap-1 border-r border-border p-3 sm:w-[200px] lg:w-auto lg:min-w-[160px]"
 					>
 						<div class="flex items-start justify-between">
 							<div>
-								<span class="text-[10px] font-bold uppercase tracking-wider text-ink-muted"
-									>{p.weekday}</span
-								>
-								<div class="text-base font-bold tabular-nums leading-tight text-ink">
-									{p.day} <span class="text-xs font-semibold text-ink-muted">{p.month}</span>
-								</div>
+								{#if isDreamDay}
+									<span class="text-[10px] font-bold uppercase tracking-wider text-ink-muted"
+										>{t('label_day')}</span
+									>
+									<div class="text-base font-bold tabular-nums leading-tight text-ink">
+										{day.ordinal}
+										{#if wish}
+											<span class="text-xs font-semibold text-ink-muted"
+												>{t('weekday_wish_short', { day: wish })}</span
+											>
+										{/if}
+									</div>
+								{:else}
+									<span class="text-[10px] font-bold uppercase tracking-wider text-ink-muted"
+										>{p.weekday}</span
+									>
+									<div class="text-base font-bold tabular-nums leading-tight text-ink">
+										{p.day} <span class="text-xs font-semibold text-ink-muted">{p.month}</span>
+									</div>
+								{/if}
 							</div>
-							{#if day.date}
-								<button
-									type="button"
-									onclick={() => onaddactivity(day.date)}
-									aria-label={t('day_add_activity', { date: `${p.day} ${p.month}` })}
-									class="flex size-6 items-center justify-center rounded-md text-primary-600 transition-colors hover:bg-surface hover:text-primary-700"
-								>
-									<Plus class="size-4" />
-								</button>
-							{/if}
+							<button
+								type="button"
+								onclick={() => onaddactivity(day.key)}
+								aria-label={t('day_add_activity', {
+									date: isDreamDay ? t('day_n', { n: String(day.ordinal) }) : `${p.day} ${p.month}`
+								})}
+								class="flex size-6 items-center justify-center rounded-md text-primary-600 transition-colors hover:bg-surface hover:text-primary-700"
+							>
+								<Plus class="size-4" />
+							</button>
 						</div>
 
 						<!-- Destination Badge -->
@@ -370,7 +387,7 @@
 			</div>
 			<!-- Day Columns for All-Day elements -->
 			<div class="flex flex-1 bg-surface-sunken">
-				{#each days as day (day.date)}
+				{#each days as day (day.key)}
 					<div
 						class="w-[calc(100vw-4.5rem)] flex-1 shrink-0 snap-start space-y-1 border-r border-border p-2 sm:w-[200px] lg:w-auto lg:min-w-[160px]"
 					>
@@ -466,7 +483,7 @@
 				</div>
 
 				<!-- Columns for each day's timed events -->
-				{#each days as day (day.date)}
+				{#each days as day (day.key)}
 					<div
 						class="relative z-10 h-[1536px] w-[calc(100vw-4.5rem)] flex-1 shrink-0 snap-start border-r border-border/30 bg-transparent sm:w-[200px] lg:w-auto lg:min-w-[160px]"
 					>

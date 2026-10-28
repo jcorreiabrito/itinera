@@ -7,6 +7,7 @@ import { commandEn, commandPt } from './features/command';
 import { configEn, configPt } from './features/config';
 import { conflictsEn, conflictsPt } from './features/conflicts';
 import { densityEn, densityPt } from './features/density';
+import { dreamEn, dreamPt } from './features/dream';
 import { exportCenterEn, exportCenterPt } from './features/export-center';
 import { feasibilityEn, feasibilityPt } from './features/feasibility';
 import { gesturesEn, gesturesPt } from './features/gestures';
@@ -36,6 +37,7 @@ const SLICES: ReadonlyArray<readonly [string, Record<string, string>, Record<str
 	['config', configEn, configPt],
 	['conflicts', conflictsEn, conflictsPt],
 	['density', densityEn, densityPt],
+	['dream', dreamEn, dreamPt],
 	['export-center', exportCenterEn, exportCenterPt],
 	['feasibility', feasibilityEn, feasibilityPt],
 	['gestures', gesturesEn, gesturesPt],

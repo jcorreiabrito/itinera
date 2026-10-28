@@ -60,7 +60,11 @@ function reservationEntry(time: string): TimelineEntry {
 
 function day(date: string, timed: TimelineEntry[] = [], allDay: ItineraryItem[] = []): DayTimeline {
 	return {
+		key: date,
+		kind: 'dated',
 		date,
+		ordinal: 1,
+		weekdayHint: null,
 		day: null,
 		todos: [],
 		allDay,

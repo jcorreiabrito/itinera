@@ -17,7 +17,7 @@
 	} from 'lucide-svelte';
 	import { t } from '$lib/i18n.svelte';
 	import { Card, MenuItem, Popover, ProgressBar, Skeleton } from '$lib/components/ui';
-	import { formatDateRange, formatMoney, formatNights } from '$lib/format';
+	import { tripRangeLabel, formatMoney, formatNights } from '$lib/format';
 	import { formatDestinationRoute } from '$lib/destinations';
 	import StatusBadge from './StatusBadge.svelte';
 	import TripCover from './TripCover.svelte';
@@ -81,7 +81,7 @@
 		[
 			title,
 			firstDestination?.name,
-			formatDateRange(trip.startDate, trip.endDate),
+			tripRangeLabel(trip),
 			trip.derived.status,
 			progress && progress.total > 0
 				? `${Math.round(progress.fraction * 100)}% ${t('packed')}`
@@ -170,15 +170,19 @@
 		<div class="density-row flex flex-1 flex-col gap-3 p-3">
 			<div class="flex items-center justify-between gap-2">
 				<span class="text-sm text-ink-muted">
-					{formatDateRange(trip.startDate, trip.endDate)}
-					<span class="text-ink-muted/60">·</span>
-					{formatNights(trip.derived.nights)}
+					{tripRangeLabel(trip)}
+					{#if trip.derived.status !== 'Dream'}
+						<span class="text-ink-muted/60">·</span>
+						{formatNights(trip.derived.nights)}
+					{/if}
 				</span>
-				<span
-					class={`shrink-0 text-xs font-medium text-accent-terracotta ${isNearCountdown ? 'animate-pulse-ring rounded px-1' : ''}`}
-				>
-					{trip.derived.countdown}
-				</span>
+				{#if trip.derived.countdown}
+					<span
+						class={`shrink-0 text-xs font-medium text-accent-terracotta ${isNearCountdown ? 'animate-pulse-ring rounded px-1' : ''}`}
+					>
+						{trip.derived.countdown}
+					</span>
+				{/if}
 			</div>
 
 			<div class="space-y-2">

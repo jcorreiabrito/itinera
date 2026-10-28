@@ -23,7 +23,11 @@ const entry = (it: ItineraryItem): TimelineEntry => ({
 
 /** Only the itinerary items matter here; the rest is filled in so the type holds. */
 const day = (items: ItineraryItem[]): DayTimeline => ({
+	key: '2026-10-25',
+	kind: 'dated',
 	date: '2026-10-25',
+	ordinal: 1,
+	weekdayHint: null,
 	day: null,
 	todos: [],
 	allDay: [],

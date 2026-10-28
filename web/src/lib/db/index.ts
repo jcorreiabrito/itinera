@@ -19,6 +19,7 @@
 // --- Repositories (one namespace per page area) ----------------------------
 export * as trips from './repositories/trips';
 export * as itinerary from './repositories/itinerary';
+export * as tripDates from './repositories/trip-dates';
 export * as checklist from './repositories/checklist';
 export * as flights from './repositories/flights';
 export * as reservations from './repositories/reservations';
@@ -40,6 +41,17 @@ export * from './pace';
 export * from './airport';
 export * from './conflicts';
 export * from './feasibility';
+export * from './date-mode';
+export * from './date-assignment';
+export * from './dream-template';
+export {
+	parseAndPrepareTripImport,
+	importTripToLocalDb,
+	parseAndPrepareTripUpdateDocs,
+	prepareTripUpdateDiff,
+	executeTripUpdate
+} from './importer';
+export type { ImportResult, TripUpdateDiff } from './importer';
 
 // --- Constants ------------------------------------------------------------
 export {

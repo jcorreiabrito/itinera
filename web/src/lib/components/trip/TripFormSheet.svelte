@@ -8,6 +8,7 @@
 	import type { Destination, Trip } from '$lib/db';
 	import { untrack } from 'svelte';
 	import { Button, Field, Input, Select, Sheet, Textarea, toast } from '$lib/components/ui';
+	import { tripRangeLabel } from '$lib/format';
 	import { isDirty, snapshot } from '$lib/utils/form-dirty';
 	import CoverImageField from './CoverImageField.svelte';
 
@@ -21,6 +22,8 @@
 		onsaved?: (trip: Trip) => void;
 		/** Called when the cover changes (so the parent can refresh live). */
 		onlivechange?: () => void;
+		/** Ask the owner to close this sheet and open the Set dates sheet. */
+		onchangedates?: () => void;
 	}
 
 	let {
@@ -29,7 +32,8 @@
 		trip = null,
 		defaultCurrency = 'EUR',
 		onsaved,
-		onlivechange
+		onlivechange,
+		onchangedates
 	}: Props = $props();
 
 	const uid = ++instanceCount;
@@ -158,10 +162,14 @@
 	function validate(): boolean {
 		const e: Partial<Record<keyof FormState, string>> = {};
 		if (!form.title.trim()) e.title = t('trip_name_required');
-		if (!form.startDate) e.startDate = t('start_date_required');
-		if (!form.endDate) e.endDate = t('end_date_required');
-		if (form.startDate && form.endDate && form.endDate < form.startDate)
-			e.endDate = t('end_before_start_date');
+		// Dates are owned by the Set dates sheet once a trip exists; only a trip
+		// created through this form still enters them here.
+		if (mode === 'create') {
+			if (!form.startDate) e.startDate = t('start_date_required');
+			if (!form.endDate) e.endDate = t('end_date_required');
+			if (form.startDate && form.endDate && form.endDate < form.startDate)
+				e.endDate = t('end_before_start_date');
+		}
 		if (form.travelerCount.trim()) {
 			const n = Number(form.travelerCount);
 			if (!Number.isInteger(n) || n < 1) {
@@ -200,8 +208,6 @@
 				const hasBudget = trip.budget != null || budgetTotalNum != null;
 				const patch: trips.TripPatch = {
 					title: form.title.trim(),
-					startDate: form.startDate,
-					endDate: form.endDate,
 					homeCurrency: form.homeCurrency,
 					stage: form.stage,
 					destinations: cleanDestinations,
@@ -246,26 +252,42 @@
 			/>
 		</Field>
 
-		<div class="grid grid-cols-2 gap-3">
-			<Field label={t('start')} for={fid('start')} required error={errors.startDate}>
-				<Input
-					id={fid('start')}
-					type="date"
-					value={form.startDate}
-					invalid={!!errors.startDate}
-					oninput={(e) => (form.startDate = e.currentTarget.value)}
-				/>
-			</Field>
-			<Field label={t('end')} for={fid('end')} required error={errors.endDate}>
-				<Input
-					id={fid('end')}
-					type="date"
-					value={form.endDate}
-					invalid={!!errors.endDate}
-					oninput={(e) => (form.endDate = e.currentTarget.value)}
-				/>
-			</Field>
-		</div>
+		{#if mode === 'create'}
+			<div class="grid grid-cols-2 gap-3">
+				<Field label={t('start')} for={fid('start')} required error={errors.startDate}>
+					<Input
+						id={fid('start')}
+						type="date"
+						value={form.startDate}
+						invalid={!!errors.startDate}
+						oninput={(e) => (form.startDate = e.currentTarget.value)}
+					/>
+				</Field>
+				<Field label={t('end')} for={fid('end')} required error={errors.endDate}>
+					<Input
+						id={fid('end')}
+						type="date"
+						value={form.endDate}
+						invalid={!!errors.endDate}
+						oninput={(e) => (form.endDate = e.currentTarget.value)}
+					/>
+				</Field>
+			</div>
+		{:else if trip}
+			<div class="flex flex-col gap-1.5">
+				<span class="text-sm font-medium text-ink">{t('dates')}</span>
+				<div
+					class="flex flex-wrap items-center justify-between gap-2 rounded-md border border-border bg-surface-sunken px-3 py-2"
+				>
+					<span class="text-sm text-ink-muted">{tripRangeLabel(trip)}</span>
+					{#if onchangedates}
+						<Button type="button" variant="secondary" size="sm" onclick={onchangedates}>
+							{t('change_dates')}
+						</Button>
+					{/if}
+				</div>
+			</div>
+		{/if}
 
 		<DestinationListEditor
 			bind:destinations={form.destinations}

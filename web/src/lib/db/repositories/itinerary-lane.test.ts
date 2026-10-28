@@ -25,7 +25,11 @@ const entry = (it: ItineraryItem, minutes: number | null): TimelineEntry => ({
 
 /** Only the two lanes matter here; the rest is filled in so the type holds. */
 const day = (allDay: ItineraryItem[], timed: TimelineEntry[]): DayTimeline => ({
+	key: '2026-05-01',
+	kind: 'dated',
 	date: '2026-05-01',
+	ordinal: 1,
+	weekdayHint: null,
 	day: null,
 	todos: [],
 	allDay,

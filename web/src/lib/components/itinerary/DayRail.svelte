@@ -1,10 +1,10 @@
 <script lang="ts">
-	import { DateTime } from 'luxon';
 	import { CircleCheckBig, Clock, Lightbulb, TriangleAlert } from 'lucide-svelte';
 	import type { DayTimeline } from '$lib/db/repositories/itinerary';
 	import { t } from '$lib/i18n.svelte';
 	import { cn } from '$lib/utils';
 	import { dayItemCount, dayStatus, type DayStatus } from './day-status';
+	import { datedParts, dayWish } from './day-options';
 
 	/*
 	 * The wide workspace's left rail.
@@ -18,42 +18,34 @@
 	interface Props {
 		days: DayTimeline[];
 		unscheduled: DayTimeline;
-		/** Selected date, or `null` for the Unscheduled / Ideas bucket. */
+		/** Selected day key, or `null` for the Unscheduled / Ideas bucket. */
 		selected: string | null;
 		today: string;
-		onselect: (date: string | null) => void;
+		onselect: (key: string | null) => void;
 	}
 
 	let { days, unscheduled, selected, today, onselect }: Props = $props();
 
 	let railEl = $state<HTMLElement>();
 
-	const keys = $derived<(string | null)[]>([...days.map((day) => day.date as string), null]);
+	const keys = $derived<(string | null)[]>([...days.map((day) => day.key), null]);
 	const ideasCount = $derived(dayItemCount(unscheduled));
 
 	/** The entry the tab key reaches: the selected day, else the first day. */
 	const tabStopKey = $derived(
-		selected !== null && days.some((day) => day.date === selected)
+		selected !== null && days.some((day) => day.key === selected)
 			? selected
 			: selected === null
 				? null
-				: (days[0]?.date ?? null)
+				: (days[0]?.key ?? null)
 	);
 
-	function keyOf(date: string | null): string {
-		return date ?? 'ideas';
+	function keyOf(key: string | null): string {
+		return key ?? 'ideas';
 	}
 
-	function parts(iso: string) {
-		const dt = DateTime.fromISO(iso);
-		return {
-			weekday: dt.isValid ? dt.toFormat('ccc') : '',
-			date: dt.isValid ? dt.toFormat('d LLL') : iso
-		};
-	}
-
-	function focusEntry(date: string | null) {
-		railEl?.querySelector<HTMLElement>(`[data-key="${keyOf(date)}"]`)?.focus();
+	function focusEntry(key: string | null) {
+		railEl?.querySelector<HTMLElement>(`[data-key="${keyOf(key)}"]`)?.focus();
 	}
 
 	function onRailKeyDown(event: KeyboardEvent) {
@@ -120,20 +112,21 @@
 	</h2>
 
 	<ul class="space-y-1">
-		{#each days as day (day.date)}
-			{@const date = day.date as string}
+		{#each days as day (day.key)}
 			{@const status = dayStatus(day)}
 			{@const count = dayItemCount(day)}
-			{@const p = parts(date)}
-			{@const isSelected = selected === date}
+			{@const p = datedParts(day)}
+			{@const wish = dayWish(day)}
+			{@const isSelected = selected === day.key}
+			{@const isDreamDay = day.date == null && day.ordinal != null}
 			<li>
 				<button
 					type="button"
-					data-key={date}
-					data-drop-date={date}
+					data-key={day.key}
+					data-drop-key={day.key}
 					aria-pressed={isSelected}
-					tabindex={tabStopKey === date ? 0 : -1}
-					onclick={() => onselect(date)}
+					tabindex={tabStopKey === day.key ? 0 : -1}
+					onclick={() => onselect(day.key)}
 					onkeydown={onRailKeyDown}
 					class={cn(
 						'flex min-h-touch w-full items-center gap-2 rounded-lg border px-2.5 py-2 text-left transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary-600 focus-visible:ring-offset-2 focus-visible:ring-offset-surface',
@@ -143,11 +136,20 @@
 					)}
 				>
 					<span class="min-w-0 flex-1">
-						<span class="block text-[0.7rem] font-medium uppercase tracking-wide">{p.weekday}</span>
-						<span class="block text-sm font-semibold tabular-nums text-ink">{p.date}</span>
+						<span class="block text-[0.7rem] font-medium uppercase tracking-wide"
+							>{isDreamDay ? t('label_day') : p.weekday}</span
+						>
+						<span class="block text-sm font-semibold tabular-nums text-ink"
+							>{isDreamDay ? day.ordinal : p.day}</span
+						>
+						{#if isDreamDay && wish}
+							<span class="block truncate text-[0.65rem] text-accent-terracotta"
+								>{t('weekday_wish_short', { day: wish })}</span
+							>
+						{/if}
 					</span>
 					<span class="flex shrink-0 items-center gap-1.5">
-						{#if date === today}
+						{#if day.date === today}
 							<span class="size-1.5 rounded-full bg-primary-600" aria-hidden="true"></span>
 							<span class="sr-only">{t('today')}</span>
 						{/if}
@@ -164,7 +166,7 @@
 			<button
 				type="button"
 				data-key="ideas"
-				data-drop-date="ideas"
+				data-drop-key="ideas"
 				aria-pressed={selected === null}
 				tabindex={tabStopKey === null ? 0 : -1}
 				onclick={() => onselect(null)}

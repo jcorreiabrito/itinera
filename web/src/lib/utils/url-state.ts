@@ -329,9 +329,9 @@ export function costsUrl(href: string, state: CostsViewState): string {
 // --- Trip list -----------------------------------------------------------
 
 /** The trip list's stage filter. */
-export type TripsFilter = 'all' | 'confirmed' | 'planning';
+export type TripsFilter = 'all' | 'confirmed' | 'planning' | 'dreams';
 
-const TRIPS_FILTERS: readonly TripsFilter[] = ['all', 'confirmed', 'planning'];
+const TRIPS_FILTERS: readonly TripsFilter[] = ['all', 'confirmed', 'planning', 'dreams'];
 
 /** The filter a missing or unreadable `filter` degrades to. */
 export const DEFAULT_TRIPS_FILTER: TripsFilter = 'all';

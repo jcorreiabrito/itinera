@@ -1,6 +1,6 @@
 <script lang="ts">
-	import { trips } from '$lib/db';
-	import { formatDateRange, formatNights } from '$lib/format';
+	import { trips, isDreamTrip } from '$lib/db';
+	import { tripRangeLabel, formatNights } from '$lib/format';
 	import TripCover from '$lib/components/trip/TripCover.svelte';
 
 	interface Props {
@@ -20,7 +20,8 @@
 		Upcoming: 'upcoming',
 		Past: 'past',
 		Archived: 'archived',
-		Planning: 'planning'
+		Planning: 'planning',
+		Dream: 'dream_status'
 	};
 
 	const statusLabel = $derived.by(() => {
@@ -47,7 +48,11 @@
 				{statusLabel}
 			</span>
 			<span class="rounded-full bg-accent-terracotta px-2.5 py-1 text-xs font-semibold shadow-soft">
-				{trip.derived.countdown}
+				{#if trip.derived.countdown}
+					{trip.derived.countdown}
+				{:else}
+					{t('dates_flexible')}
+				{/if}
 			</span>
 		</div>
 
@@ -62,9 +67,11 @@
 		{/if}
 
 		<p class="mt-1 min-w-0 truncate text-sm text-white/80">
-			{formatDateRange(trip.startDate, trip.endDate)}
-			<span class="text-white/60">·</span>
-			{formatNights(trip.derived.nights)}
+			{tripRangeLabel(trip)}
+			{#if !isDreamTrip(trip)}
+				<span class="text-white/60">·</span>
+				{formatNights(trip.derived.nights)}
+			{/if}
 		</p>
 	</div>
 </section>

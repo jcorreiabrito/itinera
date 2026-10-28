@@ -26,7 +26,11 @@ const item = {
 } as ItineraryItem;
 
 const day: DayTimeline = {
+	key: '2026-10-25',
+	kind: 'dated',
 	date: '2026-10-25',
+	ordinal: 1,
+	weekdayHint: null,
 	day: null,
 	todos: [],
 	allDay: [],
@@ -72,7 +76,7 @@ describe('batch selection UI', () => {
 			props: {
 				day,
 				tripId: 'trip',
-				dates: ['2026-10-25'],
+				days: [{ key: '2026-10-25', date: '2026-10-25', ordinal: 1, weekdayHint: null }],
 				links: {
 					flights: '/trip/trip/bookings?tab=flights' as ResolvedPathname,
 					reservations: '/trip/trip/bookings?tab=reservations' as ResolvedPathname

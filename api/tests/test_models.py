@@ -71,6 +71,22 @@ class TestTripModel:
         trip = Trip.model_validate(raw)
         assert trip.end_date == "2026-06-10"
 
+    def test_dream_fields(self):
+        raw = {
+            **BASE,
+            "type": "trip",
+            "dateMode": "dream",
+            "dreamDayCount": 5,
+        }
+        trip = Trip.model_validate(raw)
+        assert trip.date_mode == "dream"
+        assert trip.dream_day_count == 5
+
+    def test_dated_trip_has_no_dream_mode(self):
+        trip = Trip.model_validate({**BASE, "type": "trip", "startDate": "2026-06-01"})
+        assert trip.date_mode is None
+        assert trip.dream_day_count is None
+
 
 class TestTripDayModel:
     def test_minimal(self):
@@ -78,6 +94,18 @@ class TestTripDayModel:
         doc = TripDay.model_validate(raw)
         assert doc.type == "tripDay"
         assert doc.date == "2026-06-01"
+
+    def test_dream_day_fields(self):
+        raw = {
+            **BASE,
+            "_id": "day:trip01:dream-003",
+            "type": "tripDay",
+            "ordinal": 3,
+            "weekdayHint": 6,
+        }
+        doc = TripDay.model_validate(raw)
+        assert doc.ordinal == 3
+        assert doc.weekday_hint == 6
 
 
 class TestItineraryItemModel:
@@ -90,6 +118,11 @@ class TestItineraryItemModel:
         raw = {**BASE, "type": "itineraryItem", "allDay": True}
         doc = ItineraryItem.model_validate(raw)
         assert doc.all_day is True
+
+    def test_day_ordinal_alias(self):
+        raw = {**BASE, "type": "itineraryItem", "dayOrdinal": 2}
+        doc = ItineraryItem.model_validate(raw)
+        assert doc.day_ordinal == 2
 
 
 class TestChecklistItemModel:

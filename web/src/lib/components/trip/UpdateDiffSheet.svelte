@@ -1,7 +1,7 @@
 <script lang="ts">
 	import { Sheet, Button } from '$lib/components/ui';
 	import type { TripUpdateDiff } from '$lib/db/importer';
-	import { PlusCircle, Edit3, Trash2, CheckCircle2 } from 'lucide-svelte';
+	import { PlusCircle, Edit3, Trash2, CheckCircle2, Lightbulb } from 'lucide-svelte';
 	import { t } from '$lib/i18n.svelte';
 
 	interface Props {
@@ -26,8 +26,11 @@
 		switch (doc.type) {
 			case 'trip':
 				return `${t('label_trip')}: ${title}`;
-			case 'tripDay':
-				return `${t('label_day')}: ${(doc.date as string) || (doc.title as string) || t('label_day')}`;
+			case 'tripDay': {
+				const ordinal = doc.ordinal as number | undefined;
+				const label = ordinal != null ? `${t('label_day')} ${ordinal}` : (doc.date as string);
+				return `${t('label_day')}: ${label || (doc.title as string) || t('label_day')}`;
+			}
 			case 'itineraryItem':
 				return `${t('label_activity')}: ${title}`;
 			case 'flight': {
@@ -98,6 +101,24 @@
 					</div>
 					<ul class="flex flex-col gap-1.5 pl-6 text-xs text-amber-950">
 						{#each diff.updated as item (item._id)}
+							<li class="list-disc">{getItemLabel(item)}</li>
+						{/each}
+					</ul>
+				</div>
+			{/if}
+
+			<!-- Moved to Ideas Section -->
+			{#if diff.movedToIdeas && diff.movedToIdeas.length > 0}
+				<div class="flex flex-col gap-2 rounded-lg border border-sky-200 bg-sky-50/50 p-3">
+					<div class="flex items-center gap-2 text-sm font-semibold text-sky-800">
+						<Lightbulb class="size-4 text-sky-600" />
+						<span>{t('to_ideas_count', { n: String(diff.movedToIdeas.length) })}</span>
+					</div>
+					<p class="text-[0.7rem] text-sky-700">
+						{t('moved_to_ideas_desc')}
+					</p>
+					<ul class="flex flex-col gap-1.5 pl-6 text-xs text-sky-950">
+						{#each diff.movedToIdeas as item (item._id)}
 							<li class="list-disc">{getItemLabel(item)}</li>
 						{/each}
 					</ul>

@@ -4,6 +4,7 @@ import { commandPt } from './features/command';
 import { configPt } from './features/config';
 import { conflictsPt } from './features/conflicts';
 import { densityPt } from './features/density';
+import { dreamPt } from './features/dream';
 import { exportCenterPt } from './features/export-center';
 import { feasibilityPt } from './features/feasibility';
 import { gesturesPt } from './features/gestures';
@@ -65,6 +66,7 @@ export const basePtBR: Record<string, string> = {
 	mark_as_confirmed: 'Confirmar viagem',
 	mark_as_planning: 'Mover para planejamento',
 	planning: 'Planejamento',
+	dream_status: 'Viagem dos sonhos',
 	confirmed: 'Confirmada',
 	stage: 'Estágio da viagem',
 	offline_ready: 'Pronto para usar offline',
@@ -712,6 +714,11 @@ export const basePtBR: Record<string, string> = {
 	printable_pdf: 'PDF para Impressão',
 	update_from_json: 'Atualizar a partir de arquivo JSON',
 	paste_json_update: 'Colar JSON para atualizar',
+	download_dream_template: 'Baixar modelo do plano dos sonhos',
+	download_dream_template_hint:
+		'Edite os dias numerados fora do Itinera e traga o arquivo de volta com “Atualizar a partir de arquivo JSON”.',
+	dream_template_downloaded: 'Modelo do plano dos sonhos baixado.',
+	could_not_export_template: 'Não foi possível gerar o modelo do plano dos sonhos.',
 	exports_need_server:
 		'Exportações precisam de conexão com o servidor. A atualização por JSON funciona offline.',
 	saved_to_device: 'Salvo no seu dispositivo.',
@@ -976,6 +983,8 @@ export const basePtBR: Record<string, string> = {
 	to_add_count: 'A adicionar ({n})',
 	to_update_count: 'A atualizar ({n})',
 	to_remove_count: 'A remover ({n})',
+	to_ideas_count: 'Para Ideias ({n})',
+	moved_to_ideas_desc: 'Itens ausentes no plano são mantidos como Ideias, não apagados.',
 	missing_items_to_trash: 'Itens ausentes no seu JSON serão movidos para a Lixeira.',
 	updating: 'Atualizando...',
 	confirm_update: 'Confirmar atualização',
@@ -1221,6 +1230,7 @@ export const ptBR: Record<string, string> = {
 	...configPt,
 	...conflictsPt,
 	...densityPt,
+	...dreamPt,
 	...exportCenterPt,
 	...feasibilityPt,
 	...gesturesPt,

@@ -6,6 +6,7 @@ Kept free of I/O so they are trivially unit-testable without a live CouchDB.
 from __future__ import annotations
 
 import os
+import re
 import time
 from typing import Any
 
@@ -45,6 +46,23 @@ PREFIX_MAP = {
     "expense": "exp",
     "attachment": "att",
 }
+
+
+def dream_day_ordinal(doc: dict[str, Any]) -> int | None:
+    """The numbered-day position of a TripDay document, if it has one.
+
+    Dream trips identify days as `dream-001`, `dream-002`, …; the ordinal is
+    normally stored on the document too, but older exports may only carry it in
+    the `_id`. Returns `None` for a real-dated day.
+    """
+    raw = doc.get("ordinal")
+    if isinstance(raw, int) and raw > 0:
+        return raw
+    doc_id = str(doc.get("_id") or doc.get("id") or "")
+    match = re.search(r":dream-(\d+)$", doc_id)
+    if match:
+        return int(match.group(1))
+    return None
 
 
 def infer_type_and_prefix(doc: dict[str, Any]) -> tuple[str, str]:
@@ -130,6 +148,13 @@ def prepare_trip_import(payload: dict[str, Any]) -> tuple[str, list[dict[str, An
         id_map[old_trip_id] = new_trip_id
 
     all_raw = [raw_trip_doc, *raw_child_docs]
+    dream_ordinals = [
+        ordinal
+        for doc in all_raw
+        if isinstance(doc, dict) and doc.get("type") == "tripDay"
+        for ordinal in [dream_day_ordinal(doc)]
+        if ordinal is not None
+    ]
     intermediate_docs: list[dict[str, Any]] = []
 
     for i, raw_doc in enumerate(all_raw):
@@ -140,8 +165,22 @@ def prepare_trip_import(payload: dict[str, Any]) -> tuple[str, list[dict[str, An
         if i == 0 or doc_type == "trip":
             new_id = new_trip_id
             doc_copy["type"] = "trip"
+            # An export of a dream plan may predate `dateMode`; infer it from
+            # the numbered day documents so the imported trip keeps its mode.
+            if (
+                dream_ordinals
+                and not doc_copy.get("dateMode")
+                and not (doc_copy.get("startDate") and doc_copy.get("endDate"))
+            ):
+                doc_copy["dateMode"] = "dream"
+                doc_copy.setdefault("dreamDayCount", max(dream_ordinals))
         elif doc_type == "tripDay":
-            date_part = str(doc_copy.get("date") or "undated")
+            ordinal = dream_day_ordinal(doc_copy)
+            if ordinal is not None:
+                date_part = f"dream-{ordinal:03d}"
+                doc_copy.setdefault("ordinal", ordinal)
+            else:
+                date_part = str(doc_copy.get("date") or "undated")
             new_id = f"day:{new_trip_uid}:{date_part}"
             doc_copy["type"] = "tripDay"
         else:

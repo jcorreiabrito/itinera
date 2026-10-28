@@ -1,5 +1,5 @@
 <script lang="ts" module>
-	export type TripStatusValue = 'Upcoming' | 'Active' | 'Past' | 'Archived' | 'Planning';
+	export type TripStatusValue = 'Upcoming' | 'Active' | 'Past' | 'Archived' | 'Planning' | 'Dream';
 </script>
 
 <script lang="ts">
@@ -19,7 +19,8 @@
 		Upcoming: { variant: 'primary', labelKey: 'upcoming' },
 		Past: { variant: 'neutral', labelKey: 'past' },
 		Archived: { variant: 'neutral', labelKey: 'archived' },
-		Planning: { variant: 'warning', labelKey: 'planning' }
+		Planning: { variant: 'warning', labelKey: 'planning' },
+		Dream: { variant: 'info', labelKey: 'dream_status' }
 	};
 
 	const current = $derived({

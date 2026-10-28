@@ -124,6 +124,8 @@ class Trip(CouchDoc):
     destinations: list[Destination] = Field(default_factory=list)
     start_date: str | None = Field(default=None, alias="startDate")
     end_date: str | None = Field(default=None, alias="endDate")
+    date_mode: Literal["dated", "dream"] | None = Field(default=None, alias="dateMode")
+    dream_day_count: int | None = Field(default=None, alias="dreamDayCount")
     primary_timezone: str | None = Field(default=None, alias="primaryTimezone")
     archived: bool = False
     archived_at: str | None = Field(default=None, alias="archivedAt")
@@ -138,6 +140,8 @@ class Trip(CouchDoc):
 class TripDay(CouchDoc):
     type: Literal["tripDay"] = "tripDay"
     date: str | None = None
+    ordinal: int | None = None
+    weekday_hint: int | None = Field(default=None, alias="weekdayHint")
     title: str | None = None
     notes: str | None = None
 
@@ -154,6 +158,7 @@ class ItineraryCostItem(BaseModel):
 class ItineraryItem(CouchDoc):
     type: Literal["itineraryItem"] = "itineraryItem"
     date: str | None = None
+    day_ordinal: int | None = Field(default=None, alias="dayOrdinal")
     all_day: bool = Field(default=False, alias="allDay")
     start_time: str | None = Field(default=None, alias="startTime")
     end_time: str | None = Field(default=None, alias="endTime")

@@ -221,6 +221,7 @@
 			active: f(sectionsData.active),
 			upcoming: f(sectionsData.upcoming),
 			planning: f(sectionsData.planning),
+			dreams: f(sectionsData.dreams),
 			past: f(sectionsData.past),
 			archived: f(sectionsData.archived)
 		};
@@ -231,6 +232,7 @@
 			? sectionsData.active.length +
 					sectionsData.upcoming.length +
 					sectionsData.planning.length +
+					sectionsData.dreams.length +
 					sectionsData.past.length +
 					sectionsData.archived.length
 			: 0
@@ -241,6 +243,7 @@
 			? filtered.active.length +
 					filtered.upcoming.length +
 					filtered.planning.length +
+					filtered.dreams.length +
 					filtered.past.length
 			: 0
 	);
@@ -252,6 +255,7 @@
 					...sectionsData.active,
 					...sectionsData.upcoming,
 					...sectionsData.planning,
+					...sectionsData.dreams,
 					...sectionsData.past,
 					...sectionsData.archived
 				]
@@ -269,6 +273,7 @@
 					...sectionsData.active,
 					...sectionsData.upcoming,
 					...sectionsData.planning,
+					...sectionsData.dreams,
 					...sectionsData.past
 				]
 			: []
@@ -440,6 +445,15 @@
 				</button>
 				<button
 					class="flex-1 rounded px-3 py-1.5 text-center text-sm font-medium transition-colors sm:flex-initial {filterTab ===
+					'dreams'
+						? 'bg-primary-100 text-primary-700'
+						: 'text-ink-muted hover:text-ink'}"
+					onclick={() => (filterTab = 'dreams')}
+				>
+					{t('filter_dreams')}
+				</button>
+				<button
+					class="flex-1 rounded px-3 py-1.5 text-center text-sm font-medium transition-colors sm:flex-initial {filterTab ===
 					'confirmed'
 						? 'bg-primary-100 text-primary-700'
 						: 'text-ink-muted hover:text-ink'}"
@@ -517,9 +531,20 @@
 				/>
 
 				{#if filtered}
+					{#if filterTab === 'all' || filterTab === 'dreams'}
+						{#if filtered.dreams.length}
+							{@render section('dreams_section', filtered.dreams, false, 0)}
+						{/if}
+					{/if}
+
 					{#if filterTab === 'all' || filterTab === 'planning'}
 						{#if filtered.planning.length}
-							{@render section('planning_section', filtered.planning, false, 0)}
+							{@render section(
+								'planning_section',
+								filtered.planning,
+								false,
+								filtered.dreams.length ? 80 : 0
+							)}
 						{/if}
 					{/if}
 
@@ -529,7 +554,7 @@
 								'active_now',
 								filtered.active,
 								true,
-								filtered.planning.length ? 80 : 0
+								(filtered.dreams.length ? 80 : 0) + (filtered.planning.length ? 80 : 0)
 							)}
 						{/if}
 						{#if filtered.upcoming.length}
@@ -537,7 +562,9 @@
 								'upcoming',
 								filtered.upcoming,
 								false,
-								(filtered.planning.length ? 80 : 0) + (filtered.active.length ? 80 : 0)
+								(filtered.dreams.length ? 80 : 0) +
+									(filtered.planning.length ? 80 : 0) +
+									(filtered.active.length ? 80 : 0)
 							)}
 						{/if}
 						{#if filtered.past.length}
@@ -545,7 +572,8 @@
 								'past',
 								filtered.past,
 								false,
-								(filtered.planning.length ? 80 : 0) +
+								(filtered.dreams.length ? 80 : 0) +
+									(filtered.planning.length ? 80 : 0) +
 									(filtered.active.length ? 80 : 0) +
 									(filtered.upcoming.length ? 80 : 0)
 							)}

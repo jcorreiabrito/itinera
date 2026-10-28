@@ -3,6 +3,7 @@
 	import { Button, Sheet } from '$lib/components/ui';
 	import { t } from '$lib/i18n.svelte';
 	import ItineraryItemForm from './ItineraryItemForm.svelte';
+	import type { DayOption } from './day-options';
 
 	interface Props {
 		open?: boolean;
@@ -10,10 +11,10 @@
 		/** Bare trip ULID. */
 		tripId: string;
 		item?: ItineraryItem | null;
-		/** Default day for a new item ('null' = Unscheduled). */
-		defaultDate?: string | null;
-		/** Trip days (ISO) for the day picker. */
-		dates: string[];
+		/** Default day key for a new item ('null' = Unscheduled). */
+		defaultDayKey?: string | null;
+		/** The trip's days, dated or numbered, for the day picker. */
+		days: DayOption[];
 		flights?: Flight[];
 		reservations?: Reservation[];
 		/** Home currency, used for the optional estimated cost. */
@@ -26,8 +27,8 @@
 		mode = 'create',
 		tripId,
 		item = null,
-		defaultDate = null,
-		dates,
+		defaultDayKey = null,
+		days,
 		flights = [],
 		reservations = [],
 		homeCurrency = 'EUR',
@@ -52,8 +53,8 @@
 		{mode}
 		{tripId}
 		{item}
-		{defaultDate}
-		{dates}
+		{defaultDayKey}
+		{days}
 		{flights}
 		{reservations}
 		{homeCurrency}

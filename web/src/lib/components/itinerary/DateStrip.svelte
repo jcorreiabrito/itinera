@@ -1,35 +1,36 @@
 <script lang="ts">
 	import { ChevronLeft, ChevronRight, Lightbulb } from 'lucide-svelte';
-	import { DateTime } from 'luxon';
 	import { cn } from '$lib/utils';
 	import { t } from '$lib/i18n.svelte';
+	import { datedParts, dayWish, type DayOption } from './day-options';
 
 	interface Props {
-		/** Trip dates (ISO) in order. */
-		dates: string[];
-		/** Selected date, or `null` for the Unscheduled / Ideas bucket. */
+		/** Trip days in order: dates or numbered dream days. */
+		days: DayOption[];
+		/** Selected day key, or `null` for the Unscheduled / Ideas bucket. */
 		selected: string | null;
 		/** Today's ISO date – shows a "Today" shortcut when it falls in range. */
 		today: string;
 		/** Number of unscheduled items (drives the Ideas chip). */
 		ideasCount: number;
-		onselect: (date: string | null) => void;
+		onselect: (key: string | null) => void;
 	}
 
-	let { dates, selected, today, ideasCount, onselect }: Props = $props();
+	let { days, selected, today, ideasCount, onselect }: Props = $props();
 
-	const todayInRange = $derived(dates.includes(today));
-	const currentIndex = $derived(selected ? dates.indexOf(selected) : -1);
+	const keys = $derived(days.map((day) => day.key));
+	const hasToday = $derived(days.some((day) => day.date === today));
+	const currentIndex = $derived(selected ? keys.indexOf(selected) : -1);
 	const canPrev = $derived(currentIndex > 0);
-	const canNext = $derived(currentIndex >= 0 && currentIndex < dates.length - 1);
+	const canNext = $derived(currentIndex >= 0 && currentIndex < keys.length - 1);
 
 	function goPrev() {
-		if (canPrev) onselect(dates[currentIndex - 1]);
+		if (canPrev) onselect(keys[currentIndex - 1]);
 	}
 
 	function goNext() {
-		if (canNext) onselect(dates[currentIndex + 1]);
-		else if (selected === null && dates.length > 0) onselect(dates[0]);
+		if (canNext) onselect(keys[currentIndex + 1]);
+		else if (selected === null && keys.length > 0) onselect(keys[0]);
 	}
 
 	let stripEl = $state<HTMLDivElement>();
@@ -49,28 +50,28 @@
 	/**
 	 * Every chip in the strip, in tab order: the days, then Ideas when it has
 	 * anything in it. `null` is the Ideas chip, which is a selection like any
-	 * other but has no date.
+	 * other but has no day key.
 	 */
-	function stripKeys(days: string[], ideas: number): (string | null)[] {
-		return ideas > 0 ? [...days, null] : days;
+	function stripKeys(dayKeys: string[], ideas: number): (string | null)[] {
+		return ideas > 0 ? [...dayKeys, null] : dayKeys;
 	}
 
-	const chips = $derived(stripKeys(dates, ideasCount));
+	const chips = $derived(stripKeys(keys, ideasCount));
 	/** The chip the tab key reaches: the selected day, else the Ideas chip, else the first. */
 	const tabStopKey = $derived(
-		selected !== null && dates.includes(selected)
+		selected !== null && keys.includes(selected)
 			? selected
 			: selected === null && ideasCount > 0
 				? null
-				: (dates[0] ?? null)
+				: (keys[0] ?? null)
 	);
 
-	function keyOf(date: string | null): string {
-		return date ?? 'ideas';
+	function keyOf(key: string | null): string {
+		return key ?? 'ideas';
 	}
 
-	function focusChip(date: string | null) {
-		stripEl?.querySelector<HTMLElement>(`[data-key="${keyOf(date)}"]`)?.focus();
+	function focusChip(key: string | null) {
+		stripEl?.querySelector<HTMLElement>(`[data-key="${keyOf(key)}"]`)?.focus();
 	}
 
 	function onStripKeyDown(event: KeyboardEvent) {
@@ -109,13 +110,14 @@
 		focusChip(chips[next]);
 	}
 
-	function parts(iso: string) {
-		const dt = DateTime.fromISO(iso);
-		return {
-			weekday: dt.isValid ? dt.toFormat('ccc') : '',
-			day: dt.isValid ? dt.toFormat('d') : '',
-			month: dt.isValid ? dt.toFormat('LLL') : ''
-		};
+	function chipLabel(day: DayOption): string {
+		const wish = dayWish(day);
+		if (day.date == null && day.ordinal != null) {
+			const label = t('day_n', { n: String(day.ordinal) });
+			return wish ? `${label}, ${t('weekday_wish_short', { day: wish })}` : label;
+		}
+		const p = datedParts(day);
+		return [p.weekday, p.day, p.month].filter(Boolean).join(' ');
 	}
 
 	// Keep the selected day scrolled into view when it changes.
@@ -134,7 +136,7 @@
 </script>
 
 <div class="flex items-center gap-1.5 sm:gap-2">
-	{#if dates.length > 1}
+	{#if days.length > 1}
 		<button
 			type="button"
 			onclick={goPrev}
@@ -147,11 +149,11 @@
 		</button>
 	{/if}
 
-	{#if todayInRange}
+	{#if hasToday}
 		<button
 			type="button"
 			onclick={() => onselect(today)}
-			data-drop-date={today}
+			data-drop-key={today}
 			class={cn(
 				'min-h-touch shrink-0 rounded-full border px-3 py-1.5 text-xs font-medium transition-colors sm:min-h-0 sm:text-sm',
 				selected === today
@@ -172,17 +174,19 @@
 		tabindex="-1"
 		onkeydown={onStripKeyDown}
 	>
-		{#each dates as date (date)}
-			{@const p = parts(date)}
-			{@const isSelected = selected === date}
-			{@const isToday = date === today}
+		{#each days as day (day.key)}
+			{@const p = datedParts(day)}
+			{@const wish = dayWish(day)}
+			{@const isSelected = selected === day.key}
+			{@const isToday = day.date === today}
 			<button
 				type="button"
 				aria-pressed={isSelected}
-				data-key={date}
-				data-drop-date={date}
-				tabindex={tabStopKey === date ? 0 : -1}
-				onclick={() => onselect(date)}
+				aria-label={chipLabel(day)}
+				data-key={day.key}
+				data-drop-key={day.key}
+				tabindex={tabStopKey === day.key ? 0 : -1}
+				onclick={() => onselect(day.key)}
 				class={cn(
 					'flex min-h-touch min-w-[3.5rem] shrink-0 snap-start flex-col items-center justify-center rounded-lg border px-2.5 py-1.5 text-center transition-colors',
 					isSelected
@@ -190,9 +194,15 @@
 						: 'border-border bg-surface text-ink-muted hover:bg-surface-sunken hover:text-ink'
 				)}
 			>
-				<span class="text-[0.7rem] font-medium uppercase tracking-wide">{p.weekday}</span>
-				<span class="text-base font-semibold tabular-nums text-ink">{p.day}</span>
-				<span class="text-[0.7rem]">{p.month}</span>
+				{#if day.date == null && day.ordinal != null}
+					<span class="text-[0.7rem] font-medium uppercase tracking-wide">{t('label_day')}</span>
+					<span class="text-base font-semibold tabular-nums text-ink">{day.ordinal}</span>
+					<span class="text-[0.7rem]">{wish || ' '}</span>
+				{:else}
+					<span class="text-[0.7rem] font-medium uppercase tracking-wide">{p.weekday}</span>
+					<span class="text-base font-semibold tabular-nums text-ink">{p.day}</span>
+					<span class="text-[0.7rem]">{p.month}</span>
+				{/if}
 				{#if isToday}
 					<span class="mt-0.5 h-1 w-1 rounded-full bg-primary-600" aria-hidden="true"></span>
 				{/if}
@@ -204,7 +214,7 @@
 				type="button"
 				aria-pressed={selected === null}
 				data-key="ideas"
-				data-drop-date="ideas"
+				data-drop-key="ideas"
 				tabindex={tabStopKey === null ? 0 : -1}
 				onclick={() => onselect(null)}
 				class={cn(
@@ -220,7 +230,7 @@
 		{/if}
 	</div>
 
-	{#if dates.length > 1}
+	{#if days.length > 1}
 		<button
 			type="button"
 			onclick={goNext}

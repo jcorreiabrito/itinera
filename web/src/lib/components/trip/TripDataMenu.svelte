@@ -4,6 +4,7 @@
 		ClipboardPaste,
 		Download,
 		FileDown,
+		FileJson,
 		FileText,
 		FileUp,
 		MoreVertical,
@@ -15,6 +16,11 @@
 	import { Dialog, Popover, toast } from '$lib/components/ui';
 	import { downloadTripExport, downloadTripPdf } from '$lib/api';
 	import { prepareTripUpdateDiff, executeTripUpdate, type TripUpdateDiff } from '$lib/db/importer';
+	import {
+		DREAM_TEMPLATE_SCHEMA,
+		downloadDreamTemplate,
+		prepareDreamTemplateDiff
+	} from '$lib/db/dream-template';
 	import { cn } from '$lib/utils';
 	import { t } from '$lib/i18n.svelte';
 	import { resolve } from '$app/paths';
@@ -24,14 +30,16 @@
 		/** Bare trip UUID or full trip ID. */
 		tripid: string;
 		title?: string;
+		/** Whether to offer the compact, hand-editable dream-plan template. */
+		dream?: boolean;
 		onedit?: () => void;
 		onshare?: () => void;
 	}
 
-	let { tripid, title, onedit, onshare }: Props = $props();
+	let { tripid, title, dream = false, onedit, onshare }: Props = $props();
 
 	let open = $state(false);
-	let busy = $state<'json' | 'pdf' | 'update' | 'paste' | null>(null);
+	let busy = $state<'json' | 'pdf' | 'template' | 'update' | 'paste' | null>(null);
 
 	let fileInputRef = $state<HTMLInputElement | null>(null);
 	let diffSheetOpen = $state(false);
@@ -99,6 +107,33 @@
 		}
 	}
 
+	async function exportDreamTemplate() {
+		if (busy) return;
+		busy = 'template';
+		try {
+			await downloadDreamTemplate(tripid);
+			toast.success(t('dream_template_downloaded'));
+			open = false;
+		} catch (err) {
+			toast.error(err instanceof Error ? err.message : t('could_not_export_template'));
+		} finally {
+			busy = null;
+		}
+	}
+
+	/**
+	 * The file menu accepts both the full trip export and the compact dream
+	 * template. Their schemas are distinct, so the diff is chosen by the payload
+	 * itself rather than by a mode switch the user would have to remember.
+	 */
+	function prepareDiff(payload: unknown): Promise<TripUpdateDiff> {
+		const schema =
+			payload && typeof payload === 'object' ? (payload as { schema?: unknown }).schema : undefined;
+		return schema === DREAM_TEMPLATE_SCHEMA
+			? prepareDreamTemplateDiff(tripid, payload)
+			: prepareTripUpdateDiff(tripid, payload);
+	}
+
 	function triggerUpdateFile() {
 		fileInputRef?.click();
 	}
@@ -112,7 +147,7 @@
 		try {
 			const text = await file.text();
 			const payload = JSON.parse(text);
-			const diff = await prepareTripUpdateDiff(tripid, payload);
+			const diff = await prepareDiff(payload);
 			currentDiff = diff;
 			open = false;
 			diffSheetOpen = true;
@@ -127,7 +162,8 @@
 	async function confirmUpdate() {
 		if (!currentDiff) return;
 		try {
-			await executeTripUpdate(currentDiff.readyToSaveDocs);
+			if (currentDiff.apply) await currentDiff.apply();
+			else await executeTripUpdate(currentDiff.readyToSaveDocs);
 			toast.success(t('trip_updated_from_json'));
 			setTimeout(() => {
 				window.location.reload();
@@ -146,7 +182,7 @@
 		busy = 'paste';
 		try {
 			const payload = JSON.parse(text);
-			const diff = await prepareTripUpdateDiff(tripid, payload);
+			const diff = await prepareDiff(payload);
 			currentDiff = diff;
 			pasteDialogOpen = false;
 			pasteText = '';
@@ -245,6 +281,16 @@
 		<p class="px-2.5 py-1.5 text-xs font-semibold uppercase tracking-wide text-ink-muted/80">
 			{t('edit')}
 		</p>
+
+		{#if dream}
+			<button type="button" class={itemClass} onclick={exportDreamTemplate} disabled={!!busy}>
+				<FileJson />
+				{busy === 'template' ? t('saving') : t('download_dream_template')}
+			</button>
+			<p class="px-2.5 pb-1.5 text-xs leading-snug text-ink-muted">
+				{t('download_dream_template_hint')}
+			</p>
+		{/if}
 
 		<button type="button" class={itemClass} onclick={triggerUpdateFile} disabled={!!busy}>
 			<FileUp />

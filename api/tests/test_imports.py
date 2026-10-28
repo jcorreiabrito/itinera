@@ -91,6 +91,103 @@ def test_prepare_trip_import_success():
     assert doc_by_type["trip"]["coverImageAttId"] == att_doc["_id"]
 
 
+def test_prepare_trip_import_preserves_dream_days():
+    payload = {
+        "schema": "itinera.trip-export",
+        "version": 1,
+        "trip": {
+            "_id": "trip:OLD123",
+            "type": "trip",
+            "title": "Someday Japan",
+            "dateMode": "dream",
+            "dreamDayCount": 3,
+        },
+        "documents": {
+            "tripDay": [
+                {
+                    "_id": "day:OLD123:dream-002",
+                    "type": "tripDay",
+                    "tripId": "trip:OLD123",
+                    "ordinal": 2,
+                    "weekdayHint": 6,
+                    "title": "Onsen",
+                }
+            ],
+            "itineraryItem": [
+                {
+                    "_id": "itin:OLD123:ITEM1",
+                    "type": "itineraryItem",
+                    "tripId": "trip:OLD123",
+                    "title": "Bath",
+                    "dayOrdinal": 2,
+                    "date": None,
+                }
+            ],
+        },
+    }
+
+    new_trip_id, docs = prepare_trip_import(payload)
+    uid = new_trip_id.split(":")[1]
+    doc_by_type = {d["type"]: d for d in docs}
+
+    trip = doc_by_type["trip"]
+    assert trip["dateMode"] == "dream"
+    assert trip["dreamDayCount"] == 3
+    assert "startDate" not in trip or not trip["startDate"]
+
+    day = doc_by_type["tripDay"]
+    assert day["_id"] == f"day:{uid}:dream-002"
+    assert day["ordinal"] == 2
+    assert day["weekdayHint"] == 6
+
+    item = doc_by_type["itineraryItem"]
+    assert item["dayOrdinal"] == 2
+
+
+def test_prepare_trip_import_infers_dream_mode_from_ordinal_days():
+    payload = {
+        "trip": {
+            "_id": "trip:OLD123",
+            "type": "trip",
+            "title": "No dates yet",
+        },
+        "documents": {
+            "tripDay": [
+                {
+                    "_id": "day:OLD123:dream-004",
+                    "type": "tripDay",
+                    "ordinal": 4,
+                }
+            ]
+        },
+    }
+
+    _, docs = prepare_trip_import(payload)
+    trip = next(d for d in docs if d["type"] == "trip")
+    assert trip["dateMode"] == "dream"
+    assert trip["dreamDayCount"] == 4
+
+
+def test_prepare_trip_import_does_not_override_an_explicit_dated_mode():
+    payload = {
+        "trip": {
+            "_id": "trip:OLD123",
+            "type": "trip",
+            "title": "Dated",
+            "dateMode": "dated",
+            "startDate": "2026-08-01",
+            "endDate": "2026-08-02",
+        },
+        "documents": {
+            "tripDay": [{"_id": "day:OLD123:dream-001", "type": "tripDay", "ordinal": 1}]
+        },
+    }
+
+    _, docs = prepare_trip_import(payload)
+    trip = next(d for d in docs if d["type"] == "trip")
+    assert trip["dateMode"] == "dated"
+
+
 def test_prepare_trip_import_resilient_fallback():
     # Even with non-standard schema, version or missing trip, it recovers gracefully
     new_id_1, docs_1 = prepare_trip_import({"schema": "custom.schema", "version": 99, "title": "My Custom Trip"})

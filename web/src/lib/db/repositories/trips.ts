@@ -19,6 +19,7 @@ import {
 	tripDayCount,
 	type TripDateStatus
 } from '../datetime';
+import { clampDreamDayCount, isDreamTrip, resolveDateMode, type TripMode } from '../date-mode';
 import {
 	bulkPut,
 	createDoc,
@@ -35,6 +36,7 @@ import {
 	allTripsRange,
 	bareTripUid,
 	dayId,
+	dreamDayId,
 	fullTripid,
 	parseId,
 	tripid as buildTripId
@@ -46,11 +48,12 @@ import type {
 	Flight,
 	ItineraryItem,
 	Reservation,
-	Trip
+	Trip,
+	TripDay
 } from '../schemas';
 
-/** Display status including the manual Archived state. */
-export type TripStatus = TripDateStatus | 'Archived' | 'Planning';
+/** Display status including the manual Archived state and dream plans. */
+export type TripStatus = TripDateStatus | 'Archived' | 'Planning' | 'Dream';
 
 /** Values computed from a trip's dates (never stored). */
 export interface TripDerived {
@@ -66,9 +69,11 @@ export type TripWithDerived = Trip & { derived: TripDerived };
 /** Fields required/allowed when creating a trip. */
 export interface NewTripInput {
 	title: string;
-	startDate: string;
-	endDate: string;
+	startDate?: string;
+	endDate?: string;
 	homeCurrency: string;
+	dateMode?: TripMode;
+	dreamDayCount?: number;
 	destinations?: Destination[];
 	primaryTimezone?: string;
 	budget?: Budget;
@@ -86,7 +91,7 @@ export type TripPatch = Partial<Omit<NewTripInput, never>> & {
 
 /** List filter + search options for Home. */
 export interface TripListOptions {
-	filter?: 'all' | 'upcoming' | 'active' | 'past' | 'archived';
+	filter?: 'all' | 'upcoming' | 'active' | 'past' | 'archived' | 'dream';
 	search?: string;
 	/** Reference "today" (ISO date) for status derivation; defaults to the real today. */
 	today?: string;
@@ -97,6 +102,7 @@ export interface TripSections {
 	active: TripWithDerived[];
 	upcoming: TripWithDerived[];
 	planning: TripWithDerived[];
+	dreams: TripWithDerived[];
 	past: TripWithDerived[];
 	archived: TripWithDerived[];
 }
@@ -104,21 +110,24 @@ export interface TripSections {
 /** Derive a trip's display status from its archived flag + dates. */
 export function deriveStatus(trip: Trip, today: string = todayIso()): TripStatus {
 	if (trip.archived) return 'Archived';
+	if (isDreamTrip(trip)) return 'Dream';
 	if (trip.stage === 'planning') return 'Planning';
 	if (!trip.startDate || !trip.endDate) return 'Upcoming';
 	return tripDateStatus(trip.startDate, trip.endDate, today);
 }
 
 function withDerived(trip: Trip, today: string): TripWithDerived {
+	const dream = isDreamTrip(trip);
 	const start = trip.startDate ?? today;
 	const end = trip.endDate ?? today;
+	const dreamDayCount = clampDreamDayCount(trip.dreamDayCount ?? 1);
 	return {
 		...trip,
 		derived: {
 			status: deriveStatus(trip, today),
-			nights: nightsBetween(start, end),
-			dayCount: tripDayCount(start, end),
-			countdown: countdownText(start, end, today)
+			nights: dream ? 0 : nightsBetween(start, end),
+			dayCount: dream ? dreamDayCount : tripDayCount(start, end),
+			countdown: dream ? '' : countdownText(start, end, today)
 		}
 	};
 }
@@ -150,7 +159,9 @@ export async function list(opts: TripListOptions = {}): Promise<TripWithDerived[
 						? 'Past'
 						: opts.filter === 'archived'
 							? 'Archived'
-							: 'Planning';
+							: opts.filter === 'dream'
+								? 'Dream'
+								: 'Planning';
 		trips = trips.filter((t) => t.derived.status === wanted);
 	}
 	const search = opts.search?.trim();
@@ -169,11 +180,14 @@ export async function sections(today: string = todayIso()): Promise<TripSections
 		(b.endDate ?? '').localeCompare(a.endDate ?? '');
 	const byEndAsc = (a: TripWithDerived, b: TripWithDerived) =>
 		(a.endDate ?? '').localeCompare(b.endDate ?? '');
+	const byTitle = (a: TripWithDerived, b: TripWithDerived) =>
+		(a.title ?? '').localeCompare(b.title ?? '');
 
 	return {
 		active: all.filter((t) => t.derived.status === 'Active').sort(byEndAsc),
 		upcoming: all.filter((t) => t.derived.status === 'Upcoming').sort(byStartAsc),
 		planning: all.filter((t) => t.derived.status === 'Planning').sort(byStartAsc),
+		dreams: all.filter((t) => t.derived.status === 'Dream').sort(byTitle),
 		past: all.filter((t) => t.derived.status === 'Past').sort(byEndDesc),
 		archived: all.filter((t) => t.derived.status === 'Archived').sort(byEndDesc)
 	};
@@ -196,12 +210,17 @@ export async function getWithDerived(
 /** Create a new trip. Returns the stored document (with `_id`/`_rev`). */
 export async function create(input: NewTripInput): Promise<Trip> {
 	const _id = buildTripId();
+	const mode: TripMode = input.dateMode ?? (input.startDate || input.endDate ? 'dated' : 'dream');
+	const dream = mode === 'dream';
+	const dreamDayCount = dream ? clampDreamDayCount(input.dreamDayCount ?? 1) : undefined;
 	const doc: Omit<Trip, 'createdAt' | 'updatedAt' | 'deletedAt' | '_schemaVersion' | '_rev'> = {
 		_id,
 		type: 'trip',
 		title: input.title,
-		startDate: input.startDate,
-		endDate: input.endDate,
+		startDate: dream ? undefined : (input.startDate ?? ''),
+		endDate: dream ? undefined : (input.endDate ?? ''),
+		dateMode: mode,
+		dreamDayCount,
 		homeCurrency: input.homeCurrency,
 		destinations: input.destinations ?? [],
 		primaryTimezone: input.primaryTimezone,
@@ -234,6 +253,60 @@ export function unarchive(id: string): Promise<Trip> {
 /** Set the stage of a trip (planning or confirmed). */
 export function setStage(id: string, stage: 'planning' | 'confirmed'): Promise<Trip> {
 	return patchDoc<Trip>(fullTripid(id), { stage });
+}
+
+/**
+ * Resize a dream plan.
+ *
+ * Growing only changes the count, so the new days start empty. Shrinking never
+ * deletes an item: anything on a removed ordinal moves to Ideas, which is also
+ * what the confirmation copy promises. Day metadata above the new count is
+ * purged because it no longer describes anything, and the trip document is
+ * written last so a retry after a partial failure converges.
+ */
+export async function setDreamDayCount(id: string, count: number): Promise<Trip> {
+	const fullId = fullTripid(id);
+	const trip = await getDoc<Trip>(fullId);
+	if (!trip) throw new Error(`setDreamDayCount: trip not found: ${id}`);
+	if (!isDreamTrip(trip)) throw new Error('setDreamDayCount: trip is not a dream plan');
+
+	const next = clampDreamDayCount(count);
+	const now = nowIso();
+
+	const [items, days] = await Promise.all([
+		listTripDocs<ItineraryItem>('itineraryItem', fullId),
+		listTripDocs<TripDay>('tripDay', fullId)
+	]);
+
+	const removedItems = items.filter((item) => item.dayOrdinal != null && item.dayOrdinal > next);
+	if (removedItems.length) {
+		await bulkPut(
+			removedItems.map((item) => ({
+				...item,
+				date: null,
+				dayOrdinal: null,
+				updatedAt: now
+			}))
+		);
+	}
+
+	const removedDays = days.filter((doc) => {
+		const ordinal = dayOrdinalOf(doc);
+		return ordinal != null && ordinal > next;
+	});
+	if (removedDays.length) {
+		await purgeManyDocs(removedDays.map((doc) => doc._id));
+	}
+
+	return patchDoc<Trip>(fullId, { dateMode: 'dream', dreamDayCount: next });
+}
+
+/** The ordinal a dream `tripDay` document represents, from its field or id. */
+function dayOrdinalOf(doc: TripDay): number | null {
+	if (doc.ordinal != null) return doc.ordinal;
+	if (doc.date) return null;
+	const match = /^day:[^:]+:dream-(\d+)$/.exec(doc._id);
+	return match ? Number(match[1]) : null;
 }
 
 /** Soft-delete a trip and all its child documents (Trash can restore the trip). */
@@ -341,22 +414,64 @@ function shouldInclude(type: TripChildType, opts: DuplicateOptions): boolean {
 /**
  * Deep-copy a trip and selected children under fresh ids.
  *
- * Dates are shifted so the copy starts on `newStartDate` (when given); checklist
- * * items are reset to unchecked; linked ids (itinerary + flight/reservation,
- * * expense + booking) are remapped to the new copies. Attachments are not copied.
+ * A dream plan stays a dream plan unless `newStartDate` is given, in which case
+ * the copy becomes dated: Day n lands on `newStartDate + (n - 1)`. A dated
+ * source keeps its existing shift behaviour. Checklist items are reset to
+ * unchecked; linked ids (itinerary + flight/reservation, expense + booking) are
+ * remapped to the new copies. Attachments are not copied.
  */
 export async function duplicate(sourceId: string, opts: DuplicateOptions = {}): Promise<Trip> {
 	const source = await get(sourceId);
 	if (!source) throw new Error(`duplicate: trip not found: ${sourceId}`);
 
-	const delta =
-		opts.newStartDate && source.startDate ? dayDelta(source.startDate, opts.newStartDate) : 0;
+	const sourceMode = resolveDateMode(source);
+	const dreamCount = clampDreamDayCount(source.dreamDayCount ?? 1);
+	const dreamCopy = sourceMode === 'dream' && !opts.newStartDate;
+	const convertDream = sourceMode === 'dream' && !!opts.newStartDate;
+
+	const startDate = dreamCopy
+		? null
+		: convertDream
+			? (opts.newStartDate ?? todayIso())
+			: (shiftIsoDate(
+					source.startDate,
+					opts.newStartDate && source.startDate ? dayDelta(source.startDate, opts.newStartDate) : 0
+				) ??
+				source.startDate ??
+				todayIso());
+	const endDate = dreamCopy
+		? null
+		: convertDream
+			? (shiftIsoDate(startDate, dreamCount - 1) ?? startDate)
+			: (shiftIsoDate(
+					source.endDate,
+					opts.newStartDate && source.startDate ? dayDelta(source.startDate, opts.newStartDate) : 0
+				) ??
+				source.endDate ??
+				todayIso());
+
+	const datedDelta =
+		!dreamCopy && !convertDream && opts.newStartDate && source.startDate
+			? dayDelta(source.startDate, opts.newStartDate)
+			: convertDream
+				? await anchorShift(sourceId, startDate ?? todayIso())
+				: 0;
+
+	const dateByOrdinal = new Map<number, string>();
+	if (convertDream) {
+		for (let ordinal = 1; ordinal <= dreamCount; ordinal += 1) {
+			const date = shiftIsoDate(startDate, ordinal - 1);
+			if (date) dateByOrdinal.set(ordinal, date);
+		}
+	}
 
 	// 1. The new trip.
 	const newTrip = await create({
 		title: opts.title ?? `${source.title} (copy)`,
-		startDate: shiftIsoDate(source.startDate, delta) ?? source.startDate ?? todayIso(),
-		endDate: shiftIsoDate(source.endDate, delta) ?? source.endDate ?? todayIso(),
+		startDate: startDate ?? undefined,
+		endDate: endDate ?? undefined,
+		dateMode: dreamCopy ? 'dream' : 'dated',
+		dreamDayCount: dreamCopy ? dreamCount : undefined,
 		homeCurrency: source.homeCurrency ?? 'EUR',
 		destinations: source.destinations,
 		primaryTimezone: source.primaryTimezone,
@@ -366,6 +481,14 @@ export async function duplicate(sourceId: string, opts: DuplicateOptions = {}): 
 		tags: source.tags
 	});
 	const newTripid = newTrip._id;
+	const ctx: CopyContext = {
+		newTripid,
+		dreamCopy,
+		convertDream,
+		dateByOrdinal,
+		delta: datedDelta,
+		startDate
+	};
 
 	// 2. Collect children to copy and assign new ids first (so links remap).
 	const idMap = new Map<string, string>();
@@ -374,25 +497,60 @@ export async function duplicate(sourceId: string, opts: DuplicateOptions = {}): 
 		if (!shouldInclude(type, opts)) continue;
 		const docs = await listTripDocs<AnyDoc>(type, sourceId);
 		for (const doc of docs) {
-			const newId = remapChildId(type, doc, newTripid, delta);
-			idMap.set(doc._id, newId);
+			idMap.set(doc._id, remapChildId(type, doc, ctx));
 			sourceChildren.push(doc);
 		}
 	}
 
 	// 3. Transform each child onto the new trip.
 	const now = nowIso();
-	const copies = sourceChildren.map((doc) => transformChild(doc, idMap, newTripid, delta, now));
+	const copies = sourceChildren.map((doc) => transformChild(doc, idMap, ctx, now));
 	if (copies.length) await bulkPut(copies);
 
 	return newTrip;
 }
 
-function remapChildId(type: TripChildType, doc: AnyDoc, newTripid: string, delta: number): string {
-	const bare = bareTripUid(newTripid);
+interface CopyContext {
+	newTripid: string;
+	dreamCopy: boolean;
+	convertDream: boolean;
+	dateByOrdinal: Map<number, string>;
+	/** Day shift for real-dated children (bookings, expenses, to-dos). */
+	delta: number;
+	startDate: string | null;
+}
+
+/** The earliest dated booking, used to align bookings when a dream becomes dated. */
+async function anchorShift(sourceId: string, targetStart: string): Promise<number> {
+	const [flights, reservations] = await Promise.all([
+		listTripDocs<Flight>('flight', sourceId),
+		listTripDocs<Reservation>('reservation', sourceId)
+	]);
+	const dates: string[] = [];
+	for (const flight of flights) {
+		for (const segment of flight.segments ?? []) {
+			const date = segment.departLocal?.slice(0, 10);
+			if (date) dates.push(date);
+		}
+	}
+	for (const reservation of reservations) {
+		const date = reservation.start?.slice(0, 10);
+		if (date) dates.push(date);
+	}
+	if (!dates.length) return 0;
+	return dayDelta(dates.sort()[0], targetStart);
+}
+
+function remapChildId(type: TripChildType, doc: AnyDoc, ctx: CopyContext): string {
+	const bare = bareTripUid(ctx.newTripid);
 	if (type === 'tripDay') {
-		const date = shiftIsoDate((doc as { date?: string }).date, delta) ?? '';
-		return dayId(newTripid, date);
+		const ordinal = dayOrdinalOf(doc as TripDay);
+		if (ctx.dreamCopy) return dreamDayId(ctx.newTripid, ordinal ?? 1);
+		if (ctx.convertDream) {
+			return dayId(ctx.newTripid, ctx.dateByOrdinal.get(ordinal ?? 1) ?? ctx.startDate ?? '');
+		}
+		const date = shiftIsoDate((doc as { date?: string }).date, ctx.delta) ?? '';
+		return dayId(ctx.newTripid, date);
 	}
 	const { prefix, id: childUid } = parseId(doc._id);
 	return `${prefix}:${bare}:${childUid}`;
@@ -401,31 +559,55 @@ function remapChildId(type: TripChildType, doc: AnyDoc, newTripid: string, delta
 function transformChild(
 	doc: AnyDoc,
 	idMap: Map<string, string>,
-	newTripid: string,
-	delta: number,
+	ctx: CopyContext,
 	now: string
 ): AnyDoc {
 	const next = { ...doc } as Record<string, unknown>;
 	next._id = idMap.get(doc._id)!;
 	delete next._rev;
-	next.tripid = newTripid;
+	next.tripid = ctx.newTripid;
 	next.createdAt = now;
 	next.updatedAt = now;
 	next.deletedAt = null;
 
 	// Shift any date-ish fields.
-	if (typeof next.date === 'string') next.date = shiftIsoDate(next.date, delta);
-	if (typeof next.dueDate === 'string') next.dueDate = shiftIsoDate(next.dueDate, delta);
-	if (typeof next.start === 'string') next.start = shiftIsoDateTime(next.start, delta);
-	if (typeof next.end === 'string') next.end = shiftIsoDateTime(next.end, delta);
+	if (typeof next.date === 'string') next.date = shiftIsoDate(next.date, ctx.delta);
+	if (typeof next.dueDate === 'string') next.dueDate = shiftIsoDate(next.dueDate, ctx.delta);
+	if (typeof next.start === 'string') next.start = shiftIsoDateTime(next.start, ctx.delta);
+	if (typeof next.end === 'string') next.end = shiftIsoDateTime(next.end, ctx.delta);
 
 	switch (doc.type) {
+		case 'tripDay': {
+			const ordinal = dayOrdinalOf(doc as TripDay);
+			if (ctx.dreamCopy) {
+				delete next.date;
+				next.ordinal = ordinal ?? 1;
+			} else if (ctx.convertDream) {
+				next.date = ctx.dateByOrdinal.get(ordinal ?? 1) ?? ctx.startDate ?? '';
+				delete next.ordinal;
+			} else {
+				delete next.ordinal;
+			}
+			break;
+		}
 		case 'checklistItem':
 			next.done = false;
 			next.doneAt = null;
 			break;
 		case 'itineraryItem': {
 			const item = doc as ItineraryItem;
+			if (ctx.dreamCopy) {
+				next.date = null;
+				next.dayOrdinal = item.dayOrdinal ?? null;
+			} else if (ctx.convertDream) {
+				next.date =
+					item.dayOrdinal != null
+						? (ctx.dateByOrdinal.get(item.dayOrdinal) ?? ctx.startDate)
+						: null;
+				delete next.dayOrdinal;
+			} else {
+				delete next.dayOrdinal;
+			}
 			if (item.linkedFlightId) next.linkedFlightId = idMap.get(item.linkedFlightId) ?? null;
 			if (item.linkedReservationId)
 				next.linkedReservationId = idMap.get(item.linkedReservationId) ?? null;
@@ -435,16 +617,14 @@ function transformChild(
 			const flight = doc as Flight;
 			next.segments = (flight.segments ?? []).map((seg) => ({
 				...seg,
-				departLocal: shiftIsoDateTime(seg.departLocal, delta) ?? seg.departLocal,
-				arriveLocal: shiftIsoDateTime(seg.arriveLocal, delta) ?? seg.arriveLocal
+				departLocal: shiftIsoDateTime(seg.departLocal, ctx.delta) ?? seg.departLocal,
+				arriveLocal: shiftIsoDateTime(seg.arriveLocal, ctx.delta) ?? seg.arriveLocal
 			}));
 			next.attachmentIds = [];
 			break;
 		}
 		case 'reservation': {
 			(next as { attachmentIds?: string[] }).attachmentIds = [];
-			const res = doc as Reservation;
-			void res;
 			break;
 		}
 		case 'expense': {

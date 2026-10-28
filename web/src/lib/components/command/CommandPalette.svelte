@@ -21,7 +21,7 @@
 		type CommandGroup
 	} from '$lib/command';
 	import { bareTripUid, trips } from '$lib/db';
-	import { formatDateRange } from '$lib/format';
+	import { tripRangeLabel } from '$lib/format';
 	import { getLanguage, setLanguage, t, type TranslationKey } from '$lib/i18n.svelte';
 	import { theme } from '$lib/stores/theme.svelte';
 	import { TRIP_SECTIONS } from '$lib/trip-sections';
@@ -107,7 +107,7 @@
 			tripSource.map((trip) => ({
 				id: bareTripUid(trip._id),
 				title: trip.title?.trim() || t('untitled_trip'),
-				hint: formatDateRange(trip.startDate, trip.endDate),
+				hint: tripRangeLabel(trip),
 				keywords: [
 					...(trip.tags ?? []),
 					...(trip.destinations ?? []).flatMap((destination) =>

@@ -48,6 +48,20 @@ export function dayId(trip: string, date: string): string {
 	return `day:${bareTripUid(trip)}:${date}`;
 }
 
+/**
+ * Build a `tripDay` id for a numbered dream day:
+ * `day:{tripUid}:dream-001`. The `dream-` prefix cannot collide with an ISO
+ * date, and zero-padding keeps range scans in ordinal order.
+ */
+export function dreamDayId(trip: string, ordinal: number): string {
+	return `day:${bareTripUid(trip)}:dream-${String(ordinal).padStart(3, '0')}`;
+}
+
+/** True when a `day:` id names a dream day rather than a calendar date. */
+export function isDreamDayId(id: string): boolean {
+	return /^day:[^:]+:dream-\d+$/.test(id);
+}
+
 function childId(type: DocType, trip: string, id: string = newUid()): string {
 	return `${PREFIX_BY_TYPE[type]}:${bareTripUid(trip)}:${id}`;
 }

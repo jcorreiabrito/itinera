@@ -19,6 +19,8 @@ export interface TripShellContext {
 	requestReload: () => void;
 	/** Open the trip editor sheet (owned by the shell header). */
 	openEditor: () => void;
+	/** Open the guided Set dates sheet (owned by the shell header). */
+	openDates: () => void;
 }
 
 export function setTripShellContext(ctx: TripShellContext): void {

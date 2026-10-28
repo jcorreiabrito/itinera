@@ -8,6 +8,8 @@
 
 import { DateTime } from 'luxon';
 import { getLanguage, t } from './i18n.svelte';
+import { isDreamTrip } from './db/date-mode';
+import type { Trip } from './db/schemas';
 
 /** "12-19 Sep 2026" / "28 Sep – 3 Oct 2026" / "12 Sep 2026". */
 export function formatDateRange(start?: string | null, end?: string | null): string {
@@ -33,6 +35,19 @@ export function formatWeekdayDate(iso?: string | null): string {
 	const lang = (typeof getLanguage === 'function' && getLanguage()) || 'en';
 	const dt = DateTime.fromISO(iso, { locale: lang });
 	return dt.isValid ? dt.toFormat('ccc d LLL') : '';
+}
+
+/**
+ * The date line under a trip title.
+ *
+ * A dream plan has no real dates, so naming its span by the number of planned
+ * days says more than an empty range would — and never invents a calendar.
+ */
+export function tripRangeLabel(
+	trip: Pick<Trip, 'dateMode' | 'startDate' | 'endDate' | 'dreamDayCount'>
+): string {
+	if (isDreamTrip(trip)) return t('dream_range', { n: String(trip.dreamDayCount ?? 1) });
+	return formatDateRange(trip.startDate, trip.endDate);
 }
 
 /** "12 Sep 2026". */

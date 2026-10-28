@@ -18,6 +18,7 @@ import { commandEn } from './features/command';
 import { configEn } from './features/config';
 import { conflictsEn } from './features/conflicts';
 import { densityEn } from './features/density';
+import { dreamEn } from './features/dream';
 import { exportCenterEn } from './features/export-center';
 import { feasibilityEn } from './features/feasibility';
 import { gesturesEn } from './features/gestures';
@@ -72,6 +73,7 @@ export const baseEn = {
 	mark_as_confirmed: 'Confirm trip',
 	mark_as_planning: 'Move to planning',
 	planning: 'Planning',
+	dream_status: 'Dream trip',
 	confirmed: 'Confirmed',
 	stage: 'Trip stage',
 	offline_ready: 'Offline-ready',
@@ -714,6 +716,11 @@ export const baseEn = {
 	printable_pdf: 'Printable PDF',
 	update_from_json: 'Update from JSON file',
 	paste_json_update: 'Paste JSON to update',
+	download_dream_template: 'Download dream plan template',
+	download_dream_template_hint:
+		'Edit the numbered days outside Itinera, then bring the file back with “Update from JSON file”.',
+	dream_template_downloaded: 'Dream plan template downloaded.',
+	could_not_export_template: 'Could not build the dream plan template.',
 	exports_need_server: 'Exports need server connection. JSON Update works offline.',
 	saved_to_device: 'Saved to your device.',
 	trip_data_and_exports: 'Trip data and exports',
@@ -973,6 +980,8 @@ export const baseEn = {
 	to_add_count: 'To Add ({n})',
 	to_update_count: 'To Update ({n})',
 	to_remove_count: 'To Remove ({n})',
+	to_ideas_count: 'To Ideas ({n})',
+	moved_to_ideas_desc: 'Items missing from your plan are kept as Ideas, not deleted.',
 	missing_items_to_trash: 'Items missing in your JSON will be moved to Trash.',
 	updating: 'Updating...',
 	confirm_update: 'Confirm Update',
@@ -1214,6 +1223,7 @@ export const en = {
 	...configEn,
 	...conflictsEn,
 	...densityEn,
+	...dreamEn,
 	...exportCenterEn,
 	...feasibilityEn,
 	...gesturesEn,

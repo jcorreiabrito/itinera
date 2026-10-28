@@ -8,6 +8,7 @@
 	import { ClipboardList, Copy, PenLine, Upload } from 'lucide-svelte';
 	import { untrack } from 'svelte';
 	import { Button, Field, Input, Select, Sheet, toast } from '$lib/components/ui';
+	import { flagEnabled } from '$lib/config';
 	import { t } from '$lib/i18n.svelte';
 	import { importTripToLocalDb } from '$lib/db/importer';
 	import { isDirty, snapshot } from '$lib/utils/form-dirty';
@@ -75,8 +76,13 @@
 	let importTab = $state<'file' | 'paste'>('file');
 	let pasteText = $state('');
 
+	/** Deployment switch: hides the dream option without changing stored trips. */
+	const dreamEnabled = flagEnabled('dreamTrips');
+
 	interface FormState {
 		title: string;
+		dateMode: 'dated' | 'dream';
+		dreamDayCount: string;
 		startDate: string;
 		endDate: string;
 		destinations: Destination[];
@@ -109,6 +115,8 @@
 	function blankForm(): FormState {
 		return {
 			title: '',
+			dateMode: 'dated',
+			dreamDayCount: '7',
 			startDate: '',
 			endDate: '',
 			destinations: [],
@@ -163,10 +171,17 @@
 	function validate(): boolean {
 		const e: Partial<Record<keyof FormState, string>> = {};
 		if (!form.title.trim()) e.title = t('trip_name_required');
-		if (!form.startDate) e.startDate = t('start_date_required');
-		if (!form.endDate) e.endDate = t('end_date_required');
-		if (form.startDate && form.endDate && form.endDate < form.startDate) {
-			e.endDate = t('end_before_start_date');
+		if (form.dateMode === 'dated') {
+			if (!form.startDate) e.startDate = t('start_date_required');
+			if (!form.endDate) e.endDate = t('end_date_required');
+			if (form.startDate && form.endDate && form.endDate < form.startDate) {
+				e.endDate = t('end_before_start_date');
+			}
+		} else {
+			const days = Number(form.dreamDayCount);
+			if (!Number.isInteger(days) || days < 1 || days > 366) {
+				e.dreamDayCount = t('invalid_day_count');
+			}
 		}
 		if (form.travelerCount.trim()) {
 			const n = Number(form.travelerCount);
@@ -187,8 +202,10 @@
 			);
 			const created = await trips.create({
 				title: form.title.trim(),
-				startDate: form.startDate,
-				endDate: form.endDate,
+				dateMode: form.dateMode,
+				dreamDayCount: form.dateMode === 'dream' ? Number(form.dreamDayCount) : undefined,
+				startDate: form.dateMode === 'dated' ? form.startDate : undefined,
+				endDate: form.dateMode === 'dated' ? form.endDate : undefined,
 				homeCurrency: form.homeCurrency,
 				stage: form.stage,
 				destinations: cleanDestinations,
@@ -721,26 +738,77 @@
 				/>
 			</Field>
 
-			<div class="grid grid-cols-2 gap-3">
-				<Field label={t('start')} for={fid('start')} required error={errors.startDate}>
+			{#if dreamEnabled}
+				<fieldset class="flex flex-col gap-1.5">
+					<legend class="text-sm font-medium text-ink">{t('dates')}</legend>
+					<div class="grid grid-cols-2 gap-1 rounded-lg bg-surface-sunken p-1">
+						<button
+							type="button"
+							aria-pressed={form.dateMode === 'dated'}
+							onclick={() => (form.dateMode = 'dated')}
+							class="rounded-md px-3 py-2 text-sm font-medium transition-colors {form.dateMode ===
+							'dated'
+								? 'bg-surface text-primary-700 shadow-soft'
+								: 'text-ink-muted hover:text-ink'}"
+						>
+							{t('dates_known')}
+						</button>
+						<button
+							type="button"
+							aria-pressed={form.dateMode === 'dream'}
+							onclick={() => (form.dateMode = 'dream')}
+							class="rounded-md px-3 py-2 text-sm font-medium transition-colors {form.dateMode ===
+							'dream'
+								? 'bg-surface text-primary-700 shadow-soft'
+								: 'text-ink-muted hover:text-ink'}"
+						>
+							{t('dream_option')}
+						</button>
+					</div>
+					<p class="text-xs text-ink-muted">{t('dream_option_desc')}</p>
+				</fieldset>
+			{/if}
+
+			{#if form.dateMode === 'dated'}
+				<div class="grid grid-cols-2 gap-3">
+					<Field label={t('start')} for={fid('start')} required error={errors.startDate}>
+						<Input
+							id={fid('start')}
+							type="date"
+							value={form.startDate}
+							invalid={!!errors.startDate}
+							oninput={(e) => (form.startDate = e.currentTarget.value)}
+						/>
+					</Field>
+					<Field label={t('end')} for={fid('end')} required error={errors.endDate}>
+						<Input
+							id={fid('end')}
+							type="date"
+							value={form.endDate}
+							invalid={!!errors.endDate}
+							oninput={(e) => (form.endDate = e.currentTarget.value)}
+						/>
+					</Field>
+				</div>
+			{:else}
+				<Field
+					label={t('dream_day_count')}
+					for={fid('days')}
+					error={errors.dreamDayCount}
+					hint={t('dream_day_count_hint')}
+				>
 					<Input
-						id={fid('start')}
-						type="date"
-						value={form.startDate}
-						invalid={!!errors.startDate}
-						oninput={(e) => (form.startDate = e.currentTarget.value)}
+						id={fid('days')}
+						type="number"
+						inputmode="numeric"
+						min={1}
+						max={366}
+						value={form.dreamDayCount}
+						invalid={!!errors.dreamDayCount}
+						oninput={(e) => (form.dreamDayCount = e.currentTarget.value)}
 					/>
 				</Field>
-				<Field label={t('end')} for={fid('end')} required error={errors.endDate}>
-					<Input
-						id={fid('end')}
-						type="date"
-						value={form.endDate}
-						invalid={!!errors.endDate}
-						oninput={(e) => (form.endDate = e.currentTarget.value)}
-					/>
-				</Field>
-			</div>
+			{/if}
 
 			<DestinationListEditor
 				bind:destinations={form.destinations}
