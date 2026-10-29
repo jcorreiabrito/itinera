@@ -11,6 +11,12 @@
 	import { flagEnabled } from '$lib/config';
 	import { t } from '$lib/i18n.svelte';
 	import { importTripToLocalDb } from '$lib/db/importer';
+	import { importDreamTemplateToLocalDb, isDreamTemplatePayload } from '$lib/db/dream-template';
+	import {
+		DREAM_TEMPLATE_SAMPLE_FILENAME,
+		buildDreamTemplateSample,
+		downloadJsonTemplate
+	} from '$lib/db/template-samples';
 	import { isDirty, snapshot } from '$lib/utils/form-dirty';
 	import DestinationListEditor from './DestinationListEditor.svelte';
 
@@ -272,7 +278,9 @@
 			}
 
 			// Write directly to local PouchDB. PouchDB's live sync automatically replicates to CouchDB
-			const res = await importTripToLocalDb(payload);
+			const res = isDreamTemplatePayload(payload)
+				? await importDreamTemplateToLocalDb(payload, { homeCurrency: defaultCurrency })
+				: await importTripToLocalDb(payload);
 
 			toast.success(t('import_success'));
 			open = false;
@@ -284,7 +292,7 @@
 		}
 	}
 
-	function downloadTemplate() {
+	function downloadStandardTemplate() {
 		const today = new Date();
 		const pad = (n: number) => String(n).padStart(2, '0');
 		const fmt = (d: Date) => `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}`;
@@ -527,6 +535,13 @@
 		setTimeout(() => URL.revokeObjectURL(url), 0);
 	}
 
+	function downloadDreamTemplate() {
+		downloadJsonTemplate(
+			buildDreamTemplateSample({ defaultCurrency }),
+			DREAM_TEMPLATE_SAMPLE_FILENAME
+		);
+	}
+
 	const choices = $derived([
 		{
 			id: 'blank',
@@ -709,16 +724,25 @@
 				</div>
 			{/if}
 
-			<p class="text-center text-xs text-ink-muted">
-				{t('import_no_json_yet')}
-				<button
-					type="button"
-					onclick={downloadTemplate}
-					class="font-medium text-primary-600 underline-offset-2 hover:underline"
-				>
-					{t('import_download_template')}
-				</button>
-			</p>
+			<div class="flex flex-col items-center gap-2 text-xs text-ink-muted">
+				<span>{t('import_no_json_yet')}</span>
+				<div class="inline-flex overflow-hidden rounded-md border border-border bg-surface">
+					<button
+						type="button"
+						onclick={downloadStandardTemplate}
+						class="px-3 py-1.5 font-medium text-primary-600 transition-colors hover:bg-primary-100/50"
+					>
+						{t('template_standard')}
+					</button>
+					<button
+						type="button"
+						onclick={downloadDreamTemplate}
+						class="border-l border-border px-3 py-1.5 font-medium text-primary-600 transition-colors hover:bg-primary-100/50"
+					>
+						{t('template_dream')}
+					</button>
+				</div>
+			</div>
 		</div>
 	{:else}
 		<form

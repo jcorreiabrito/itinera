@@ -18,12 +18,45 @@ import { bulkPut, getDoc, listTripDocs, nowIso, purgeManyDocs } from './base';
 import { SCHEMA_VERSION } from './constants';
 import { buildPlan } from './date-assignment';
 import { isDreamTrip, isIsoDate } from './date-mode';
-import { dreamDayId, fullTripid, itineraryItemId } from './ids';
+import { dreamDayId, fullTripid, itineraryItemId, tripid } from './ids';
 import { normalizeDocForCompare, type TripUpdateDiff } from './importer';
 import type { AnyDoc, ItineraryCategory, ItineraryItem, Trip, TripDay } from './schemas';
 
 export const DREAM_TEMPLATE_SCHEMA = 'itinera.dream-plan';
 export const DREAM_TEMPLATE_VERSION = 1;
+
+/** The instructions printed into every downloaded template. */
+export const DREAM_TEMPLATE_HOW_TO =
+	'Edit the days and their items, then upload this file with “Update from JSON file”. ' +
+	'New items may omit "id"; existing items keep theirs. An item you remove moves to Ideas. ' +
+	'Weekday wishes use mon, tue, wed, thu, fri, sat or sun. ' +
+	'Costs go in "estCost" as a plain number (total for the whole party) with a three-letter ' +
+	'"currency", for example "estCost": 35, "currency": "EUR".';
+
+/**
+ * Field notes shipped inside the template, next to the data they describe.
+ *
+ * The parser does not read this object: it exists so a person — or a model
+ * asked to fill the file in — can see the exact spelling, type and shape of
+ * the fields that are easiest to get wrong. Costs in particular were being
+ * written as `cost`, `price` or `"35"` and silently dropped.
+ */
+export const DREAM_TEMPLATE_FIELD_GUIDE: Readonly<Record<string, string>> = {
+	'item.estCost':
+		'Optional number. Total estimated cost of the activity for the whole party, e.g. 35 or 120.5. A plain JSON number: no quotes, currency symbols or thousands separators.',
+	'item.currency':
+		'Optional string. Three-letter ISO 4217 code for estCost — EUR, USD, BRL, GBP… Defaults to the trip currency.',
+	'item.id': 'Only on items downloaded from Itinera. Keep it when editing; omit it for a new item.',
+	'item.category': 'Optional. sightseeing, food, transport, lodging, activity, free or other.',
+	'item.allDay':
+		'Optional boolean. true puts the item in the day’s all-day lane; times are ignored.',
+	'item.startTime': 'Optional string. 24-hour HH:MM, e.g. 19:00.',
+	'item.endTime': 'Optional string. 24-hour HH:MM, e.g. 21:00.',
+	'item.order': 'Optional number. Position within its lane; lower comes first.',
+	'item.date': 'Ideas only. Optional ISO date (YYYY-MM-DD), kept as a reference.',
+	'day.weekdayHint': 'Optional wish: mon, tue, wed, thu, fri, sat or sun — or null.',
+	'day.items': 'Activities for this day. Use [] for a free day.'
+};
 
 const CATEGORIES: readonly ItineraryCategory[] = [
 	'sightseeing',
@@ -84,6 +117,7 @@ export interface DreamTemplatePayload {
 	schema: typeof DREAM_TEMPLATE_SCHEMA;
 	version: number;
 	howTo?: string;
+	fieldGuide?: Record<string, string>;
 	trip: { title?: string };
 	days: DreamTemplateDay[];
 	ideas: DreamTemplateItem[];
@@ -149,10 +183,8 @@ export function buildDreamTemplate(
 	return {
 		schema: DREAM_TEMPLATE_SCHEMA,
 		version: DREAM_TEMPLATE_VERSION,
-		howTo:
-			'Edit the days and their items, then upload this file with “Update from JSON file”. ' +
-			'New items may omit "id"; existing items keep theirs. An item you remove moves to Ideas. ' +
-			'Weekday wishes use mon, tue, wed, thu, fri, sat or sun.',
+		howTo: DREAM_TEMPLATE_HOW_TO,
+		fieldGuide: { ...DREAM_TEMPLATE_FIELD_GUIDE },
 		trip: { title: trip.title ?? '' },
 		days: plan.days.map((day) => ({
 			day: day.ordinal,
@@ -210,6 +242,139 @@ function optionalString(value: unknown, path: string): string | undefined {
 	return trimmed ? trimmed : undefined;
 }
 
+/**
+ * Spelling variants models reach for when asked to add a price. The canonical
+ * field is `estCost`; reading the others costs nothing and turns a silently
+ * dropped cost into a working one.
+ */
+const COST_KEYS = [
+	'estCost',
+	'estimatedCost',
+	'estimated_cost',
+	'est_cost',
+	'cost',
+	'price',
+	'costs',
+	'amount'
+] as const;
+const CURRENCY_KEYS = ['currency', 'currencyCode', 'currency_code'] as const;
+const NESTED_AMOUNT_KEYS = ['amount', 'value', 'total', 'estCost', 'price'] as const;
+const CURRENCY_SYMBOLS: Record<string, string> = {
+	'€': 'EUR',
+	'£': 'GBP',
+	R$: 'BRL',
+	$: 'USD',
+	'¥': 'JPY'
+};
+
+/**
+ * Read a cost written as a number, a numeric string ("35", "€12.50",
+ * "1.200,50"), an object with an amount, or a list of cost lines to sum.
+ */
+function costNumber(value: unknown, path: string): number | undefined {
+	if (value == null || value === '') return undefined;
+	if (typeof value === 'number') {
+		if (!Number.isFinite(value)) throw new Error(`${path} must be a number`);
+		return value;
+	}
+	if (typeof value === 'string') {
+		const cleaned = value.trim().replace(/[^\d.,-]/g, '');
+		if (!cleaned) throw new Error(`${path} must be a number`);
+		const lastDot = cleaned.lastIndexOf('.');
+		const lastComma = cleaned.lastIndexOf(',');
+		let normalized = cleaned;
+		if (lastDot >= 0 && lastComma >= 0) {
+			// Both separators: the rightmost one is the decimal mark.
+			const decimal = lastDot > lastComma ? '.' : ',';
+			const thousands = decimal === '.' ? ',' : '.';
+			normalized = normalized.split(thousands).join('');
+			if (decimal === ',') normalized = normalized.replace(',', '.');
+		} else if (lastComma >= 0) {
+			// "12,50" is a decimal comma; "1,200" is a thousands separator.
+			const [whole, fraction, ...rest] = normalized.split(',');
+			normalized =
+				rest.length === 0 && fraction?.length === 2
+					? `${whole}.${fraction}`
+					: normalized.split(',').join('');
+		}
+		const parsed = Number(normalized);
+		if (!Number.isFinite(parsed)) throw new Error(`${path} must be a number`);
+		return parsed;
+	}
+	if (Array.isArray(value)) {
+		if (value.length === 0) return undefined;
+		return value.reduce<number>(
+			(sum, entry, index) => sum + (costNumber(entry, `${path}[${index}]`) ?? 0),
+			0
+		);
+	}
+	if (typeof value === 'object') {
+		const raw = value as Record<string, unknown>;
+		for (const key of NESTED_AMOUNT_KEYS) {
+			if (raw[key] != null) return costNumber(raw[key], `${path}.${key}`);
+		}
+	}
+	throw new Error(`${path} must be a number`);
+}
+
+function nestedCurrency(value: unknown): unknown {
+	if (Array.isArray(value)) {
+		for (const entry of value) {
+			const found = nestedCurrency(entry);
+			if (found != null) return found;
+		}
+		return undefined;
+	}
+	if (value && typeof value === 'object') {
+		const raw = value as Record<string, unknown>;
+		return raw.currency ?? raw.currencyCode ?? undefined;
+	}
+	return undefined;
+}
+
+function currencyCode(value: unknown, path: string): string {
+	if (typeof value !== 'string') {
+		throw new Error(`${path} must be a three-letter currency code (e.g. EUR)`);
+	}
+	const trimmed = value.trim();
+	const code = (CURRENCY_SYMBOLS[trimmed.toUpperCase()] ?? trimmed).toUpperCase();
+	if (!/^[A-Z]{3}$/.test(code)) {
+		throw new Error(`${path} must be a three-letter currency code (e.g. EUR)`);
+	}
+	return code;
+}
+
+/** Read `estCost`/`currency`, accepting the variants listed above. */
+function parseCosts(
+	raw: Record<string, unknown>,
+	path: string
+): { estCost?: number; currency?: string } {
+	let estCost: number | undefined;
+	let value: unknown;
+	for (const key of COST_KEYS) {
+		if (raw[key] != null && raw[key] !== '') {
+			estCost = costNumber(raw[key], `${path}.${key}`);
+			value = raw[key];
+			break;
+		}
+	}
+	if (estCost != null && estCost < 0) {
+		throw new Error(`${path}.estCost must be zero or more`);
+	}
+
+	let currency: string | undefined;
+	for (const key of CURRENCY_KEYS) {
+		if (raw[key] != null && raw[key] !== '') {
+			currency = currencyCode(raw[key], `${path}.${key}`);
+			break;
+		}
+	}
+	const nested = nestedCurrency(value);
+	if (!currency && nested != null) currency = currencyCode(nested, `${path}.currency`);
+
+	return { estCost, currency };
+}
+
 function parseItem(value: unknown, path: string, defaultOrder: number): ParsedItem {
 	const raw = requireObject(value, path);
 	const title = optionalString(raw.title, `${path}.title`);
@@ -234,13 +399,7 @@ function parseItem(value: unknown, path: string, defaultOrder: number): ParsedIt
 		order = Math.round(raw.order);
 	}
 
-	let estCost: number | undefined;
-	if (raw.estCost != null) {
-		if (typeof raw.estCost !== 'number' || !Number.isFinite(raw.estCost)) {
-			throw new Error(`${path}.estCost must be a number`);
-		}
-		estCost = raw.estCost;
-	}
+	const { estCost, currency } = parseCosts(raw, path);
 
 	let date: string | undefined;
 	if (raw.date != null) {
@@ -260,7 +419,7 @@ function parseItem(value: unknown, path: string, defaultOrder: number): ParsedIt
 		endTime: optionalString(raw.endTime, `${path}.endTime`),
 		order,
 		estCost,
-		currency: optionalString(raw.currency, `${path}.currency`),
+		currency,
 		date
 	};
 }
@@ -316,6 +475,15 @@ export function parseDreamTemplate(payload: unknown): ParsedTemplate {
 		days,
 		ideas
 	};
+}
+
+/** True when an uploaded payload is the compact dream-plan format. */
+export function isDreamTemplatePayload(payload: unknown): boolean {
+	return (
+		!!payload &&
+		typeof payload === 'object' &&
+		(payload as { schema?: unknown }).schema === DREAM_TEMPLATE_SCHEMA
+	);
 }
 
 /** Resolve a template item id to a full document id inside the target trip. */
@@ -534,6 +702,100 @@ export async function prepareDreamTemplateDiff(
 			if (purgeIds.length) await purgeManyDocs(purgeIds);
 		}
 	};
+}
+
+/** The trip and item count produced by importing a dream template. */
+export interface DreamImportResult {
+	trip: Trip;
+	docCount: number;
+}
+
+/** Build a fresh itinerary item document from one parsed template entry. */
+function itemDoc(entry: ParsedItem, ordinal: number | null, tripId: string, now: string): AnyDoc {
+	const doc: Record<string, unknown> = {
+		_id: itineraryItemId(tripId),
+		type: 'itineraryItem',
+		tripId,
+		tripid: tripId,
+		title: entry.title,
+		allDay: entry.allDay,
+		date: ordinal == null ? (entry.date ?? null) : null,
+		dayOrdinal: ordinal,
+		order: entry.order,
+		createdAt: now,
+		updatedAt: now,
+		deletedAt: null,
+		schemaVersion: SCHEMA_VERSION
+	};
+	if (entry.notes) doc.notes = entry.notes;
+	if (entry.category) doc.category = entry.category;
+	if (entry.startTime) doc.startTime = entry.startTime;
+	if (entry.endTime) doc.endTime = entry.endTime;
+	if (entry.estCost != null) doc.estCost = entry.estCost;
+	if (entry.currency) doc.currency = entry.currency;
+	return doc as unknown as AnyDoc;
+}
+
+/**
+ * Create a brand-new dream trip from a downloaded template.
+ *
+ * This is the creation counterpart of `prepareDreamTemplateDiff`: the import
+ * screen offers the dream sample as a starter, and the full export importer
+ * cannot read the compact format. Fresh ids are generated for every document,
+ * so a template downloaded from one trip can seed another without collision.
+ */
+export async function importDreamTemplateToLocalDb(
+	payload: unknown,
+	options: { homeCurrency?: string } = {}
+): Promise<DreamImportResult> {
+	const parsed = parseDreamTemplate(payload);
+	const tripId = tripid();
+	const now = nowIso();
+
+	const trip: Trip = {
+		_id: tripId,
+		type: 'trip',
+		title: parsed.title ?? 'Dream trip',
+		dateMode: 'dream',
+		dreamDayCount: parsed.days.length,
+		homeCurrency: options.homeCurrency ?? 'EUR',
+		archived: false,
+		stage: 'planning',
+		travelerCount: 1,
+		destinations: [],
+		tags: [],
+		createdAt: now,
+		updatedAt: now,
+		deletedAt: null,
+		schemaVersion: SCHEMA_VERSION
+	};
+
+	const docs: AnyDoc[] = [trip as unknown as AnyDoc];
+
+	for (const day of parsed.days) {
+		if (day.title || day.notes || day.weekdayHint != null) {
+			const dayDoc: Record<string, unknown> = {
+				_id: dreamDayId(tripId, day.day),
+				type: 'tripDay',
+				tripId,
+				tripid: tripId,
+				ordinal: day.day,
+				weekdayHint: day.weekdayHint,
+				createdAt: now,
+				updatedAt: now,
+				deletedAt: null,
+				schemaVersion: SCHEMA_VERSION
+			};
+			if (day.title) dayDoc.title = day.title;
+			if (day.notes) dayDoc.notes = day.notes;
+			docs.push(dayDoc as unknown as AnyDoc);
+		}
+		for (const item of day.items) docs.push(itemDoc(item, day.day, tripId, now));
+	}
+	for (const idea of parsed.ideas) docs.push(itemDoc(idea, null, tripId, now));
+
+	await bulkPut(docs);
+	return { trip, docCount: docs.length };
 }
 
 /** Read the stored plan and build its editable payload. */

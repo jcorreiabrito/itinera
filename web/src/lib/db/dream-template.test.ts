@@ -10,16 +10,18 @@
 import { describe, expect, it } from 'vitest';
 import PouchDB from 'pouchdb-browser';
 import memory from 'pouchdb-adapter-memory';
-import { getDoc } from './base';
+import { getDoc, listTripDocs } from './base';
 import { configureDb } from './pouch';
 import { dreamDayId } from './ids';
 import {
 	dreamTemplateForTrip,
+	importDreamTemplateToLocalDb,
 	parseDreamTemplate,
 	prepareDreamTemplateDiff,
 	type DreamTemplatePayload
 } from './dream-template';
-import type { TripDay } from './schemas';
+import { buildDreamTemplateSample } from './template-samples';
+import type { ItineraryItem, TripDay } from './schemas';
 import {
 	create as createItem,
 	get as getItem,
@@ -106,6 +108,93 @@ describe('buildDreamTemplate', () => {
 			homeCurrency: 'EUR'
 		});
 		await expect(dreamTemplateForTrip(trip._id)).rejects.toThrow(/not a dream plan/);
+	});
+});
+
+describe('costs in the editable format', () => {
+	it('documents the cost fields in every downloaded template', async () => {
+		freshDb();
+		const trip = await makeDreamTrip(1);
+
+		const payload = await dreamTemplateForTrip(trip._id);
+
+		expect(payload.howTo).toMatch(/estCost/);
+		expect(payload.howTo).toMatch(/currency/);
+		expect(payload.fieldGuide?.['item.estCost']).toMatch(/total estimated cost/i);
+		expect(payload.fieldGuide?.['item.currency']).toMatch(/ISO 4217/);
+	});
+
+	it('round-trips an edited cost through the diff', async () => {
+		freshDb();
+		const trip = await makeDreamTrip(2);
+		const dinner = await createItem(trip._id, {
+			title: 'Dinner',
+			dayOrdinal: 1,
+			estCost: 35,
+			currency: 'EUR'
+		});
+
+		const payload = editable(await dreamTemplateForTrip(trip._id));
+		expect(payload.days[0].items[0]).toMatchObject({ estCost: 35, currency: 'EUR' });
+		payload.days[0].items[0].estCost = 40;
+
+		const diff = await prepareDreamTemplateDiff(trip._id, payload);
+		expect(diff.updated).toHaveLength(1);
+		await diff.apply?.();
+
+		expect((await getItem(dinner._id))?.estCost).toBe(40);
+	});
+
+	it('accepts the cost spellings people and models commonly produce', () => {
+		const payload = {
+			schema: 'itinera.dream-plan',
+			version: 1,
+			days: [
+				{
+					day: 1,
+					items: [
+						{ title: 'Alias', cost: 25 },
+						{ title: 'String', price: '€12.50' },
+						{ title: 'Nested', estimatedCost: { amount: 40, currency: 'usd' } },
+						{
+							title: 'Lines',
+							costs: [{ label: 'Tickets', amount: 10 }, { amount: '5,50' }]
+						},
+						{ title: 'Localized', estCost: 'R$ 1.200,50', currency: 'brl' },
+						{ title: 'Symbol', estCost: 9, currency: '€' }
+					]
+				}
+			],
+			ideas: []
+		};
+
+		const items = parseDreamTemplate(payload).days[0].items;
+		expect(items.map((item) => [item.estCost, item.currency])).toEqual([
+			[25, undefined],
+			[12.5, undefined],
+			[40, 'USD'],
+			[15.5, undefined],
+			[1200.5, 'BRL'],
+			[9, 'EUR']
+		]);
+	});
+
+	it('rejects a cost it cannot read, naming the field', () => {
+		const payload = {
+			schema: 'itinera.dream-plan',
+			version: 1,
+			days: [{ day: 1, items: [{ title: 'Bad', estCost: 'free' }] }],
+			ideas: []
+		};
+		expect(() => parseDreamTemplate(payload)).toThrow(/days\[0\]\.items\[0\]\.estCost/);
+
+		const negative = {
+			schema: 'itinera.dream-plan',
+			version: 1,
+			days: [{ day: 1, items: [{ title: 'Negative', estCost: -5 }] }],
+			ideas: []
+		};
+		expect(() => parseDreamTemplate(negative)).toThrow(/zero or more/);
 	});
 });
 
@@ -298,5 +387,48 @@ describe('prepareDreamTemplateDiff', () => {
 			days: [{ day: 1, items: [{ id: 'itin:OTHER:xyz', title: 'Elsewhere' }] }]
 		};
 		await expect(prepareDreamTemplateDiff(dream._id, foreign)).rejects.toThrow(/another trip/);
+	});
+});
+
+describe('importDreamTemplateToLocalDb', () => {
+	it('creates a dream trip from the downloaded sample', async () => {
+		freshDb();
+		const sample = buildDreamTemplateSample({ defaultCurrency: 'BRL' });
+
+		const result = await importDreamTemplateToLocalDb(sample, { homeCurrency: 'BRL' });
+
+		expect(result.trip.dateMode).toBe('dream');
+		expect(result.trip.dreamDayCount).toBe(3);
+		expect(result.trip.title).toBe('My Dream Trip');
+		expect(result.trip.homeCurrency).toBe('BRL');
+
+		const stored = await getTrip(result.trip._id);
+		expect(stored?.dateMode).toBe('dream');
+		expect(stored?.dreamDayCount).toBe(3);
+
+		const days = await listTripDocs<TripDay>('tripDay', result.trip._id);
+		expect(days).toHaveLength(3);
+		expect(days.find((day) => day.ordinal === 2)?.weekdayHint).toBe(6);
+
+		const items = await listTripDocs<ItineraryItem>('itineraryItem', result.trip._id);
+		expect(items).toHaveLength(5);
+		const market = items.find((item) => item.title === 'Saturday market');
+		expect(market?.dayOrdinal).toBe(2);
+		expect(market?.date).toBeNull();
+		expect(market?.estCost).toBe(20);
+		expect(market?.currency).toBe('BRL');
+		const idea = items.find((item) => item.title === 'Museum visit for a rainy afternoon');
+		expect(idea?.dayOrdinal).toBeNull();
+		expect(idea?.estCost).toBe(18);
+
+		const roundTrip = await dreamTemplateForTrip(result.trip._id);
+		expect(roundTrip.days.map((day) => day.day)).toEqual([1, 2, 3]);
+		expect(roundTrip.days[1].weekdayHint).toBe('sat');
+		expect(roundTrip.ideas[0].title).toBe('Museum visit for a rainy afternoon');
+	});
+
+	it('rejects a payload that is not a dream plan', async () => {
+		freshDb();
+		await expect(importDreamTemplateToLocalDb({ schema: 'other' })).rejects.toThrow();
 	});
 });

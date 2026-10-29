@@ -66,11 +66,28 @@ export type LinkedType = (typeof LINKED_TYPES)[number];
 
 // --- Shared base -----------------------------------------------------------
 
+/**
+ * An optional field that also accepts `null` as "not set".
+ *
+ * Hand-edited JSON and the importer spell an absent value as `null`, while
+ * `z.string().optional()` accepts only `undefined`. A trip imported with
+ * `"startDate": null` could therefore be read but never written again:
+ * archiving, editing or deleting it failed validation. `preprocess` maps the
+ * `null` to `undefined`, so the document is cleaned on its next write and the
+ * inferred TypeScript type stays `T | undefined` rather than gaining `null`.
+ *
+ * Fields where `null` is a real value (`deletedAt`, `dayOrdinal`, a linked id)
+ * keep their explicit `.nullable()`.
+ */
+function optional<T extends z.ZodTypeAny>(schema: T) {
+	return z.preprocess((value) => (value === null ? undefined : value), schema.optional());
+}
+
 /** Fields stamped on every write and required by this layer's own writes. */
 const baseShape = {
 	_id: z.string(),
-	_rev: z.string().optional(),
-	tripid: z.string().optional(),
+	_rev: optional(z.string()),
+	tripid: optional(z.string()),
 	createdAt: z.string(),
 	updatedAt: z.string(),
 	deletedAt: z.string().nullable().default(null),
@@ -81,32 +98,32 @@ const baseShape = {
 
 export const destinationSchema = z
 	.object({
-		id: z.string().optional(),
+		id: optional(z.string()),
 		name: z.string(),
-		country: z.string().optional(),
-		lat: z.number().optional(),
-		lng: z.number().optional(),
-		arriveDate: z.string().optional(),
-		departDate: z.string().optional()
+		country: optional(z.string()),
+		lat: optional(z.number()),
+		lng: optional(z.number()),
+		arriveDate: optional(z.string()),
+		departDate: optional(z.string())
 	})
 	.passthrough();
 export type Destination = z.infer<typeof destinationSchema>;
 
 export const budgetSchema = z
 	.object({
-		total: z.number().optional(),
-		byCategory: z.record(z.number()).optional(),
-		perDay: z.number().optional()
+		total: optional(z.number()),
+		byCategory: optional(z.record(z.number())),
+		perDay: optional(z.number())
 	})
 	.passthrough();
 export type Budget = z.infer<typeof budgetSchema>;
 
 export const geolocationSchema = z
 	.object({
-		name: z.string().optional(),
-		address: z.string().optional(),
-		lat: z.number().optional(),
-		lng: z.number().optional()
+		name: optional(z.string()),
+		address: optional(z.string()),
+		lat: optional(z.number()),
+		lng: optional(z.number())
 	})
 	.passthrough();
 export type GeoLocation = z.infer<typeof geolocationSchema>;
@@ -114,37 +131,37 @@ export type GeoLocation = z.infer<typeof geolocationSchema>;
 /** Airport snapshot copied onto a flight segment (stable even if the dataset changes). */
 export const airportSnapshotSchema = z
 	.object({
-		code: z.string().optional(),
-		name: z.string().optional(),
-		city: z.string().optional(),
-		tz: z.string().optional()
+		code: optional(z.string()),
+		name: optional(z.string()),
+		city: optional(z.string()),
+		tz: optional(z.string())
 	})
 	.passthrough();
 export type AirportSnapshot = z.infer<typeof airportSnapshotSchema>;
 
 export const flightSegmentSchema = z
 	.object({
-		airline: z.string().optional(),
-		flightNumber: z.string().optional(),
-		from: airportSnapshotSchema.optional(),
-		to: airportSnapshotSchema.optional(),
-		departLocal: z.string().optional(),
-		arriveLocal: z.string().optional(),
-		seat: z.string().optional(),
-		terminal: z.string().optional(),
-		gate: z.string().optional(),
-		baggage: z.string().optional(),
-		checkInOpensAt: z.string().optional(),
-		notes: z.string().optional()
+		airline: optional(z.string()),
+		flightNumber: optional(z.string()),
+		from: optional(airportSnapshotSchema),
+		to: optional(airportSnapshotSchema),
+		departLocal: optional(z.string()),
+		arriveLocal: optional(z.string()),
+		seat: optional(z.string()),
+		terminal: optional(z.string()),
+		gate: optional(z.string()),
+		baggage: optional(z.string()),
+		checkInOpensAt: optional(z.string()),
+		notes: optional(z.string())
 	})
 	.passthrough();
 export type FlightSegment = z.infer<typeof flightSegmentSchema>;
 
 export const reservationContactSchema = z
 	.object({
-		phone: z.string().optional(),
-		email: z.string().optional(),
-		url: z.string().optional()
+		phone: optional(z.string()),
+		email: optional(z.string()),
+		url: optional(z.string())
 	})
 	.passthrough();
 export type ReservationContact = z.infer<typeof reservationContactSchema>;
@@ -152,11 +169,11 @@ export type ReservationContact = z.infer<typeof reservationContactSchema>;
 export const checklistTemplateItemSchema = z
 	.object({
 		text: z.string(),
-		group: z.string().optional(),
-		order: z.number().optional(),
-		note: z.string().optional(),
-		quantity: z.number().optional(),
-		important: z.boolean().optional()
+		group: optional(z.string()),
+		order: optional(z.number()),
+		note: optional(z.string()),
+		quantity: optional(z.number()),
+		important: optional(z.boolean())
 	})
 	.passthrough();
 export type ChecklistTemplateItem = z.infer<typeof checklistTemplateItemSchema>;
@@ -208,26 +225,26 @@ export const tripSchema = z
 	.object({
 		...baseShape,
 		type: z.literal('trip'),
-		title: z.string().optional(),
+		title: optional(z.string()),
 		destinations: z.array(destinationSchema).default([]),
-		startDate: z.string().optional(),
-		endDate: z.string().optional(),
+		startDate: optional(z.string()),
+		endDate: optional(z.string()),
 		/**
 		 * How the trip's day list is defined. Absent means "infer": a trip with
 		 * both dates is dated, a trip with neither is a dream. Storing it
 		 * explicitly once the user chooses avoids re-deriving from partial data.
 		 */
-		dateMode: z.enum(['dated', 'dream']).optional(),
+		dateMode: optional(z.enum(['dated', 'dream'])),
 		/** Number of numbered days on a dream trip (the authoritative length). */
-		dreamDayCount: z.number().int().min(1).max(366).optional(),
-		primaryTimezone: z.string().optional(),
+		dreamDayCount: optional(z.number().int().min(1).max(366)),
+		primaryTimezone: optional(z.string()),
 		archived: z.boolean().default(false),
 		archivedAt: z.string().nullable().optional(),
-		homeCurrency: z.string().optional(),
-		budget: budgetSchema.optional(),
+		homeCurrency: optional(z.string()),
+		budget: optional(budgetSchema),
 		stage: z.enum(['planning', 'confirmed']).default('confirmed'),
 		coverImageAttId: z.string().nullable().optional(),
-		notes: z.string().optional(),
+		notes: optional(z.string()),
 		tags: z.array(z.string()).default([]),
 		travelerCount: z.number().int().min(1).default(1)
 	})
@@ -238,13 +255,13 @@ export const tripDaySchema = z
 	.object({
 		...baseShape,
 		type: z.literal('tripDay'),
-		date: z.string().optional(),
+		date: optional(z.string()),
 		/** Dream-plan position. Dated day docs leave this absent. */
-		ordinal: z.number().int().min(1).optional(),
+		ordinal: optional(z.number().int().min(1)),
 		/** Soft weekday wish, 1 = Monday … 7 = Sunday. Dream mode only. */
 		weekdayHint: z.number().int().min(1).max(7).nullable().optional(),
-		title: z.string().optional(),
-		notes: z.string().optional()
+		title: optional(z.string()),
+		notes: optional(z.string())
 	})
 	.passthrough();
 export type TripDay = z.infer<typeof tripDaySchema>;
@@ -267,17 +284,17 @@ export const itineraryItemSchema = z
 		/** Dream-plan position. Mutually exclusive with `date` in stored data. */
 		dayOrdinal: z.number().int().min(1).nullable().optional(),
 		allDay: z.boolean().default(false),
-		startTime: z.string().optional(),
-		endTime: z.string().optional(),
-		title: z.string().optional(),
-		category: itineraryCategorySchema.optional(),
-		location: geolocationSchema.optional(),
-		notes: z.string().optional(),
+		startTime: optional(z.string()),
+		endTime: optional(z.string()),
+		title: optional(z.string()),
+		category: optional(itineraryCategorySchema),
+		location: optional(geolocationSchema),
+		notes: optional(z.string()),
 		linkedFlightId: z.string().nullable().optional(),
 		linkedReservationId: z.string().nullable().optional(),
-		estCost: z.number().optional(),
-		currency: z.string().optional(),
-		costs: z.array(itineraryCostItemSchema).optional(),
+		estCost: optional(z.number()),
+		currency: optional(z.string()),
+		costs: optional(z.array(itineraryCostItemSchema)),
 		order: z.number().default(0)
 	})
 	.passthrough();
@@ -287,15 +304,15 @@ export const checklistItemSchema = z
 	.object({
 		...baseShape,
 		type: z.literal('checklistItem'),
-		text: z.string().optional(),
-		group: z.string().optional(),
+		text: optional(z.string()),
+		group: optional(z.string()),
 		done: z.boolean().default(false),
 		doneAt: z.string().nullable().optional(),
 		dueDate: z.string().nullable().optional(),
 		date: z.string().nullable().optional(),
-		note: z.string().optional(),
-		quantity: z.number().optional(),
-		important: z.boolean().optional(),
+		note: optional(z.string()),
+		quantity: optional(z.number()),
+		important: optional(z.boolean()),
 		order: z.number().default(0)
 	})
 	.passthrough();
@@ -305,11 +322,11 @@ export const flightSchema = z
 	.object({
 		...baseShape,
 		type: z.literal('flight'),
-		bookingRef: z.string().optional(),
-		checkInUrl: z.string().optional(),
+		bookingRef: optional(z.string()),
+		checkInUrl: optional(z.string()),
 		segments: z.array(flightSegmentSchema).default([]),
-		cost: z.number().optional(),
-		currency: z.string().optional(),
+		cost: optional(z.number()),
+		currency: optional(z.string()),
 		attachmentIds: z.array(z.string()).default([]),
 		order: z.number().default(0),
 		costType: z.enum(['total', 'per_person']).default('total')
@@ -321,17 +338,17 @@ export const reservationSchema = z
 	.object({
 		...baseShape,
 		type: z.literal('reservation'),
-		kind: reservationKindSchema.optional(),
-		name: z.string().optional(),
-		location: geolocationSchema.optional(),
+		kind: optional(reservationKindSchema),
+		name: optional(z.string()),
+		location: optional(geolocationSchema),
 		start: z.string().nullable().optional(),
 		end: z.string().nullable().optional(),
-		confirmation: z.string().optional(),
-		cost: z.number().optional(),
-		currency: z.string().optional(),
-		contact: reservationContactSchema.optional(),
+		confirmation: optional(z.string()),
+		cost: optional(z.number()),
+		currency: optional(z.string()),
+		contact: optional(reservationContactSchema),
 		details: z.record(z.unknown()).default({}),
-		notes: z.string().optional(),
+		notes: optional(z.string()),
 		attachmentIds: z.array(z.string()).default([]),
 		order: z.number().default(0),
 		costType: z.enum(['total', 'per_person']).default('total')
@@ -344,11 +361,11 @@ export const expenseSchema = z
 		...baseShape,
 		type: z.literal('expense'),
 		date: z.string().nullable().optional(),
-		category: expenseCategorySchema.optional(),
-		description: z.string().optional(),
+		category: optional(expenseCategorySchema),
+		description: optional(z.string()),
 		amountEstimate: z.number().nullable().optional(),
 		amountActual: z.number().nullable().optional(),
-		currency: z.string().optional(),
+		currency: optional(z.string()),
 		fxRate: z.number().nullable().optional(),
 		paid: z.boolean().default(false),
 		linkedType: z.enum(LINKED_TYPES).nullable().optional(),
@@ -362,14 +379,14 @@ export const attachmentSchema = z
 	.object({
 		...baseShape,
 		type: z.literal('attachment'),
-		filename: z.string().optional(),
-		mime: z.string().optional(),
+		filename: optional(z.string()),
+		mime: optional(z.string()),
 		/** View-safe MIME derived from `mime` (inline-renderable types pass through,
 		 * everything else becomes `application/octet-stream`). See `attachment-mime.ts`. */
-		safeMime: z.string().optional(),
-		size: z.number().optional(),
-		ownerType: z.string().optional(),
-		ownerId: z.string().optional()
+		safeMime: optional(z.string()),
+		size: optional(z.number()),
+		ownerType: optional(z.string()),
+		ownerId: optional(z.string())
 	})
 	.passthrough();
 export type Attachment = z.infer<typeof attachmentSchema>;
@@ -378,8 +395,8 @@ export const checklistTemplateSchema = z
 	.object({
 		...baseShape,
 		type: z.literal('checklistTemplate'),
-		name: z.string().optional(),
-		isDefault: z.boolean().optional(),
+		name: optional(z.string()),
+		isDefault: optional(z.boolean()),
 		items: z.array(checklistTemplateItemSchema).default([])
 	})
 	.passthrough();
@@ -389,24 +406,24 @@ export const settingsSchema = z
 	.object({
 		...baseShape,
 		type: z.literal('settings'),
-		homeCurrencyDefault: z.string().optional(),
+		homeCurrencyDefault: optional(z.string()),
 		defaultChecklistTemplateId: z.string().nullable().optional(),
-		theme: themePrefSchema.optional(),
+		theme: optional(themePrefSchema),
 		/**
 		 * List density. Defaulted here as well as in the repository so a settings
 		 * document written before this field existed still reads as a complete
 		 * preference rather than leaving every reader to guess.
 		 */
 		density: densityPrefSchema.default('comfortable'),
-		firstDayOfWeek: z.number().int().optional(),
-		language: z.string().optional(),
-		cartoApiKey: z.string().optional(),
+		firstDayOfWeek: optional(z.number().int()),
+		language: optional(z.string()),
+		cartoApiKey: optional(z.string()),
 		/**
 		 * Days a deleted document is kept in the Trash before it is purged for
 		 * good. `0` — the default, and what an absent field means — keeps
 		 * everything: purging is irreversible, so it stays opt-in.
 		 */
-		trashRetentionDays: z.number().int().min(0).optional()
+		trashRetentionDays: optional(z.number().int().min(0))
 	})
 	.passthrough();
 export type Settings = z.infer<typeof settingsSchema>;

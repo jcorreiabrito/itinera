@@ -10,7 +10,10 @@ export default defineConfig({
 	},
 	webServer: {
 		command: 'pnpm run build && pnpm run preview',
-		port: 4173,
+		// Wait for a served page, not just a listening port: `vite preview` binds
+		// before its static middleware answers, so port-only readiness let the
+		// first tests race the server and receive a 500.
+		url: 'http://localhost:4173/',
 		reuseExistingServer: !process.env.CI,
 		timeout: 120_000
 	}

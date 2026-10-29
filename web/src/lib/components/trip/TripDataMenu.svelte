@@ -17,8 +17,8 @@
 	import { downloadTripExport, downloadTripPdf } from '$lib/api';
 	import { prepareTripUpdateDiff, executeTripUpdate, type TripUpdateDiff } from '$lib/db/importer';
 	import {
-		DREAM_TEMPLATE_SCHEMA,
 		downloadDreamTemplate,
+		isDreamTemplatePayload,
 		prepareDreamTemplateDiff
 	} from '$lib/db/dream-template';
 	import { cn } from '$lib/utils';
@@ -127,9 +127,7 @@
 	 * itself rather than by a mode switch the user would have to remember.
 	 */
 	function prepareDiff(payload: unknown): Promise<TripUpdateDiff> {
-		const schema =
-			payload && typeof payload === 'object' ? (payload as { schema?: unknown }).schema : undefined;
-		return schema === DREAM_TEMPLATE_SCHEMA
+		return isDreamTemplatePayload(payload)
 			? prepareDreamTemplateDiff(tripid, payload)
 			: prepareTripUpdateDiff(tripid, payload);
 	}

@@ -185,11 +185,13 @@
 		touchDiffY = 0;
 	}
 
+	// `max-w-none` cancels the UA dialog cap (`max-width: calc(100% - 6px - 2em)`),
+	// which otherwise leaves a strip of the page visible beside a phone sheet.
 	const sideClasses: Record<SheetSide, string> = {
 		bottom:
-			'm-auto mb-0 mt-auto w-full max-w-2xl rounded-t-xl rounded-b-none max-sm:m-0 max-sm:mt-auto max-sm:w-full max-sm:rounded-t-2xl max-sm:rounded-b-none max-sm:max-h-[var(--visual-viewport-height,90dvh)]',
+			'm-auto mb-0 mt-auto w-full max-w-2xl rounded-t-xl rounded-b-none max-sm:m-0 max-sm:mt-auto max-sm:w-full max-sm:rounded-t-2xl max-sm:rounded-b-none max-sm:max-w-none max-sm:max-h-[var(--visual-viewport-height,90dvh)]',
 		right:
-			'my-auto ml-auto mr-0 h-[100dvh] max-h-[100dvh] w-full sm:w-[28rem] rounded-none sm:rounded-l-xl max-sm:m-0 max-sm:mt-auto max-sm:w-full max-sm:rounded-t-2xl max-sm:rounded-b-none max-sm:h-auto max-sm:max-h-[var(--visual-viewport-height,90dvh)]'
+			'my-auto ml-auto mr-0 h-[100dvh] max-h-[100dvh] w-full max-w-none sm:w-[28rem] rounded-none sm:rounded-l-xl max-sm:m-0 max-sm:mt-auto max-sm:w-full max-sm:rounded-t-2xl max-sm:rounded-b-none max-sm:h-auto max-sm:max-h-[var(--visual-viewport-height,90dvh)]'
 	};
 
 	const openAnimation: Record<SheetSide, string> = {

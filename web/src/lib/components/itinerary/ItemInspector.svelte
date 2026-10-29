@@ -53,6 +53,37 @@
 	let formSaving = $state(false);
 	let formDirty = $state(false);
 	let formRef = $state<{ save: () => Promise<void> } | null>(null);
+	let asideEl = $state<HTMLElement>();
+
+	/*
+	 * The pane shares the page scroll with the plan and starts below the
+	 * itinerary toolbar (~15rem at the default type). Sizing it from the sticky
+	 * `top-20` therefore let its Save footer hang below the fold until the user
+	 * scrolled. Measure the grid row instead: the pane may fill from its natural
+	 * top to the viewport bottom at first paint; sticking only frees more room.
+	 */
+	let paneMaxHeight = $state<number | null>(null);
+
+	function measurePane(): void {
+		const grid = asideEl?.parentElement;
+		if (!grid) return;
+		const gridTop = grid.getBoundingClientRect().top + window.scrollY;
+		paneMaxHeight = Math.max(240, Math.round(window.innerHeight - gridTop - 16));
+	}
+
+	$effect(() => {
+		if (!asideEl) return;
+		measurePane();
+		window.addEventListener('resize', measurePane);
+		// Banners, font swaps and day metadata can move the grid down after mount.
+		const observer = new ResizeObserver(measurePane);
+		observer.observe(document.body);
+		void document.fonts?.ready.then(measurePane).catch(() => undefined);
+		return () => {
+			window.removeEventListener('resize', measurePane);
+			observer.disconnect();
+		};
+	});
 	// The docked editor has no Sheet around it to run the discard guard, so it
 	// carries the same prompt here. Escape and the X must not be a faster way
 	// to lose a draft than closing the sheet is.
@@ -81,9 +112,13 @@
 	}
 </script>
 
+<!-- The class max-height is the pre-measurement fallback; the effect above sets
+	the exact value from the grid's real position. -->
 <aside
+	bind:this={asideEl}
 	aria-labelledby="itinerary-inspector-heading"
-	class="sticky top-20 flex max-h-[calc(100dvh-6rem)] flex-col overflow-hidden rounded-xl border border-border bg-surface shadow-soft"
+	style:max-height={paneMaxHeight == null ? undefined : `${paneMaxHeight}px`}
+	class="sticky top-20 flex max-h-[calc(100dvh-17rem)] flex-col overflow-hidden rounded-xl border border-border bg-surface shadow-soft"
 >
 	<header class="flex items-start justify-between gap-2 border-b border-border px-3 py-2.5">
 		<div class="min-w-0">
